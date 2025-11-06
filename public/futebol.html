@@ -7,7 +7,7 @@
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <style>
   body {
-    background: #0d001f;
+    background: linear-gradient(135deg, #2e026d, #5f0a87, #120438);
     overflow-x: hidden;
     font-family: 'Segoe UI', sans-serif;
     color: white;
@@ -19,7 +19,7 @@
     position: absolute;
     background: white;
     border-radius: 50%;
-    opacity: 0.5;
+    opacity: 0.3;
     animation: moveStar linear infinite;
   }
 
@@ -98,6 +98,7 @@
 <body>
 
 <script>
+  // Criar estrelas na diagonal
   for(let i=0;i<200;i++){
     const star=document.createElement('div');
     star.className='star';
@@ -167,31 +168,26 @@ async function carregarJogos(leagueCode='BSA'){
 
     jogosContainer.innerHTML='';
     data.matches.forEach(jogo=>{
-  const dataJogo = new Date(jogo.utcDate || jogo.date);
-  const dia = dataJogo.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
-  const hora = dataJogo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const status=statusPT[jogo.status]||jogo.status;
+      const dataJogo = new Date(jogo.utcDate || jogo.date);
+      const dia = dataJogo.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+      const hora = dataJogo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const status=statusPT[jogo.status]||jogo.status;
 
-  const homeLogo = `/public/logos/${jogo.homeTeam.name.replace(/ /g,'_')}.png`;
-  const awayLogo = `/public/logos/${jogo.awayTeam.name.replace(/ /g,'_')}.png`;
-
-  const card=`
-  <div class="card-jogo">
-    <div class="flex items-center space-x-3">
-      <img src="${homeLogo}" alt="${jogo.homeTeam.name}">
-      <span class="font-semibold">${jogo.homeTeam.name}</span>
-    </div>
-    <div class="text-center">
-      <span class="text-lg font-bold">${dia} ${hora}</span>
-      <p class="text-sm text-gray-300">${status}</p>
-    </div>
-    <div class="flex items-center space-x-3">
-      <span class="font-semibold">${jogo.awayTeam.name}</span>
-      <img src="${awayLogo}" alt="${jogo.awayTeam.name}">
-    </div>
-  </div>`;
-  jogosContainer.innerHTML+=card;
-});
+      const card=`
+      <div class="card-jogo">
+        <div class="flex flex-col items-center space-y-1">
+          <span class="font-semibold">${jogo.homeTeam.name}</span>
+        </div>
+        <div class="text-center">
+          <span class="text-lg font-bold">${dia} ${hora}</span>
+          <p class="text-sm text-gray-300">${status}</p>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <span class="font-semibold">${jogo.awayTeam.name}</span>
+        </div>
+      </div>`;
+      jogosContainer.innerHTML+=card;
+    });
 
   }catch(err){
     console.error(err);

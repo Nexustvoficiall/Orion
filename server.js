@@ -32,7 +32,7 @@ app.get("/api/jogos", async (req, res) => {
       `https://api.football-data.org/v4/competitions/${leagueCode}/matches`,
       {
         headers: {
-          "X-Auth-Token": process.env.FOOTBALL_API_KEY || "be058923191e494ba758d5301d72abd3"
+          "X-Auth-Token": process.env.FOOTBALL_KEY
         }
       }
     );
@@ -44,8 +44,10 @@ app.get("/api/jogos", async (req, res) => {
 
     const data = await response.json();
 
-    // Filtra apenas a rodada atual (matchday)
-    const matchday = data.filters.matchday || (data.matches[0] && data.matches[0].matchday) || 1;
+    // Pega a rodada atual (matchday) ou usa 1 como fallback
+    const matchday = data.filters?.matchday || (data.matches[0]?.matchday) || 1;
+
+    // Filtra apenas os jogos da rodada atual
     const jogosRodada = data.matches.filter(m => m.matchday === matchday);
 
     res.json({
