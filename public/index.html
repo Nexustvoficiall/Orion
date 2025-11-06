@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orion Lab 🚀 - Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <img src="images/logo.png" alt="Orion Lab Logo" class="logo" />
+    <h1 class="neon-title">🌌 Orion Lab</h1>
+    <p class="neon-subtitle">Entre na sua conta e explore o universo das artes 🚀</p>
+
+    <!-- FORM DE LOGIN -->
+    <div class="auth-box">
+      <h2>Entrar</h2>
+      <input type="email" id="login-email" placeholder="E-mail" />
+      <input type="password" id="login-password" placeholder="Senha" />
+      <button id="login-btn">Entrar</button>
+      <a href="#" id="reset-btn" class="link">Esqueci minha senha</a>
+      <p class="link" style="margin-top:15px;">
+        Não tem uma conta?
+        <a href="register.html" class="link">Criar conta</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Firebase Auth -->
+  <script type="module" src="auth.js"></script>
+</body>
+</html>

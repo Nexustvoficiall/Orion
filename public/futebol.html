@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚽ Jogos da Rodada - Orion</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+  body {
+    background: #0d001f;
+    overflow-x: hidden;
+    font-family: 'Segoe UI', sans-serif;
+    color: white;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.5;
+    animation: moveStar linear infinite;
+  }
+
+  @keyframes moveStar {
+    from { transform: translateX(0) translateY(0); }
+    to { transform: translateX(-2000px) translateY(-1000px); }
+  }
+
+  header {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+    position: relative;
+    z-index: 10;
+  }
+
+  header h1 {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #c78fff;
+    text-shadow: 0 0 10px #c78fff, 0 0 20px #7b4eff, 0 0 30px #5a2fff;
+  }
+
+  header p, #rodada {
+    color: #aaa6ff;
+    font-size: 1.2rem;
+    margin-top: 0.5rem;
+  }
+
+  .liga-btn {
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  main {
+    max-width: 4xl;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    position: relative;
+    z-index: 10;
+  }
+
+  .card-jogo {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: 0.3s;
+  }
+
+  .card-jogo:hover {
+    background: rgba(255,255,255,0.15);
+  }
+
+  .card-jogo img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding: 2rem 1rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.875rem;
+    color: #aaa6ff;
+    position: relative;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<script>
+  for(let i=0;i<200;i++){
+    const star=document.createElement('div');
+    star.className='star';
+    const size=Math.random()*2+1;
+    star.style.width=size+'px';
+    star.style.height=size+'px';
+    star.style.top=Math.random()*window.innerHeight+'px';
+    star.style.left=Math.random()*window.innerWidth+'px';
+    star.style.opacity=Math.random()*0.5+0.2;
+    star.style.animationDuration=(Math.random()*20+10)+'s';
+    document.body.appendChild(star);
+  }
+</script>
+
+<header>
+  <h1>⚽ Jogos da Rodada</h1>
+  <p>Escolha uma liga e veja os próximos jogos</p>
+  <div id="rodada"></div>
+</header>
+
+<div class="flex flex-wrap justify-center gap-3 relative z-10">
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="BSA">🇧🇷 Série A</button>
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="PL">🏴 Premier League</button>
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="BL1">🇩🇪 Bundesliga</button>
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="PD">🇪🇸 La Liga</button>
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="SA">🇮🇹 Serie A</button>
+  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="CL">🏆 Champions League</button>
+</div>
+
+<main>
+  <div id="jogos-hoje" class="grid gap-4"></div>
+</main>
+
+<footer>
+  © 2025 Orion - Todos os direitos reservados
+</footer>
+
+<script>
+const jogosContainer = document.getElementById('jogos-hoje');
+const rodadaEl = document.getElementById('rodada');
+const botoesLiga = document.querySelectorAll('.liga-btn');
+
+const statusPT = {
+  "SCHEDULED": "Agendado",
+  "LIVE": "Ao Vivo",
+  "IN_PLAY": "Em Andamento",
+  "PAUSED": "Pausado",
+  "FINISHED": "Finalizado",
+  "POSTPONED": "Adiado",
+  "CANCELLED": "Cancelado"
+};
+
+async function carregarJogos(leagueCode='BSA'){
+  jogosContainer.innerHTML = '<p class="text-center text-gray-400 animate-pulse">🔄 Carregando jogos...</p>';
+  rodadaEl.textContent='';
+
+  try{
+    const res = await fetch(`/api/jogos?league=${leagueCode}`);
+    const data = await res.json();
+
+    if(!data.matches || data.matches.length===0){
+      jogosContainer.innerHTML='<p class="text-center text-gray-400">⚠️ Nenhum jogo encontrado para esta rodada.</p>';
+      return;
+    }
+
+    if(data.matchday) rodadaEl.textContent=`Rodada ${data.matchday}`;
+
+    jogosContainer.innerHTML='';
+    data.matches.forEach(jogo=>{
+  const dataJogo = new Date(jogo.utcDate || jogo.date);
+  const dia = dataJogo.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+  const hora = dataJogo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const status=statusPT[jogo.status]||jogo.status;
+
+  const homeLogo = `/public/logos/${jogo.homeTeam.name.replace(/ /g,'_')}.png`;
+  const awayLogo = `/public/logos/${jogo.awayTeam.name.replace(/ /g,'_')}.png`;
+
+  const card=`
+  <div class="card-jogo">
+    <div class="flex items-center space-x-3">
+      <img src="${homeLogo}" alt="${jogo.homeTeam.name}">
+      <span class="font-semibold">${jogo.homeTeam.name}</span>
+    </div>
+    <div class="text-center">
+      <span class="text-lg font-bold">${dia} ${hora}</span>
+      <p class="text-sm text-gray-300">${status}</p>
+    </div>
+    <div class="flex items-center space-x-3">
+      <span class="font-semibold">${jogo.awayTeam.name}</span>
+      <img src="${awayLogo}" alt="${jogo.awayTeam.name}">
+    </div>
+  </div>`;
+  jogosContainer.innerHTML+=card;
+});
+
+  }catch(err){
+    console.error(err);
+    jogosContainer.innerHTML='<p class="text-center text-red-400">❌ Erro ao carregar dados da API.</p>';
+  }
+}
+
+// Liga padrão
+carregarJogos();
+
+botoesLiga.forEach(botao=>{
+  botao.addEventListener('click',()=>{
+    botoesLiga.forEach(b=>b.classList.remove('bg-white/30'));
+    botao.classList.add('bg-white/30');
+    carregarJogos(botao.dataset.league);
+  });
+});
+</script>
+</body>
+</html>

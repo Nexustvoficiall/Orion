@@ -1,0 +1,390 @@
+<!-- 🌌 GERADOR ORION - HOME COM STATUS DO PLANO (ATUALIZADO) -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador Orion 🚀 - Painel</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 200s linear infinite;
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    .container {
+      text-align: center;
+      padding: 40px 20px;
+      transition: margin-left 0.3s;
+    }
+
+    .logo {
+      width: 180px;
+      margin-bottom: 25px;
+      filter: drop-shadow(0 0 12px #a855f7);
+    }
+
+    .neon-title {
+      font-size: 2.5em;
+      color: #c084fc;
+      text-shadow: 0 0 10px #a855f7, 0 0 30px #7e22ce;
+    }
+
+    .neon-subtitle {
+      color: #cbd5e1;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+
+    #welcome-user {
+      font-size: 1.3em;
+      margin-bottom: 30px;
+    }
+
+    /* --- GRADE DE OPÇÕES --- */
+    .options-grid {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      flex-wrap: wrap;
+      margin-top: 40px;
+    }
+
+    .option-card {
+      background: linear-gradient(145deg, #321e5b, #43156e, #5b21b6);
+      border: 2px solid #a855f7;
+      border-radius: 18px;
+      padding: 25px;
+      width: 260px;
+      min-height: 220px;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+      transition: all 0.4s ease;
+    }
+
+    .option-card:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(192, 132, 252, 0.6);
+      background: linear-gradient(160deg, #5b21b6, #7e22ce, #9333ea);
+    }
+
+    .option-card h3 {
+      margin-top: 15px;
+      color: #c084fc;
+      font-size: 1.3em;
+    }
+
+    .option-card p {
+      font-size: 0.95em;
+      color: #d1d5db;
+      margin: 10px 0 20px;
+    }
+
+    .option-card button {
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 10px 25px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+    }
+
+    .option-card button:hover {
+      background: linear-gradient(90deg, #a855f7, #c084fc);
+      transform: scale(1.05);
+    }
+
+    /* --- STATUS DO PLANO --- */
+    .status-container {
+      margin: 60px auto;
+      padding: 25px 15px;
+      width: 90%;
+      max-width: 900px;
+      background: rgba(72, 0, 128, 0.15);
+      border: 2px solid #a855f7;
+      border-radius: 18px;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+      text-align: center;
+    }
+
+    .status-title {
+      color: #c084fc;
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px #a855f7;
+    }
+
+    .status-cards {
+      display: flex;
+      justify-content: center;
+      gap: 25px;
+      flex-wrap: wrap;
+    }
+
+    .status-card {
+      background: linear-gradient(145deg, #321e5b, #43156e, #5b21b6);
+      border-radius: 15px;
+      padding: 20px;
+      width: 180px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+    }
+
+    .status-number {
+      font-size: 2.2em;
+      font-weight: 700;
+      color: #c084fc;
+      text-shadow: 0 0 15px #a855f7;
+    }
+
+    .status-number.red {
+      color: #ff4d4d;
+      text-shadow: 0 0 15px #ff0000;
+    }
+
+    .status-info {
+      font-size: 1.1em;
+      color: #d8b4fe;
+      margin-bottom: 8px;
+    }
+
+    .status-ok {
+      color: #22c55e;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .status-msg {
+      color: #d1d5db;
+      font-size: 0.9em;
+      margin-top: 20px;
+    }
+
+    /* --- SIDEBAR --- */
+    .sidebar {
+      height: 100%;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px;
+      background: linear-gradient(180deg, #1e0b3a, #2e1065, #3b0764);
+      padding-top: 60px;
+      transition: left 0.3s ease;
+      z-index: 10;
+    }
+
+    .sidebar.active { left: 0; }
+
+    .sidebar a {
+      display: block;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      font-size: 1.1em;
+      transition: background 0.2s;
+    }
+
+    .sidebar a:hover {
+      background: rgba(147, 51, 234, 0.2);
+    }
+
+    #menu-toggle {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 11;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: #d1d5db;
+      font-size: 0.95em;
+      padding: 25px 10px;
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    footer a {
+      color: #c084fc;
+      text-decoration: none;
+      margin: 0 15px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.3s;
+    }
+
+    footer a:hover {
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <button id="menu-toggle">☰ Menu</button>
+
+  <div class="sidebar" id="sidebar">
+    <a href="home.html">🏠 Início</a>
+    <a href="futebol.html">⚽ Gerar Futebol</a>
+    <a href="esportes.html">🏀 Outros Esportes</a>
+    <a href="filmes.html">🎬 Filmes & Séries</a>
+    <a href="perfil.html">👤 Meu Perfil</a>
+    <a href="#" id="sidebar-logout">🚪 Sair</a>
+  </div>
+
+  <div class="container" id="main">
+    <img src="images/logo.png" alt="Logo Orion" class="logo" />
+    <h1 class="neon-title">🌌 Gerador Orion</h1>
+    <p class="neon-subtitle">O universo da sua marca começa aqui 🚀</p>
+
+    <h2 id="welcome-user">Olá, <span id="user-name">Carregando...</span> 👋</h2>
+
+    <div class="options-grid">
+      <div class="option-card">
+        <h3>⚽ Banners de Esportes</h3>
+        <p>Crie banners esportivos com estilo profissional e dinâmico.</p>
+        <button onclick="window.location.href='futebol.html'">Acessar</button>
+      </div>
+
+      <div class="option-card">
+        <h3>🎬 Banners de Vods</h3>
+        <p>Crie banners de filmes e séries impactantes.</p>
+        <button onclick="window.location.href='filmes.html'">Acessar</button>
+      </div>
+
+      <div class="option-card">
+        <h3>🎥 Vídeos de Vods</h3>
+        <p>Crie vídeos para destacar seus filmes e séries favoritos.</p>
+        <button onclick="window.location.href='videos.html'">Acessar</button>
+      </div>
+
+      <div class="option-card">
+        <h3>📅 Programação Esportiva</h3>
+        <p>Veja a programação esportiva do dia em Texto Para divulgação.</p>
+        <button onclick="window.location.href='programacao.html'">Acessar</button>
+      </div>
+    </div>
+
+    <!-- STATUS DA CONTA -->
+    <section class="status-container">
+      <h2 class="status-title">🪐 Status da Conta</h2>
+      <div class="status-cards">
+        <div class="status-card">
+          <p>Status da conta</p>
+          <div id="status-atual" class="status-ok">--</div>
+        </div>
+        <div class="status-card">
+          <p>Dias restantes</p>
+          <div id="dias-restantes" class="status-number">--</div>
+        </div>
+        <div class="status-card">
+          <p>Data de vencimento</p>
+          <div id="data-vencimento" class="status-info">--/--/----</div>
+        </div>
+      </div>
+      <p class="status-msg" id="status-msg">Carregando informações...</p>
+    </section>
+
+    <footer>
+    <p>
+      <a href="contato.html">Contato</a> |
+      <a href="termos.html">Termos de Uso</a> |
+      <a href="privacidade.html">Política de Privacidade</a> |
+      <a href="sobre.html">Sobre a Orion</a>
+    </p>
+    <p>© 2025 Orion. Todos os direitos reservados.</p>
+  </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "usuarios/" + user.uid));
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          document.getElementById("user-name").innerText = dados.nome || "Usuário";
+
+          const dataExp = new Date(dados.data_expiracao);
+          const hoje = new Date();
+          const diffTime = dataExp - hoje;
+          const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          document.getElementById("dias-restantes").textContent = diasRestantes;
+          document.getElementById("data-vencimento").textContent = new Date(dados.data_expiracao).toLocaleDateString("pt-BR");
+          const statusElem = document.getElementById("status-atual");
+          if (diasRestantes > 0) {
+            statusElem.textContent = "✅ Ativo";
+          } else {
+            statusElem.textContent = "❌ Expirado";
+            statusElem.style.color = "#ff4d4d";
+          }
+
+          document.getElementById("status-msg").textContent =
+            diasRestantes > 0
+              ? "Sua conta está ativa e funcionando normalmente."
+              : "Seu plano expirou. Renove para continuar aproveitando o Orion.";
+
+          if (diasRestantes <= 5) {
+            document.getElementById("dias-restantes").classList.add("red");
+          }
+        } else {
+          document.getElementById("user-name").innerText = "Usuário não encontrado";
+        }
+      }
+    });
+
+    document.getElementById("menu-toggle").addEventListener("click", () => {
+      document.getElementById("sidebar").classList.toggle("active");
+    });
+  </script>
+</body>
+</html>

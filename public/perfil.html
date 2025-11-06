@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador Orion - Perfil</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #050011;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 20px;
+    }
+
+    .perfil-container {
+      position: relative;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(15px);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      padding: 30px 25px;
+      text-align: center;
+      overflow: hidden;
+      border: 2px solid rgba(130,0,255,0.2);
+      box-shadow: 0 0 20px rgba(130,0,255,0.4);
+    }
+
+    /* Vórtice galáctico */
+    .perfil-container::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(from 0deg, rgba(130,0,255,0.2), rgba(0,255,255,0.2), transparent, rgba(130,0,255,0.2));
+      animation: rotate 60s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 20px;
+      font-size: 26px;
+      color: #b366ff;
+      text-shadow: 0 0 10px rgba(179,102,255,0.8);
+    }
+
+    .form-group {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    label {
+      font-weight: 600;
+      color: #ccc;
+      font-size: 14px;
+      margin-left: 5px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(179,102,255,0.4);
+      border-radius: 10px;
+      color: white;
+      font-size: 15px;
+      transition: 0.3s;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #a366ff;
+      box-shadow: 0 0 10px rgba(179,102,255,0.5);
+    }
+
+    input[readonly] {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    #user-logo {
+      display: block;
+      margin: 15px auto;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(179,102,255,0.5);
+      box-shadow: 0 0 10px rgba(179,102,255,0.3);
+    }
+
+    input[type="file"] {
+      cursor: pointer;
+      background: rgba(179,102,255,0.15);
+      border: 1px solid rgba(179,102,255,0.3);
+      padding: 10px;
+    }
+
+    input[type="file"]:hover {
+      background: rgba(179,102,255,0.25);
+    }
+
+    button {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      background: linear-gradient(90deg, #7a00ff, #5200cc);
+      color: white;
+      border: none;
+      padding: 12px 0;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 15px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(122,0,255,0.4);
+      transition: 0.3s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(179,102,255,0.8);
+    }
+
+    #logo-info {
+      font-size: 13px;
+      color: #bbb;
+      margin-top: 5px;
+    }
+
+    /* Responsividade */
+    @media (max-width: 480px) {
+      .perfil-container {
+        padding: 20px 15px;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="tel"],
+      input[type="file"] {
+        font-size: 14px;
+        padding: 10px;
+      }
+
+      button {
+        font-size: 14px;
+        padding: 10px 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="perfil-container">
+    <h1>Meu Perfil 🌌</h1>
+
+    <div class="form-group">
+      <label for="username">Nome de Usuário</label>
+      <input type="text" id="username" placeholder="Seu nome de exibição">
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email (não editável)</label>
+      <input type="email" id="email" readonly>
+    </div>
+
+    <div class="form-group">
+      <label for="whatsapp">WhatsApp para banners</label>
+      <input type="tel" id="whatsapp" placeholder="Ex: (11) 99999-9999">
+    </div>
+
+    <div class="form-group">
+      <label for="logo-upload">Envie sua logo (PNG)</label>
+      <img id="user-logo" src="" alt="Logo do usuário" style="display:none;">
+      <input type="file" id="logo-upload" accept="image/png">
+      <p id="logo-info"></p>
+    </div>
+
+    <button id="saveProfile">Salvar Alterações</button>
+    <button id="backBtn">⬅️ Voltar</button>
+  </div>
+
+  <!-- Script -->
+  <script type="module">
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    const usernameEl = document.getElementById('username');
+    const emailEl = document.getElementById('email');
+    const whatsappEl = document.getElementById('whatsapp');
+    const logoImg = document.getElementById('user-logo');
+    const logoUpload = document.getElementById('logo-upload');
+    const logoInfo = document.getElementById('logo-info');
+    const saveBtn = document.getElementById('saveProfile');
+    const backBtn = document.getElementById('backBtn');
+
+    let currentUserData = null;
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return window.location.href = 'index.html';
+
+      emailEl.value = user.email;
+
+      // Busca dados no Realtime DB
+      const snapshot = await get(child(ref(db), 'usuarios/' + user.uid));
+      if (snapshot.exists()) {
+        currentUserData = snapshot.val();
+        usernameEl.value = currentUserData.nome || '';
+        whatsappEl.value = currentUserData.whatsapp || '';
+        currentUserData.logoChanges = currentUserData.logoChanges || 0;
+
+        if (currentUserData.logo) {
+          logoImg.src = currentUserData.logo;
+          logoImg.style.display = 'block';
+        }
+        logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+      } else {
+        currentUserData = { logoChanges: 0 };
+        logoInfo.textContent = `Trocas de logo usadas: 0/2 (por mês)`;
+      }
+
+      // Upload de logo
+      logoUpload.addEventListener('change', async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (currentUserData.logoChanges >= 2) {
+          alert('⚠️ Você já atingiu o limite de 2 trocas de logo neste mês.');
+          logoUpload.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async event => {
+          logoImg.src = event.target.result;
+          logoImg.style.display = 'block';
+          currentUserData.logo = event.target.result;
+          currentUserData.logoChanges++;
+          logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Salvar alterações
+      saveBtn.addEventListener('click', async () => {
+        if (!currentUserData) return;
+        currentUserData.nome = usernameEl.value.trim();
+        currentUserData.whatsapp = whatsappEl.value.trim();
+
+        try {
+          await update(ref(db, 'usuarios/' + user.uid), currentUserData);
+          alert('✅ Perfil atualizado com sucesso!');
+        } catch (err) {
+          console.error(err);
+          alert('❌ Erro ao atualizar perfil!');
+        }
+      });
+
+      // Botão Voltar
+      backBtn.onclick = () => window.location.href = 'home.html';
+    });
+  </script>
+</body>
+</html>

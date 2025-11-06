@@ -1,0 +1,315 @@
+/* =========================
+   IMPORTAR FONTE 3D
+========================= */
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
+
+/* =========================
+   TITULO 3D GALÁXIA
+========================= */
+.neon-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 3rem;
+  color: #ffffff; /* cor base branca neutra */
+  position: relative;
+  margin: 0;
+  letter-spacing: 2px;
+
+  /* efeito 3D com múltiplos layers de texto */
+  text-shadow:
+     2px 2px 0 #6a11cb,
+     4px 4px 0 #2575fc,
+     6px 6px 0 #8e2de2,
+     8px 8px 0 #5a189a,
+     10px 10px 20px rgba(0,0,0,0.5); /* sombra final para profundidade */
+  
+  /* animação leve de brilho pulsante */
+  animation: glow3D 2.5s ease-in-out infinite alternate;
+}
+
+.neon-subtitle {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-shadow:
+     1px 1px 0 #6a11cb,
+     2px 2px 0 #2575fc,
+     3px 3px 0 #8e2de2,
+     4px 4px 0 #5a189a;
+  animation: glow3D 2.5s ease-in-out infinite alternate;
+}
+
+/* =========================
+   ANIMAÇÃO PULSANTE
+========================= */
+@keyframes glow3D {
+  0% {
+    text-shadow:
+      2px 2px 0 #6a11cb,
+      4px 4px 0 #2575fc,
+      6px 6px 0 #8e2de2,
+      8px 8px 0 #5a189a,
+      10px 10px 20px rgba(0,0,0,0.5);
+  }
+  50% {
+    text-shadow:
+      2px 2px 5px #6a11cb,
+      4px 4px 10px #2575fc,
+      6px 6px 15px #8e2de2,
+      8px 8px 20px #5a189a,
+      10px 10px 25px rgba(0,0,0,0.6);
+  }
+  100% {
+    text-shadow:
+      2px 2px 0 #6a11cb,
+      4px 4px 0 #2575fc,
+      6px 6px 0 #8e2de2,
+      8px 8px 0 #5a189a,
+      10px 10px 20px rgba(0,0,0,0.5);
+  }
+}
+
+
+
+/* =========================
+   BODY E FUNDO GALÁXIA
+========================= */
+body {
+  position: relative;
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Poppins', sans-serif;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px;
+  overflow-y: auto; /* agora permite rolar verticalmente */
+}
+
+/* camada de fundo galáxia */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  /* imagem JPG de fundo */
+  background: url('images/galaxy-stars.jpg') no-repeat center center;
+  background-size: cover;
+
+  /* gradiente por cima da imagem para suavizar */
+  background-blend-mode: overlay;
+  background-color: rgba(13,15,37,0.7); /* controla a intensidade */
+  
+  filter: blur(2px); /* desfoque leve */
+  z-index: -1; /* atrás do conteúdo */
+}
+
+/* =========================
+   CONTAINER PRINCIPAL
+========================= */
+.container {
+  text-align: center;
+  background: none; /* sem card quadrado */
+  width: 100%;
+  max-width: 1200px; /* limite pra telas gigantes */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 20px; /* espaço entre elementos */
+}
+
+
+/* =========================
+   LOGO
+========================= */
+.logo {
+  width: 200px;
+  max-width: 30%;
+  height: auto;
+  margin-bottom: 20px;
+}
+
+/* =========================
+   BANNERS
+========================= */
+#banner-output img {
+  width: 80%;
+  max-width: 600px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+/* =========================
+   TITULOS E PARÁGRAFOS
+========================= */
+h1 {
+  font-size: 2.5rem;
+  margin: 0;
+}
+
+p {
+  font-size: 1.2rem;
+}
+
+/* =========================
+   BOTÕES
+========================= */
+button, .option-btn {
+  font-size: 1rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button {
+  background: #00aaff;
+  color: white;
+}
+
+button:hover {
+  background: #0099dd;
+}
+
+.option-btn {
+  margin: 5px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6a11cb, #2575fc); /* tons de roxo e azul galáxia */
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(97, 54, 214, 0.7);
+  transition: all 0.3s ease;
+}
+
+.option-btn:hover {
+  background: linear-gradient(135deg, #2575fc, #6a11cb);
+  box-shadow: 0 0 20px rgba(97, 54, 214, 0.9);
+}
+
+
+/* =========================
+   RESPONSIVIDADE
+========================= */
+@media (max-width: 1200px) {
+  h1 {
+    font-size: 2rem;
+  }
+  p {
+    font-size: 1rem;
+  }
+  .logo {
+    width: 150px;
+    max-width: 40%;
+  }
+  #banner-output img {
+    width: 90%;
+    max-width: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 1.8rem;
+  }
+  p {
+    font-size: 0.95rem;
+  }
+  button, .option-btn {
+    font-size: 0.95rem;
+    padding: 8px 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.5rem;
+  }
+  p {
+    font-size: 0.9rem;
+  }
+  .logo {
+    width: 120px;
+    max-width: 50%;
+  }
+  button, .option-btn {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+  }
+  #banner-output img {
+    width: 95%;
+    max-width: 300px;
+  }
+}
+.auth-box {
+  background: rgba(255,255,255,0.05);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 0 10px rgba(255,255,255,0.1);
+  width: 100%;
+  max-width: 350px;
+  text-align: center;
+}
+
+.auth-box input {
+  width: 90%;
+  padding: 10px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 10px;
+  outline: none;
+  font-size: 1em;
+}
+
+.auth-box button {
+  width: 95%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1em;
+  color: white;
+  background: linear-gradient(45deg, #00c6ff, #0072ff);
+  transition: 0.3s;
+}
+
+.auth-box button:hover {
+  transform: scale(1.05);
+}
+
+.link {
+  color: #8ab4f8;
+  font-size: 0.9em;
+  text-decoration: none;
+}
+
+.divider {
+  margin: 20px 0;
+  color: #bbb;
+}
+
+.logout {
+  margin-top: 40px;
+  background: crimson;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.logout:hover {
+  background: darkred;
+}
