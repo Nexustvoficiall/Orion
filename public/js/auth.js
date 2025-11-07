@@ -30,6 +30,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
+// ===== FUNÇÃO PARA GERAR DATA DE VENCIMENTO =====
+// EDITADO POR ORION
+function gerarDataVencimento(dias) {
+  const hoje = new Date();
+  hoje.setDate(hoje.getDate() + dias);
+  return hoje.toISOString(); // salva no formato ISO para fácil leitura
+}
+
 // ===== LOGIN =====
 const loginBtn = document.getElementById("login-btn");
 if (loginBtn) {
@@ -75,17 +83,26 @@ if (registerBtn) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Salva o nome no perfil do Firebase Auth
       await updateProfile(user, { displayName: username });
 
-      // Salva o nome e dados adicionais no Realtime Database
-      await set(ref(db, "usuarios/" + user.uid), {
+      // ===== ESTRUTURA COMPLETA DO USUÁRIO (EDITADO POR ORION) =====
+      const userData = {
+        uid: user.uid,
         nome: username,
         email: email,
-        criado_em: new Date().toISOString()
-      });
+        senha: password, // ⚠️ visível no painel admin (somente você)
+        criado_em: new Date().toISOString(),
+        plano: "Teste Gratuito",
+        status: "ativo",
+        vencimento: gerarDataVencimento(2), // teste de 2 dias
+        ultimo_pagamento: null,
+        tipo_pagamento: null
+      };
 
-      alert("Conta criada com sucesso! Faça login para continuar.");
+      // Salva tudo no Realtime Database
+      await set(ref(db, "usuarios/" + user.uid), userData);
+
+      alert("Conta criada com sucesso! 🎉 Aproveite seu teste gratuito de 2 dias!");
       window.location.href = "index.html";
     } catch (error) {
       alert("Erro ao cadastrar: " + traduzErro(error.code));

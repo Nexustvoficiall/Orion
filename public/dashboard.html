@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orion Admin 🌠 — Painel Premium</title>
+  <style>
+    :root{
+      --purple1:#3b0066; --purple2:#5b21b6; --accent:#a855f7; --gold:#fbbf24;
+      --glass: rgba(255,255,255,0.05);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Poppins,system-ui,Segoe UI,Roboto;
+      background:radial-gradient(circle at center,#050013,#12002a 45%,#1b003d);
+      color:#eae6ff;
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    .stars{
+      position:fixed;
+      inset:0;
+      background:url("https://www.transparenttextures.com/patterns/stardust.png");
+      opacity:.35;
+      transform:rotate(-20deg);
+      z-index:-1;
+    }
+    header{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding:18px 28px;
+      background:linear-gradient(90deg, rgba(139,92,246,0.06), rgba(99,102,241,0.03));
+      border-bottom:1px solid rgba(168,85,247,0.08);
+    }
+    header .title{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex:1 1 300px;
+    }
+    header img{width:48px;filter:drop-shadow(0 0 14px var(--accent))}
+    header h1{
+      margin:0;
+      font-size:1.1rem;
+      color:var(--accent);
+      text-shadow:0 0 12px rgba(168,85,247,.25);
+    }
+    .admin-badge{background:linear-gradient(90deg,var(--gold),#f59e0b); color:#210b3a;padding:6px 12px;border-radius:999px;font-weight:700; box-shadow:0 0 12px rgba(250,191,36,.12)}
+    main{max-width:1200px;margin:30px auto;padding:0 20px}
+    .top-row{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+    .panel{background:var(--glass); border:1px solid rgba(168,85,247,0.08); border-radius:14px; padding:16px; box-shadow:0 6px 30px rgba(20,6,40,0.35)}
+    .wide{flex:1; min-width:300px}
+    .small{width:280px; flex-shrink:0;}
+    h2,h3{margin:0 0 10px 0;color:#d9c9ff}
+    .muted{color:#bfb2ff;font-size:0.95rem}
+    .grid{display:grid;grid-template-columns: 1fr 1fr; gap:16px;margin-top:16px}
+    @media(max-width:800px){ .grid{grid-template-columns: 1fr} }
+    table{width:100%;border-collapse:collapse;font-size:0.95rem}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,0.04); text-align:left}
+    th{color:#e8dfff;font-size:0.85rem;opacity:.95}
+    .btn{background:linear-gradient(90deg,var(--purple2),var(--accent));border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+    .section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .search{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit; min-width:150px;}
+    .footer{margin-top:40px;text-align:center;color:#cfc1ff;font-size:0.9rem}
+    .danger{background:linear-gradient(90deg,#ff5b5b,#ff3b3b); color:white}
+    .ok{background:linear-gradient(90deg,#22c55e,#16a34a);color:white}
+    .badge{padding:6px 10px;border-radius:999px;font-weight:700;font-size:.85rem}
+    .log-list{max-height:220px; overflow:auto;padding:8px;border-radius:8px;background:rgba(0,0,0,0.12)}
+    .flex-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <header>
+    <div class="title">
+      <img src="images/logo.png" alt="Orion" />
+      <div>
+        <h1>Orion Lab — Painel Premium (Admin)</h1>
+        <div class="muted">Controle total: usuários • planos • pagamentos • logs</div>
+      </div>
+    </div>
+    <div class="actions">
+      <div class="admin-badge">👑 ADMIN</div>
+      <button id="btn-logout" class="btn ghost">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Conta</h2>
+      <div id="admin-info">Carregando...</div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid rgba(255,255,255,0.04)" />
+      <div class="muted">Sessão</div>
+      <div style="margin-top:8px" class="flex-row">
+        <button id="btn-export" class="btn ghost">Exportar backup</button>
+        <button id="btn-add-log" class="btn">Adicionar log</button>
+      </div>
+    </div>
+
+    <div class="top-row">
+      <div class="panel wide">
+        <div class="section-title">
+          <h2>Resumo Rápido</h2>
+          <div class="controls">
+            <input id="search-global" class="search" placeholder="Pesquisar usuário, email ou plano..." />
+            <select id="select-filter" class="search">
+              <option value="">Todos</option>
+              <option value="ativo">Ativos</option>
+              <option value="expirado">Expirados</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:14px">
+          <div class="panel">
+            <h3 class="muted">Usuários</h3>
+            <div id="usuarios-count" class="badge" style="background:rgba(168,85,247,0.12)">--</div>
+            <div style="margin-top:8px">
+              <table id="tbl-usuarios">
+                <thead><tr><th>Nome</th><th>Email</th><th>Plano</th><th>Vencimento</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3 class="muted">Pagamentos</h3>
+            <div id="pagamentos-count" class="badge" style="background:rgba(168,85,247,0.12)">--</div>
+            <div style="margin-top:8px">
+              <table id="tbl-pagamentos">
+                <thead><tr><th>ID</th><th>Usuário</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="section-title">
+          <h2>Planos</h2>
+          <div>
+            <button id="btn-new-plan" class="btn">Novo Plano</button>
+          </div>
+        </div>
+        <table id="tbl-planos"><thead><tr><th>ID</th><th>Nome</th><th>Preço</th><th>Ações</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title">
+        <h2>Logs do Sistema</h2>
+        <div><button id="btn-clear-logs" class="btn ghost">Limpar logs</button></div>
+      </div>
+      <div class="log-list" id="log-list"></div>
+    </div>
+
+    <div class="footer">
+      © 2025 Orion Lab — Painel Administrador • Acesso restrito
+    </div>
+  </main>
+
+  <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>

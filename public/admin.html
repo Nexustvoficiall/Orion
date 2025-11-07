@@ -1,0 +1,124 @@
+<!-- 🌌 ORION LAB - LOGIN ADMIN (versão Firebase) -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | Orion Admin</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: radial-gradient(circle at center, #0b001a, #150033, #25004d);
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      overflow: hidden;
+    }
+
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url("https://www.transparenttextures.com/patterns/stardust.png") repeat;
+      animation: moveStars 160s linear infinite;
+      z-index: -1;
+      opacity: 0.4;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -8000px 4000px; }
+    }
+
+    .login-box {
+      background: rgba(255, 255, 255, 0.06);
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 50px;
+      width: 350px;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.4);
+      text-align: center;
+      animation: floatBox 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatBox {
+      from { transform: translateY(0); }
+      to { transform: translateY(-10px); }
+    }
+
+    .login-box h2 {
+      color: #c084fc;
+      text-shadow: 0 0 20px #a855f7;
+      margin-bottom: 20px;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 1em;
+      text-align: center;
+      outline: none;
+    }
+
+    .login-box button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      border: none;
+      color: white;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+      margin-top: 10px;
+    }
+
+    .login-box button:hover {
+      transform: scale(1.05);
+      background: linear-gradient(90deg, #a855f7, #c084fc);
+    }
+
+    .error {
+      color: #f87171;
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 15px;
+      font-size: 0.85em;
+      color: #a78bfa;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <div class="login-box">
+    <h2>Orion Admin 👑</h2>
+    <input type="email" id="email" placeholder="E-mail do Admin" />
+    <input type="password" id="password" placeholder="Senha" />
+    <button id="loginBtn">Entrar</button>
+    <div class="error" id="errorMsg"></div>
+  </div>
+
+  <div class="footer">
+    © 2025 Orion Lab — Painel Premium do Admin 🪐
+  </div>
+
+  <script type="module" src="../js/admin.js"></script>
+</body>
+</html>
