@@ -1,4 +1,4 @@
-<!-- 🌌 GERADOR ORION - HOME COM STATUS DO PLANO (ATUALIZADO) -->
+<!-- 🌌 GERADOR ORION - HOME COM STATUS DO PLANO (VERSÃO CORRIGIDA E ESTILIZADA) -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -108,12 +108,12 @@
       border-radius: 10px;
       cursor: pointer;
       transition: 0.3s;
-      box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
     }
 
     .option-card button:hover {
       background: linear-gradient(90deg, #a855f7, #c084fc);
-      transform: scale(1.05);
+      transform: scale(1.07);
     }
 
     /* --- STATUS DO PLANO --- */
@@ -244,9 +244,7 @@
       transition: color 0.3s;
     }
 
-    footer a:hover {
-      color: #ffffff;
-    }
+    footer a:hover { color: #ffffff; }
   </style>
 </head>
 <body>
@@ -290,7 +288,7 @@
 
       <div class="option-card">
         <h3>📅 Programação Esportiva</h3>
-        <p>Veja a programação esportiva do dia em Texto Para divulgação.</p>
+        <p>Veja a programação esportiva do dia em texto para divulgação.</p>
         <button onclick="window.location.href='programacao.html'">Acessar</button>
       </div>
     </div>
@@ -315,20 +313,40 @@
       <p class="status-msg" id="status-msg">Carregando informações...</p>
     </section>
 
+    <!-- PLANOS DISPONÍVEIS -->
+    <section class="planos-container" style="display:none;">
+      <h2 class="status-title">💎 Escolha seu Plano</h2>
+      <div class="status-cards">
+        <div class="status-card" style="width:220px;">
+          <h3>Plano 15 Dias</h3>
+          <p style="color:#d1d5db;">Acesso completo por 15 dias</p>
+          <div class="status-number">R$14,00</div>
+          <button id="btn-plano-15">Ativar</button>
+        </div>
+
+        <div class="status-card" style="width:220px;">
+          <h3>Plano 30 Dias</h3>
+          <p style="color:#d1d5db;">Acesso completo por 30 dias</p>
+          <div class="status-number">R$20,00</div>
+          <button id="btn-plano-30">Ativar</button>
+        </div>
+      </div>
+    </section>
+
     <footer>
-    <p>
-      <a href="contato.html">Contato</a> |
-      <a href="termos.html">Termos de Uso</a> |
-      <a href="privacidade.html">Política de Privacidade</a> |
-      <a href="sobre.html">Sobre a Orion</a>
-    </p>
-    <p>© 2025 Orion. Todos os direitos reservados.</p>
-  </footer>
+      <p>
+        <a href="contato.html">Contato</a> |
+        <a href="termos.html">Termos de Uso</a> |
+        <a href="privacidade.html">Política de Privacidade</a> |
+        <a href="sobre.html">Sobre a Orion</a>
+      </p>
+      <p>© 2025 Orion. Todos os direitos reservados.</p>
+    </footer>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     const firebaseConfig = {
@@ -345,6 +363,14 @@
     const auth = getAuth(app);
     const db = getDatabase(app);
 
+    const planosContainer = document.querySelector(".planos-container");
+
+    function gerarDataExpiracao(dias) {
+      const hoje = new Date();
+      hoje.setDate(hoje.getDate() + dias);
+      return hoje.toISOString();
+    }
+
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         const dbRef = ref(db);
@@ -359,17 +385,23 @@
           const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
           document.getElementById("dias-restantes").textContent = diasRestantes;
-          document.getElementById("data-vencimento").textContent = new Date(dados.data_expiracao).toLocaleDateString("pt-BR");
+          document.getElementById("data-vencimento").textContent = dataExp.toLocaleDateString("pt-BR");
+
           const statusElem = document.getElementById("status-atual");
+
           if (diasRestantes > 0) {
             statusElem.textContent = "✅ Ativo";
+            planosContainer.style.display = diasRestantes <= 5 ? "block" : "none";
           } else {
             statusElem.textContent = "❌ Expirado";
             statusElem.style.color = "#ff4d4d";
+            planosContainer.style.display = "block";
           }
 
           document.getElementById("status-msg").textContent =
-            diasRestantes > 0
+            diasRestantes <= 5 && diasRestantes > 0
+              ? "⚠️ Seu plano vence em breve. Renove para evitar interrupções."
+              : diasRestantes > 0
               ? "Sua conta está ativa e funcionando normalmente."
               : "Seu plano expirou. Renove para continuar aproveitando o Orion.";
 
@@ -384,6 +416,25 @@
 
     document.getElementById("menu-toggle").addEventListener("click", () => {
       document.getElementById("sidebar").classList.toggle("active");
+    });
+
+    // 🔹 Atualiza apenas data_expiracao no Firebase
+    document.getElementById("btn-plano-15").addEventListener("click", async () => {
+      if (!auth.currentUser) return alert("Faça login novamente!");
+      const uid = auth.currentUser.uid;
+      const novaData = gerarDataExpiracao(15);
+      await update(ref(db, "usuarios/" + uid), { data_expiracao: novaData });
+      alert("Plano de 15 dias renovado com sucesso!");
+      location.reload();
+    });
+
+    document.getElementById("btn-plano-30").addEventListener("click", async () => {
+      if (!auth.currentUser) return alert("Faça login novamente!");
+      const uid = auth.currentUser.uid;
+      const novaData = gerarDataExpiracao(30);
+      await update(ref(db, "usuarios/" + uid), { data_expiracao: novaData });
+      alert("Plano de 30 dias renovado com sucesso!");
+      location.reload();
     });
   </script>
 </body>

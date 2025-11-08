@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plano Expirado - Orion Creator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+</head>
+<body class="bg-gradient-to-br from-purple-900 to-indigo-800 text-white min-h-screen flex flex-col items-center justify-center px-4">
+
+  <div class="text-center max-w-lg">
+    <h1 class="text-3xl font-bold mb-3">Seu plano expirou 😢</h1>
+    <p class="text-lg mb-6">Mas não se preocupe! Escolha um dos planos abaixo e continue criando seus banners com estilo galáctico 🚀</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+    <!-- Plano 15 dias -->
+    <div class="bg-white bg-opacity-10 backdrop-blur-lg p-6 rounded-2xl shadow-lg text-center border border-purple-400 hover:scale-105 transition transform">
+      <h2 class="text-2xl font-semibold mb-2 text-purple-300">Plano 15 dias</h2>
+      <p class="text-3xl font-bold mb-2 text-white">R$14,00</p>
+      <p class="text-sm mb-4 text-gray-300">Acesso completo por 15 dias</p>
+      <button id="btn15" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold transition">
+        Adquirir Plano 15 dias
+      </button>
+    </div>
+
+    <!-- Plano 30 dias -->
+    <div class="bg-white bg-opacity-10 backdrop-blur-lg p-6 rounded-2xl shadow-lg text-center border border-indigo-400 hover:scale-105 transition transform">
+      <h2 class="text-2xl font-semibold mb-2 text-indigo-300">Plano 30 dias</h2>
+      <p class="text-3xl font-bold mb-2 text-white">R$20,00</p>
+      <p class="text-sm mb-4 text-gray-300">Acesso completo por 30 dias</p>
+      <button id="btn30" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-semibold transition">
+        Adquirir Plano 30 dias
+      </button>
+    </div>
+  </div>
+
+  <button id="voltar" class="text-gray-300 underline hover:text-white">Voltar ao login</button>
+
+  <script type="module">
+    document.getElementById("voltar").addEventListener("click", () => {
+      window.location.href = "/index.html";
+    });
+
+    // futuramente aqui entraremos com a integração Mercado Pago
+    document.getElementById("btn15").addEventListener("click", () => {
+      alert("Integração Mercado Pago - Plano 15 dias em breve!");
+    });
+
+    document.getElementById("btn30").addEventListener("click", () => {
+      alert("Integração Mercado Pago - Plano 30 dias em breve!");
+    });
+  </script>
+</body>
+</html>
