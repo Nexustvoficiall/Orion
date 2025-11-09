@@ -4,15 +4,168 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orion 🚀 - Login</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 200s linear infinite;
+      z-index: -1;
+      opacity: 0.35;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 30px 20px;
+      gap: 15px;
+    }
+
+    .logo {
+      width: 320px;
+      max-width: 85%;
+      filter: drop-shadow(0 0 25px #a855f7);
+      transition: transform 0.4s;
+      margin-bottom: 5px; /* reduz espaço entre logo e subtítulo */
+    }
+
+    .logo:hover {
+      transform: scale(1.05);
+    }
+
+    .neon-text {
+      font-size: 1.3em;
+      font-weight: 600;
+      color: #e9d5ff;
+      text-shadow: 0 0 10px #a855f7, 0 0 20px #9333ea, 0 0 40px #7e22ce;
+      margin: 0;
+    }
+
+    .auth-box {
+      background: linear-gradient(145deg, rgba(50, 30, 91, 0.8), rgba(67, 21, 110, 0.9), rgba(91, 33, 182, 0.8));
+      backdrop-filter: blur(12px);
+      padding: 35px;
+      border-radius: 20px;
+      box-shadow: 0 0 40px rgba(168, 85, 247, 0.4);
+      width: 100%;
+      max-width: 400px;
+      animation: fadeIn 1s ease-out;
+      margin-top: 20px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .auth-box h2 {
+      color: #c084fc;
+      margin-bottom: 25px;
+      text-shadow: 0 0 10px #a855f7;
+      font-size: 1.6em;
+    }
+
+    .auth-box input {
+      width: 85%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: none;
+      font-size: 1em;
+      outline: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.3);
+      transition: 0.3s;
+    }
+
+    .auth-box input:focus {
+      background: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 0 15px #a855f7;
+    }
+
+    .auth-box button {
+      width: 90%;
+      padding: 12px 20px;
+      margin-top: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1em;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+
+    .auth-box button:hover {
+      transform: scale(1.05);
+      background: linear-gradient(90deg, #a855f7, #c084fc);
+      box-shadow: 0 0 25px rgba(192, 132, 252, 0.8);
+    }
+
+    .auth-box .link {
+      display: inline-block;
+      margin-top: 15px;
+      color: #c084fc;
+      text-decoration: none;
+      font-size: 0.95em;
+      transition: color 0.3s;
+    }
+
+    .auth-box .link:hover {
+      color: #ffffff;
+      text-shadow: 0 0 10px #a855f7;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 15px;
+      }
+      .logo {
+        width: 250px;
+      }
+      .neon-text {
+        font-size: 1.1em;
+      }
+      .auth-box {
+        padding: 25px;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="stars"></div>
+
   <div class="container">
     <img src="images/logo.png" alt="Orion Lab Logo" class="logo" />
-    <h1 class="neon-title">🌌 Orion</h1>
-    <p class="neon-subtitle">Entre na sua conta e explore o universo das artes 🚀</p>
+    <p class="neon-text">🌌 Faça login e navegue pelo seu universo Orion!</p>
 
-    <!-- FORM DE LOGIN -->
     <div class="auth-box">
       <h2>Entrar</h2>
       <input type="email" id="login-email" placeholder="E-mail" />
@@ -26,7 +179,6 @@
     </div>
   </div>
 
-  <!-- Firebase Auth -->
-<script type="module" src="js/login.js"></script>
+  <script type="module" src="js/login.js"></script>
 </body>
 </html>

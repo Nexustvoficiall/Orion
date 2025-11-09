@@ -7,80 +7,84 @@
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <style>
   body {
-    background: linear-gradient(135deg, #2e026d, #5f0a87, #120438);
-    overflow-x: hidden;
-    font-family: 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at center, #1a0033 0%, #0b001a 100%);
     color: white;
-    position: relative;
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
     min-height: 100vh;
+    position: relative;
   }
 
+  /* Estrelas suaves animadas */
   .star {
     position: absolute;
     background: white;
     border-radius: 50%;
-    opacity: 0.3;
+    opacity: 0.25;
     animation: moveStar linear infinite;
   }
 
   @keyframes moveStar {
-    from { transform: translateX(0) translateY(0); }
-    to { transform: translateX(-2000px) translateY(-1000px); }
+    from { transform: translateY(0); opacity: 0.25; }
+    to { transform: translateY(-1000px); opacity: 0; }
   }
 
   header {
     text-align: center;
     padding: 3rem 1rem 2rem;
-    position: relative;
     z-index: 10;
+    position: relative;
+  }
+
+  header img {
+    width: 140px;
+    margin: 0 auto 1rem;
+    filter: drop-shadow(0 0 15px rgba(150, 100, 255, 0.6));
   }
 
   header h1 {
-    font-size: 3rem;
+    font-size: 2.5rem;
     font-weight: bold;
-    color: #c78fff;
-    text-shadow: 0 0 10px #c78fff, 0 0 20px #7b4eff, 0 0 30px #5a2fff;
+    color: #b694ff;
+    text-shadow: 0 0 10px #7b4eff, 0 0 25px #3f1b8a;
   }
 
   header p, #rodada {
-    color: #aaa6ff;
-    font-size: 1.2rem;
+    color: #bfaeff;
+    font-size: 1.1rem;
     margin-top: 0.5rem;
   }
 
+  /* Botões de ligas */
   .liga-btn {
-    backdrop-filter: blur(8px);
+    background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    color: white;
+    transition: all 0.3s ease;
   }
 
-  main {
-    max-width: 4xl;
-    margin: 2rem auto;
-    padding: 0 1rem;
-    position: relative;
-    z-index: 10;
+  .liga-btn:hover, .liga-btn.active {
+    background: rgba(255,255,255,0.25);
+    transform: scale(1.05);
   }
 
+  /* Cards dos jogos */
   .card-jogo {
     background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
     backdrop-filter: blur(10px);
     border-radius: 1rem;
     padding: 1rem 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: 0.3s;
+    transition: all 0.3s;
   }
 
   .card-jogo:hover {
-    background: rgba(255,255,255,0.15);
-  }
-
-  .card-jogo img {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.12);
+    transform: scale(1.02);
   }
 
   footer {
@@ -90,16 +94,14 @@
     border-top: 1px solid rgba(255,255,255,0.1);
     font-size: 0.875rem;
     color: #aaa6ff;
-    position: relative;
-    z-index: 10;
   }
 </style>
 </head>
 <body>
 
 <script>
-  // Criar estrelas na diagonal
-  for(let i=0;i<200;i++){
+  // Estrelas
+  for(let i=0;i<150;i++){
     const star=document.createElement('div');
     star.className='star';
     const size=Math.random()*2+1;
@@ -107,33 +109,33 @@
     star.style.height=size+'px';
     star.style.top=Math.random()*window.innerHeight+'px';
     star.style.left=Math.random()*window.innerWidth+'px';
-    star.style.opacity=Math.random()*0.5+0.2;
     star.style.animationDuration=(Math.random()*20+10)+'s';
     document.body.appendChild(star);
   }
 </script>
 
 <header>
+  <img src="/images/logo.png" alt="Orion Logo">
   <h1>⚽ Jogos da Rodada</h1>
-  <p>Escolha uma liga e veja os próximos jogos</p>
+  <p>🌌 Explore os confrontos e resultados do universo Orion!</p>
   <div id="rodada"></div>
 </header>
 
 <div class="flex flex-wrap justify-center gap-3 relative z-10">
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="BSA">🇧🇷 Série A</button>
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="PL">🏴 Premier League</button>
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="BL1">🇩🇪 Bundesliga</button>
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="PD">🇪🇸 La Liga</button>
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="SA">🇮🇹 Serie A</button>
-  <button class="liga-btn bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full transition" data-league="CL">🏆 Champions League</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="BSA">🇧🇷 Série A</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="PL">🏴 Premier League</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="BL1">🇩🇪 Bundesliga</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="PD">🇪🇸 La Liga</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="SA">🇮🇹 Serie A</button>
+  <button class="liga-btn px-4 py-2 rounded-full" data-league="CL">🏆 Champions League</button>
 </div>
 
-<main>
+<main class="max-w-3xl mx-auto mt-8 px-4 relative z-10">
   <div id="jogos-hoje" class="grid gap-4"></div>
 </main>
 
 <footer>
-  © 2025 Orion - Todos os direitos reservados
+  © 2025 Orion Creator — Todos os direitos reservados
 </footer>
 
 <script>
@@ -152,7 +154,7 @@ const statusPT = {
 };
 
 async function carregarJogos(leagueCode='BSA'){
-  jogosContainer.innerHTML = '<p class="text-center text-gray-400 animate-pulse">🔄 Carregando jogos...</p>';
+  jogosContainer.innerHTML = '<p class="text-center text-purple-300 animate-pulse">🔄 Carregando jogos...</p>';
   rodadaEl.textContent='';
 
   try{
@@ -175,16 +177,12 @@ async function carregarJogos(leagueCode='BSA'){
 
       const card=`
       <div class="card-jogo">
-        <div class="flex flex-col items-center space-y-1">
-          <span class="font-semibold">${jogo.homeTeam.name}</span>
-        </div>
+        <div class="text-center font-semibold">${jogo.homeTeam.name}</div>
         <div class="text-center">
           <span class="text-lg font-bold">${dia} ${hora}</span>
           <p class="text-sm text-gray-300">${status}</p>
         </div>
-        <div class="flex flex-col items-center space-y-1">
-          <span class="font-semibold">${jogo.awayTeam.name}</span>
-        </div>
+        <div class="text-center font-semibold">${jogo.awayTeam.name}</div>
       </div>`;
       jogosContainer.innerHTML+=card;
     });
@@ -200,8 +198,8 @@ carregarJogos();
 
 botoesLiga.forEach(botao=>{
   botao.addEventListener('click',()=>{
-    botoesLiga.forEach(b=>b.classList.remove('bg-white/30'));
-    botao.classList.add('bg-white/30');
+    botoesLiga.forEach(b=>b.classList.remove('active'));
+    botao.classList.add('active');
     carregarJogos(botao.dataset.league);
   });
 });
