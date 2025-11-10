@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orion Creator 🎬 - Filmes & Séries</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      color: white;
+      overflow-x: hidden;
+    }
+
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 200s linear infinite;
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    header {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .logo {
+      width: 200px;
+      filter: drop-shadow(0 0 15px #a855f7);
+    }
+
+    .search-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    .search-container input {
+      width: 250px;
+      padding: 10px 15px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+      margin-right: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1em;
+    }
+
+    .filtro-tipo select {
+      background-color: #6a1b9a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-weight: 600;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    .filtro-tipo select option {
+      color: black;
+    }
+
+    .search-container button {
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+    }
+
+    .search-container button:hover {
+      background: linear-gradient(90deg, #a855f7, #c084fc);
+      transform: scale(1.05);
+    }
+
+    h2.section-title {
+      color: #c084fc;
+      margin-left: 25px;
+      margin-top: 40px;
+      font-weight: 600;
+    }
+
+    .scroll-row {
+      display: flex;
+      overflow-x: auto;
+      gap: 20px;
+      padding: 20px 25px;
+      scroll-behavior: smooth;
+    }
+
+    .scroll-row::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    .scroll-row::-webkit-scrollbar-thumb {
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      border-radius: 5px;
+    }
+
+    .movie-card {
+      flex: 0 0 auto;
+      background: linear-gradient(145deg, #321e5b, #43156e, #5b21b6);
+      border-radius: 18px;
+      width: 200px;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+
+    .movie-card:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(192, 132, 252, 0.6);
+    }
+
+    .movie-card img {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+    }
+
+    .movie-info {
+      padding: 10px;
+      text-align: center;
+    }
+
+    .movie-info h3 {
+      font-size: 1em;
+      color: #c084fc;
+      margin: 5px 0;
+    }
+
+    .movie-info span {
+      display: block;
+      font-size: 0.85em;
+      color: #9ca3af;
+    }
+
+    /* 🔹 Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 1, 24, 0.95);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: linear-gradient(145deg, #1f093d, #31125e);
+      padding: 20px;
+      border-radius: 20px;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+      position: relative;
+    }
+
+    .modal-content img {
+      width: 200px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+    }
+
+    .modal-content h3 {
+      margin-top: 15px;
+      color: #c084fc;
+    }
+
+    .modal-content p {
+      color: #d1d5db;
+      font-size: 0.9em;
+      margin: 15px 0;
+    }
+
+    .modal-content button {
+      margin: 10px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      border: none;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: #fca5a5;
+      font-size: 1.5em;
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      cursor: pointer;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: #d1d5db;
+      font-size: 0.9em;
+      padding: 20px;
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <header>
+    <img src="images/logo.png" alt="Logo Orion" class="logo" />
+    <h2>🎬 Catálogo de Filmes e Séries</h2>
+  </header>
+
+  <div class="search-container">
+    <input type="text" id="searchInput" placeholder="Buscar título..." />
+    <div class="filtro-tipo" style="display:inline-block;">
+      <select id="filterType">
+        <option value="movie" selected>Filmes</option>
+        <option value="tv">Séries</option>
+      </select>
+    </div>
+    <button id="searchButton">Buscar</button>
+  </div>
+
+  <section id="conteudo">
+    <h2 class="section-title">🚀 Lançamentos Recentes</h2>
+    <div class="scroll-row" id="lancamentosGrid"></div>
+
+    <h2 class="section-title">🌟 Filmes em Destaque</h2>
+    <div class="scroll-row" id="filmesPopularesGrid"></div>
+
+    <h2 class="section-title">📺 Séries em Destaque</h2>
+    <div class="scroll-row" id="seriesPopularesGrid"></div>
+  </section>
+     <h2 class="section-title">🔥 Tendências do Dia</h2>
+     <div class="scroll-row" id="tendenciasGrid"></div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="fecharModal()">×</button>
+      <img id="posterDetalhes" />
+      <h3 id="tituloDetalhes"></h3>
+      <p id="sinopseDetalhes"></p>
+      <button onclick="gerarBanner('vertical')">🎨 Banner Vertical</button>
+      <button onclick="gerarBanner('horizontal')">🖼️ Banner Horizontal</button>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 Orion Creator - Desenvolvido com 💜 e energia cósmica 🚀</p>
+  </footer>
+
+<script>
+  const input = document.getElementById("searchInput");
+  const button = document.getElementById("searchButton");
+  const filter = document.getElementById("filterType");
+
+  // 🔹 Carrega automaticamente ao abrir
+  async function carregarFilmes() {
+    try {
+      const res = await fetch("/api/tmdb");
+      if (!res.ok) throw new Error("Erro ao carregar dados da TMDB");
+      const data = await res.json();
+
+      console.log("🎬 Dados TMDB recebidos:", data);
+
+      renderScroll(data.filmesLancamentos, "lancamentosGrid");
+      renderScroll(data.seriesLancamentos, "lancamentosGrid");
+      renderScroll(data.filmesPopulares, "filmesPopularesGrid");
+      renderScroll(data.seriesPopulares, "seriesPopularesGrid");
+
+    } catch (err) {
+      console.error("❌ Erro:", err);
+      document.getElementById("conteudo").innerHTML = `<p style="text-align:center;">Erro ao carregar conteúdo.</p>`;
+    }
+  }
+
+  function renderScroll(data, containerId) {
+    const container = document.getElementById(containerId);
+    if (!data || data.length === 0) {
+      container.innerHTML += "<p>Nenhum conteúdo disponível.</p>";
+      return;
+    }
+
+    // se o container já tiver conteúdo, adiciona ao invés de substituir
+    container.innerHTML += data.map(item => `
+      <div class="movie-card" onclick="abrirDetalhes(${item.id}, '${item.title ? "movie" : "tv"}')">
+        <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" alt="${item.title || item.name}" />
+        <div class="movie-info">
+          <h3>${item.title || item.name}</h3>
+          <span>⭐ ${item.vote_average?.toFixed(1) || "N/A"} | ${item.release_date?.substring(0,4) || item.first_air_date?.substring(0,4) || "----"}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // 🔍 Busca manual
+  button.addEventListener("click", async () => {
+    const query = input.value.trim();
+    const type = filter.value;
+    if (!query) return alert("Digite algo para buscar!");
+
+    const res = await fetch(`/api/tmdb?query=${encodeURIComponent(query)}&tipo=${type}`);
+    const data = await res.json();
+
+    const conteudo = document.getElementById("conteudo");
+    conteudo.innerHTML = `
+      <h2 class="section-title">🔍 Resultados da Busca</h2>
+      <div class="scroll-row">
+        ${data.map(item => `
+          <div class="movie-card" onclick="abrirDetalhes(${item.id}, '${item.title ? "movie" : "tv"}')">
+            <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" alt="${item.title || item.name}" />
+            <div class="movie-info">
+              <h3>${item.title || item.name}</h3>
+              <span>⭐ ${item.vote_average?.toFixed(1) || "N/A"} | ${item.release_date?.substring(0,4) || item.first_air_date?.substring(0,4) || "----"}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  });
+
+  // 🔎 Detalhes do filme/série
+  async function abrirDetalhes(id, tipo) {
+    const key = ""; // ⚠️ NÃO usa chave aqui — usa proxy do server
+    const data = await fetch(`/api/tmdb?query=${id}&tipo=${tipo}`).then(r => r.json());
+
+    // Se vier uma lista, pega o primeiro
+    const item = Array.isArray(data) ? data[0] : data;
+
+    document.getElementById("posterDetalhes").src = `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+    document.getElementById("tituloDetalhes").textContent = item.title || item.name;
+    document.getElementById("sinopseDetalhes").textContent = item.overview || "Sem descrição disponível.";
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  function fecharModal() {
+    document.getElementById("modal").style.display = "none";
+  }
+
+  function gerarBanner(orientacao) {
+    const titulo = document.getElementById("tituloDetalhes").textContent;
+    alert(`🎨 Gerando banner ${orientacao} para: ${titulo}`);
+  }
+
+  carregarFilmes();
+</script>
+</body>
+</html>
