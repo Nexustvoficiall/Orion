@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste de Banner Orion</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Roboto:wght@400&display=swap');
+
+    body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; color: #fff; font-family: 'Roboto', sans-serif; }
+    button { padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #0066ff; color: #fff; }
+    button:hover { background: #0052cc; }
+  </style>
+</head>
+<body>
+  <button id="gerar">Gerar Banner</button>
+
+  <script>
+    document.getElementById("gerar").onclick = async () => {
+      try {
+        const res = await fetch("/api/gerar-banner", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "vertical",
+            modeloCor: "ROXO",
+            posterUrl: "https://image.tmdb.org/t/p/original/2ZSEI2NxELWHsQTrDkNDzHMFj6l.jpg",
+            logoUrl: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762986470/default-logo.png_bl3rqr.png",
+            titulo: "Predador: Terras Selvagens (2025)",
+            sinopse: "No futuro, em um planeta remoto, um jovem Predador, rejeitado por seu clã, encontra em Thia uma aliada improvável e embarca em uma jornada traiçoeira em busca do adversário supremo.",
+            genero: "Ação",
+            ano: "2025",
+            duracao: "120min"
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert("Erro: " + (err.error || "Falha ao gerar banner"));
+          return;
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        const imgWindow = window.open("", "_blank");
+        imgWindow.document.write(`
+          <body style="margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh;">
+            <img src="${url}" style="max-width:60%; max-height:70%; object-fit:contain;">
+          </body>
+        `);
+
+      } catch (e) {
+        alert("Erro inesperado: " + e.message);
+        console.error(e);
+      }
+    };
+  </script>
+</body>
+</html>

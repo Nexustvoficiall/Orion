@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste Cloudinary Upload</title>
+</head>
+<body style="font-family:sans-serif; background:#0a0118; color:white; text-align:center; padding:40px">
+  <h2>🚀 Teste de Upload - Orion Creator</h2>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <input type="file" name="file" id="file" />
+    <button type="submit">Enviar</button>
+  </form>
+  <div id="resultado"></div>
+
+  <script>
+  document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("file", document.getElementById("file").files[0]);
+
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    document.getElementById("resultado").innerHTML = `
+      <p>✅ Upload feito com sucesso!</p>
+      <img src="${data.url}" width="300" style="border-radius:10px; box-shadow:0 0 20px #a855f7">
+      <p>🌐 URL: <a href="${data.url}" target="_blank" style="color:#c084fc">${data.url}</a></p>
+    `;
+  });
+  </script>
+</body>
+</html>

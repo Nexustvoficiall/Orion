@@ -76,3 +76,15 @@ export async function getTendencias() {
     return [];
   }
 }
+// 🎬 Detalhes de um filme ou série pelo ID
+export async function getDetalhes(id, tipo = "movie") {
+  try {
+    const response = await fetch(`${TMDB_BASE_URL}/${tipo}/${id}?api_key=${TMDB_API_KEY}&language=pt-BR&append_to_response=images`);
+    if (!response.ok) throw new Error("Erro ao buscar detalhes na TMDB");
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("❌ Erro ao buscar detalhes:", err);
+    return null;
+  }
+}

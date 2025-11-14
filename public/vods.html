@@ -4,268 +4,170 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Orion Creator 🎬 - Filmes & Séries</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Open+Sans:wght@400;600;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
   <style>
+    :root{
+      --purple-1:#6b21a8;
+      --purple-2:#a855f7;
+      --accent:#c084fc;
+      --glass: rgba(255,255,255,0.08);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
     body {
       margin: 0;
       font-family: "Poppins", sans-serif;
-      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      background: radial-gradient(circle at top, #050014, #0b0420 40%, #12062b 100%);
       color: white;
       overflow-x: hidden;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
     }
 
+    .galaxy-bg{position:fixed;inset:0;z-index:-3;background: url('/images/bg-galaxy.jpg') center/cover no-repeat;filter:brightness(.65);}
     .stars {
       position: fixed;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
+      width: 140%;
+      height: 140%;
+      top: -10%; left:-20%;
       background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
-      animation: moveStars 200s linear infinite;
-      z-index: -1;
-      opacity: 0.3;
+      animation: moveStars 140s linear infinite;
+      z-index: -2;
+      opacity: 0.35;
+      transform: translateZ(0);
+      mix-blend-mode: screen;
+    }
+    @keyframes moveStars { from {transform: translate(0,0);} to {transform: translate(-1200px,600px);} }
+
+    .nebula{position:fixed;inset:0;z-index:-1;background: url('/images/nebula.png') center/cover no-repeat;opacity:0.45;animation:nebulaMove 60s linear infinite;filter:blur(6px) saturate(1.2);}
+    @keyframes nebulaMove{0%{transform:translateX(0)}50%{transform:translateX(-120px)}100%{transform:translateX(0)}}
+
+    header { text-align:center; padding:28px 12px; }
+    .logo { width:180px; filter: drop-shadow(0 0 18px var(--purple-2)); }
+    h1.site-title{margin:6px 0 0;font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--accent);letter-spacing:1px}
+
+    .container{position:relative;max-width:1200px;margin:0 auto;padding:12px}
+    .search-row{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;margin:18px 12px}
+    .search-row .input-wrap{display:flex;gap:8px;align-items:center}
+    .search-row input[type="text"]{
+      width:320px;max-width:60vw;padding:12px 14px;border-radius:12px;border:none;background:var(--glass);color:#fff;font-size:16px;outline:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.03);
     }
 
-    @keyframes moveStars {
-      from { background-position: 0 0; }
-      to { background-position: -10000px 5000px; }
+    .filtro-tipo select{
+      background: linear-gradient(90deg,var(--purple-1),var(--purple-2));
+      color: white;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(104,12,168,0.24);
     }
 
-    header {
-      text-align: center;
-      padding: 30px;
-    }
+    .btn {background:linear-gradient(90deg,var(--purple-1),var(--purple-2));color:white;padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-weight:700;box-shadow:0 10px 30px rgba(168,85,247,0.18);transition:transform .16s ease,box-shadow .16s}
+    .btn:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(168,85,247,0.28)}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:10px 16px;border-radius:10px}
 
-    .logo {
-      width: 200px;
-      filter: drop-shadow(0 0 15px #a855f7);
-    }
+    h2.section-title{color:var(--accent);margin:28px 8px 8px;font-weight:700}
+    .scroll-row{display:flex;overflow-x:auto;gap:16px;padding:12px 8px 22px;scroll-behavior:smooth}
+    .scroll-row::-webkit-scrollbar{height:10px}
+    .scroll-row::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--purple-1),var(--purple-2));border-radius:10px}
 
-    .search-container {
-      text-align: center;
-      margin: 30px 0;
-    }
+    .movie-card{flex:0 0 auto;width:190px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.12));box-shadow:0 8px 30px rgba(7,0,20,0.6);cursor:pointer;transition:transform .18s ease,box-shadow .18s}
+    .movie-card:hover{transform:translateY(-6px);box-shadow:0 22px 50px rgba(80,25,130,0.28)}
+    .movie-card img{width:100%;height:280px;object-fit:cover;display:block}
+    .movie-info{padding:10px;text-align:center}
+    .movie-info h3{margin:6px 0;color:var(--accent);font-size:15px}
+    .movie-info span{font-size:13px;color:#cfcfe0;opacity:0.9}
 
-    .search-container input {
-      width: 250px;
-      padding: 10px 15px;
-      border-radius: 10px;
-      border: none;
-      outline: none;
-      margin-right: 10px;
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-      font-size: 1em;
-    }
+    .modal{display:none;position:fixed;inset:0;background:linear-gradient(180deg, rgba(2,0,10,0.9), rgba(2,0,10,0.96));z-index:200;align-items:center;justify-content:center;padding:18px;overflow:auto}
+    .modal.open{display:flex}
+    .modal-content{background:linear-gradient(135deg,#0f0424, #1a0b3d);border-radius:16px;padding:18px;width:100%;max-width:920px;box-shadow:0 30px 80px rgba(0,0,0,0.7);position:relative}
+    .close-btn{position:absolute;right:14px;top:10px;background:transparent;border:none;color:#ffb4b4;font-size:22px;cursor:pointer}
+    .close-btn:hover{color:#ff8080}
+    .close-btn[aria-label]{outline:none}
 
-    .filtro-tipo select {
-      background-color: #6a1b9a;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 15px;
-      font-weight: 600;
-      margin-right: 10px;
-      cursor: pointer;
-    }
+    .modal-body{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+    .poster-wrap{flex:0 0 360px}
+    .poster-wrap img{width:100%;border-radius:10px;box-shadow:0 18px 40px rgba(168,85,247,0.18)}
+    .details{flex:1;min-width:260px}
+    .details h3{color:var(--accent);font-size:24px;margin-top:0}
+    .details p{color:#d1d5db;line-height:1.45}
 
-    .filtro-tipo select option {
-      color: black;
-    }
+    .actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 
-    .search-container button {
-      background: linear-gradient(90deg, #9333ea, #a855f7);
-      border: none;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
-    }
+    .cores-container{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:flex-start}
+    .cores-item{width:120px;text-align:center;cursor:pointer}
+    .cores-item img{width:120px;height:160px;border-radius:10px;object-fit:cover;border:2px solid transparent}
+    .cores-item.selected img{border-color:var(--accent);transform:scale(1.02);box-shadow:0 10px 30px rgba(168,85,247,0.12)}
+    .cores-item .label{margin-top:6px;font-weight:700;color:#efe9ff}
 
-    .search-container button:hover {
-      background: linear-gradient(90deg, #a855f7, #c084fc);
-      transform: scale(1.05);
-    }
+    #previewBanner{max-width:100%;border-radius:12px;margin-top:12px;display:block}
 
-    h2.section-title {
-      color: #c084fc;
-      margin-left: 25px;
-      margin-top: 40px;
-      font-weight: 600;
-    }
+    footer{margin:40px 0 80px;text-align:center;color:#cfcfe0;font-size:14px}
 
-    .scroll-row {
-      display: flex;
-      overflow-x: auto;
-      gap: 20px;
-      padding: 20px 25px;
-      scroll-behavior: smooth;
-    }
-
-    .scroll-row::-webkit-scrollbar {
-      height: 8px;
-    }
-
-    .scroll-row::-webkit-scrollbar-thumb {
-      background: linear-gradient(90deg, #9333ea, #a855f7);
-      border-radius: 5px;
-    }
-
-    .movie-card {
-      flex: 0 0 auto;
-      background: linear-gradient(145deg, #321e5b, #43156e, #5b21b6);
-      border-radius: 18px;
-      width: 200px;
-      overflow: hidden;
-      box-shadow: 0 0 25px rgba(168, 85, 247, 0.3);
-      transition: transform 0.3s, box-shadow 0.3s;
-      cursor: pointer;
-    }
-
-    .movie-card:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 35px rgba(192, 132, 252, 0.6);
-    }
-
-    .movie-card img {
-      width: 100%;
-      height: 300px;
-      object-fit: cover;
-    }
-
-    .movie-info {
-      padding: 10px;
-      text-align: center;
-    }
-
-    .movie-info h3 {
-      font-size: 1em;
-      color: #c084fc;
-      margin: 5px 0;
-    }
-
-    .movie-info span {
-      display: block;
-      font-size: 0.85em;
-      color: #9ca3af;
-    }
-
-    /* 🔹 Modal */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(10, 1, 24, 0.95);
-      justify-content: center;
-      align-items: center;
-    }
-
-    .modal-content {
-      background: linear-gradient(145deg, #1f093d, #31125e);
-      padding: 20px;
-      border-radius: 20px;
-      max-width: 500px;
-      text-align: center;
-      box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
-      position: relative;
-    }
-
-    .modal-content img {
-      width: 200px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
-    }
-
-    .modal-content h3 {
-      margin-top: 15px;
-      color: #c084fc;
-    }
-
-    .modal-content p {
-      color: #d1d5db;
-      font-size: 0.9em;
-      margin: 15px 0;
-    }
-
-    .modal-content button {
-      margin: 10px;
-      background: linear-gradient(90deg, #9333ea, #a855f7);
-      border: none;
-      color: white;
-      padding: 10px 15px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      color: #fca5a5;
-      font-size: 1.5em;
-      position: absolute;
-      top: 15px;
-      right: 20px;
-      cursor: pointer;
-    }
-
-    footer {
-      margin-top: 40px;
-      text-align: center;
-      color: #d1d5db;
-      font-size: 0.9em;
-      padding: 20px;
-      border-top: 1px solid rgba(168, 85, 247, 0.3);
-    }
+    @media (max-width:880px){.poster-wrap{flex-basis:320px}.movie-card{width:150px}.movie-card img{height:220px}}
+    @media (max-width:520px){.modal-body{flex-direction:column}.poster-wrap{width:100%}}
   </style>
 </head>
 <body>
+  <div class="galaxy-bg"></div>
   <div class="stars"></div>
+  <div class="nebula"></div>
 
   <header>
-    <img src="images/logo.png" alt="Logo Orion" class="logo" />
-    <h2>🎬 Catálogo de Filmes e Séries</h2>
+    <img src="/images/logo.png" alt="Logo Orion" class="logo" />
+    <div class="container"><h1 class="site-title">Orion Creator — Banners Automáticos</h1></div>
   </header>
 
-  <div class="search-container">
-    <input type="text" id="searchInput" placeholder="Buscar título..." />
-    <div class="filtro-tipo" style="display:inline-block;">
-      <select id="filterType">
-        <option value="movie" selected>Filmes</option>
-        <option value="tv">Séries</option>
-      </select>
+  <main class="container">
+    <div class="search-row">
+      <div class="input-wrap">
+        <input id="searchInput" type="text" placeholder="Buscar título..." aria-label="Buscar filmes ou séries">
+        <select id="filterType" aria-label="Tipo">
+          <option value="movie" selected>Filmes</option>
+          <option value="tv">Séries</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="searchButton" class="btn">🔎 Buscar</button>
+        <button id="clearFiltersButton" class="btn btn-ghost">Limpar Filtros</button>
+      </div>
     </div>
-    <button id="searchButton">Buscar</button>
-  </div>
 
-  <section id="conteudo">
-    <h2 class="section-title">🚀 Lançamentos Recentes</h2>
-    <div class="scroll-row" id="lancamentosGrid"></div>
+    <section id="conteudo">
+      <h2 class="section-title">🚀 Lançamentos Recentes</h2>
+      <div class="scroll-row" id="lancamentosGrid"></div>
 
-    <h2 class="section-title">🌟 Filmes em Destaque</h2>
-    <div class="scroll-row" id="filmesPopularesGrid"></div>
+      <h2 class="section-title">🌟 Filmes em Destaque</h2>
+      <div class="scroll-row" id="filmesPopularesGrid"></div>
 
-    <h2 class="section-title">📺 Séries em Destaque</h2>
-    <div class="scroll-row" id="seriesPopularesGrid"></div>
-  </section>
-     <h2 class="section-title">🔥 Tendências do Dia</h2>
-     <div class="scroll-row" id="tendenciasGrid"></div>
+      <h2 class="section-title">📺 Séries em Destaque</h2>
+      <div class="scroll-row" id="seriesPopularesGrid"></div>
+
+      <h2 class="section-title">🔥 Últimas Criações</h2>
+      <div class="scroll-row" id="tendenciasGrid"></div>
+    </section>
+  </main>
 
   <!-- Modal -->
-  <div id="modal" class="modal">
-    <div class="modal-content">
-      <button class="close-btn" onclick="fecharModal()">×</button>
-      <img id="posterDetalhes" />
-      <h3 id="tituloDetalhes"></h3>
-      <p id="sinopseDetalhes"></p>
-      <button onclick="gerarBanner('vertical')">🎨 Banner Vertical</button>
-      <button onclick="gerarBanner('horizontal')">🖼️ Banner Horizontal</button>
+  <div id="modalBanner" class="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <button class="close-btn" id="closeModalBtn" aria-label="Fechar Modal">✕</button>
+      <div class="modal-body">
+        <div class="poster-wrap">
+          <img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item">
+        </div>
+        <div class="details">
+          <h3 id="tituloDetalhesBanner">Título</h3>
+          <p id="sinopseDetalhesBanner">Sinopse</p>
+          <div class="actions">
+            <button id="btnVertical" class="btn">🎬 Gerar Vertical</button>
+            <button id="btnHorizontal" class="btn">🖼️ Gerar Horizontal</button>
+            <button id="visualizarPreviewBtn" class="btn" style="display:none;">👁️ Visualizar Preview</button>
+            <a id="baixarBannerBtn" href="#" download style="display:none;"><button class="btn">📥 Baixar</button></a>
+          </div>
+          <div id="coresContainerBanner" class="cores-container" style="display:none"></div>
+          <img id="previewBanner" alt="Preview gerado" style="display:none" />
+        </div>
+      </div>
     </div>
   </div>
 
@@ -273,100 +175,261 @@
     <p>© 2025 Orion Creator - Desenvolvido com 💜 e energia cósmica 🚀</p>
   </footer>
 
-<script>
-  const input = document.getElementById("searchInput");
-  const button = document.getElementById("searchButton");
-  const filter = document.getElementById("filterType");
+  <script type="module">
+  // ---------------------------
+  // 🔧 Variáveis e config
+  // ---------------------------
+  const searchInput = document.getElementById('searchInput');
+  const searchButton = document.getElementById('searchButton');
+  const filterType = document.getElementById('filterType');
+  const clearButton = document.getElementById('clearFiltersButton');
 
-  // 🔹 Carrega automaticamente ao abrir
-  async function carregarFilmes() {
-    try {
-      const res = await fetch("/api/tmdb");
-      if (!res.ok) throw new Error("Erro ao carregar dados da TMDB");
-      const data = await res.json();
+  const modal = document.getElementById('modalBanner');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+  const posterImg = document.getElementById('posterDetalhesBanner');
+  const tituloEl = document.getElementById('tituloDetalhesBanner');
+  const sinopseEl = document.getElementById('sinopseDetalhesBanner');
+  const coresContainer = document.getElementById('coresContainerBanner');
+  const previewImg = document.getElementById('previewBanner');
+  const visualizarPreviewBtn = document.getElementById('visualizarPreviewBtn');
+  const baixarBannerBtn = document.getElementById('baixarBannerBtn');
+  const btnVertical = document.getElementById('btnVertical');
+  const btnHorizontal = document.getElementById('btnHorizontal');
 
-      console.log("🎬 Dados TMDB recebidos:", data);
+  const coresBanners = ["ROXO","AZUL","VERMELHO","VERDE","PRATA","AMARELO","DOURADO","LARANJA"];
 
-      renderScroll(data.filmesLancamentos, "lancamentosGrid");
-      renderScroll(data.seriesLancamentos, "lancamentosGrid");
-      renderScroll(data.filmesPopulares, "filmesPopularesGrid");
-      renderScroll(data.seriesPopulares, "seriesPopularesGrid");
+  const verticalBanners = {
+    "ROXO":    "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868011/vertical_roxo_hmse9c.png",
+    "AZUL":    "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868011/vertical_azul_qdlxzx.png",
+    "VERMELHO":"https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868008/vertical_vermelho_r68hct.png",
+    "VERDE":   "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868010/vertical_verde_ylxm0x.png",
+    "PRATA":   "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868008/vertical_prata_fxp1xt.png",
+    "AMARELO": "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762866810/orioncreator/dsh5nkghf7eisqboa5pv.png",
+    "DOURADO": "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868008/vertical_dourado_po9uqt.png",
+    "LARANJA": "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868009/vertical_lajanja_pkwbvv.png"
+  };
+  const horizontalBanners = { ...verticalBanners };
 
-    } catch (err) {
-      console.error("❌ Erro:", err);
-      document.getElementById("conteudo").innerHTML = `<p style="text-align:center;">Erro ao carregar conteúdo.</p>`;
+  let userLogo = "/images/default_logo.png";
+  let userUid = null;
+
+  let currentOrientation = 'vertical';
+  let chosenBannerColor = null;
+  let chosenBannerUrl = null;
+  let selectedPosterForGeneration = null;
+  let currentTitle = '';
+  let currentSynopsis = '';
+
+  // ---------------------------
+  // 🔹 Firebase
+  // ---------------------------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+    authDomain: "orion-lab-a9298.firebaseapp.com",
+    databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com",
+    projectId: "orion-lab-a9298",
+    storageBucket: "orion-lab-a9298.firebasestorage.app",
+    messagingSenderId: "421847499235",
+    appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      userUid = user.uid;
+      userLogo = `https://res.cloudinary.com/dxbu3zk6i/image/upload/logos/${userUid}.png`;
+      console.log('Usuário:', userUid);
+    } else {
+      console.warn('Nenhum usuário logado');
     }
-  }
-
-  function renderScroll(data, containerId) {
-    const container = document.getElementById(containerId);
-    if (!data || data.length === 0) {
-      container.innerHTML += "<p>Nenhum conteúdo disponível.</p>";
-      return;
-    }
-
-    // se o container já tiver conteúdo, adiciona ao invés de substituir
-    container.innerHTML += data.map(item => `
-      <div class="movie-card" onclick="abrirDetalhes(${item.id}, '${item.title ? "movie" : "tv"}')">
-        <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" alt="${item.title || item.name}" />
-        <div class="movie-info">
-          <h3>${item.title || item.name}</h3>
-          <span>⭐ ${item.vote_average?.toFixed(1) || "N/A"} | ${item.release_date?.substring(0,4) || item.first_air_date?.substring(0,4) || "----"}</span>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  // 🔍 Busca manual
-  button.addEventListener("click", async () => {
-    const query = input.value.trim();
-    const type = filter.value;
-    if (!query) return alert("Digite algo para buscar!");
-
-    const res = await fetch(`/api/tmdb?query=${encodeURIComponent(query)}&tipo=${type}`);
-    const data = await res.json();
-
-    const conteudo = document.getElementById("conteudo");
-    conteudo.innerHTML = `
-      <h2 class="section-title">🔍 Resultados da Busca</h2>
-      <div class="scroll-row">
-        ${data.map(item => `
-          <div class="movie-card" onclick="abrirDetalhes(${item.id}, '${item.title ? "movie" : "tv"}')">
-            <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" alt="${item.title || item.name}" />
-            <div class="movie-info">
-              <h3>${item.title || item.name}</h3>
-              <span>⭐ ${item.vote_average?.toFixed(1) || "N/A"} | ${item.release_date?.substring(0,4) || item.first_air_date?.substring(0,4) || "----"}</span>
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    `;
   });
 
-  // 🔎 Detalhes do filme/série
-  async function abrirDetalhes(id, tipo) {
-    const key = ""; // ⚠️ NÃO usa chave aqui — usa proxy do server
-    const data = await fetch(`/api/tmdb?query=${id}&tipo=${tipo}`).then(r => r.json());
+  // ---------------------------
+  // 🔹 Carregar conteúdos iniciais
+  // ---------------------------
+  async function carregarFilmes(){
+    try{
+      const res = await fetch('/api/tmdb');
+      if(!res.ok) throw new Error('Erro ao carregar TMDB');
+      const data = await res.json();
 
-    // Se vier uma lista, pega o primeiro
-    const item = Array.isArray(data) ? data[0] : data;
-
-    document.getElementById("posterDetalhes").src = `https://image.tmdb.org/t/p/w500${item.poster_path}`;
-    document.getElementById("tituloDetalhes").textContent = item.title || item.name;
-    document.getElementById("sinopseDetalhes").textContent = item.overview || "Sem descrição disponível.";
-    document.getElementById("modal").style.display = "flex";
+      renderScroll(data.filmesLancamentos || [], 'lancamentosGrid', 'movie');
+      renderScroll(data.seriesLancamentos || [], 'lancamentosGrid', 'tv');
+      renderScroll(data.filmesPopulares || [], 'filmesPopularesGrid', 'movie');
+      renderScroll(data.seriesPopulares || [], 'seriesPopularesGrid', 'tv');
+      renderScroll(data.tendencias || [], 'tendenciasGrid', 'movie');
+    }catch(e){
+      console.error(e);
+      document.getElementById('conteudo').innerHTML = '<p style="text-align:center;">Erro ao carregar conteúdo.</p>';
+    }
   }
 
-  function fecharModal() {
-    document.getElementById("modal").style.display = "none";
+  function renderScroll(items, containerId, tipo){
+    const container = document.getElementById(containerId);
+    if(!items || items.length === 0){
+      const p = document.createElement('p'); p.textContent = 'Nenhum conteúdo disponível.'; container.appendChild(p); return;
+    }
+    for(const item of items){
+      const card = document.createElement('div'); card.className = 'movie-card';
+      const img = document.createElement('img');
+      const title = item.title || item.name || (item.original_title || item.original_name) || '—';
+      const posterPath = item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : (item.backdrop_path ? `https://image.tmdb.org/t/p/w500${item.backdrop_path}` : '/images/placeholder_poster.png');
+      img.src = posterPath; img.alt = title;
+      const info = document.createElement('div'); info.className = 'movie-info';
+      const h3 = document.createElement('h3'); h3.textContent = title;
+      const span = document.createElement('span');
+      const score = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
+      const year = (item.release_date || item.first_air_date || '').substring(0,4) || '----';
+      span.textContent = `⭐ ${score} | ${year}`;
+      info.appendChild(h3); info.appendChild(span);
+      card.appendChild(img); card.appendChild(info);
+      card.addEventListener('click', ()=> abrirDetalhesBanner(item.id, tipo));
+      container.appendChild(card);
+    }
   }
 
-  function gerarBanner(orientacao) {
-    const titulo = document.getElementById("tituloDetalhes").textContent;
-    alert(`🎨 Gerando banner ${orientacao} para: ${titulo}`);
+  // ---------------------------
+  // 🔹 Modal e detalhes
+  // ---------------------------
+  async function abrirDetalhesBanner(id, tipo){
+    try{
+      const res = await fetch(`/api/tmdb/detalhes/${tipo}/${id}`);
+      if(!res.ok) throw new Error('Erro detalhes TMDB');
+      const item = await res.json();
+
+      currentTitle = item.title || item.name || '';
+      currentSynopsis = item.overview || '';
+
+      tituloEl.textContent = currentTitle;
+      sinopseEl.textContent = currentSynopsis;
+
+      const posters = [];
+      if(item.poster_path) posters.push(`https://image.tmdb.org/t/p/original${item.poster_path}`);
+      if(item.images && item.images.posters && item.images.posters.length){
+        for(const p of item.images.posters){ if(p.file_path) posters.push(`https://image.tmdb.org/t/p/w500${p.file_path}`); }
+      }
+
+      selectedPosterForGeneration = posters[0] || (item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null);
+      posterImg.src = selectedPosterForGeneration || '/images/placeholder_poster.png';
+
+      modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+
+      coresContainer.innerHTML = ''; coresContainer.style.display = 'none';
+      previewImg.style.display = 'none'; previewImg.src = '';
+      visualizarPreviewBtn.style.display = 'none'; baixarBannerBtn.style.display = 'none';
+      chosenBannerColor = null; chosenBannerUrl = null;
+
+    }catch(err){ console.error(err); alert('Não foi possível carregar os detalhes.'); }
   }
 
+  function fecharModal(){ modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); }
+  closeModalBtn.addEventListener('click', fecharModal);
+
+  // ---------------------------
+  // 🔹 Mostrar seleção de cores/layout
+  // ---------------------------
+  function mostrarCores(tipo){
+    currentOrientation = tipo === 'horizontal' ? 'horizontal' : 'vertical';
+    coresContainer.innerHTML = '';
+    coresContainer.style.display = 'flex';
+    const source = currentOrientation === 'vertical' ? verticalBanners : horizontalBanners;
+
+    coresBanners.forEach(color => {
+      const item = document.createElement('div'); item.className = 'cores-item'; item.title = color;
+      const img = document.createElement('img'); img.src = source[color] || '/images/placeholder_poster.png'; img.alt = color;
+      const label = document.createElement('div'); label.className = 'label'; label.textContent = color;
+      item.appendChild(img); item.appendChild(label);
+      item.addEventListener('click', ()=>{
+        document.querySelectorAll('.cores-item').forEach(el=>el.classList.remove('selected'));
+        item.classList.add('selected');
+        chosenBannerColor = color; chosenBannerUrl = source[color];
+        visualizarPreviewBtn.style.display = 'inline-block';
+      });
+      coresContainer.appendChild(item);
+    });
+
+    previewImg.style.display = 'none'; previewImg.src = '';
+    visualizarPreviewBtn.style.display = 'none'; baixarBannerBtn.style.display = 'none';
+  }
+
+  btnVertical.addEventListener('click', ()=> mostrarCores('vertical'));
+  btnHorizontal.addEventListener('click', ()=> mostrarCores('horizontal'));
+
+  // ---------------------------
+  // 🔹 Visualizar Preview
+  // ---------------------------
+  visualizarPreviewBtn.addEventListener('click', visualizarPreview);
+  async function visualizarPreview(){
+    if(!chosenBannerUrl) return alert('Escolha uma cor primeiro.');
+    if(!selectedPosterForGeneration) return alert('Poster não disponível.');
+    const payload = {
+      uid: userUid,
+      tipo: currentOrientation,
+      modeloCor: chosenBannerColor || 'ROXO',
+      posterUrl: selectedPosterForGeneration,
+      logoUrl: userUid ? `https://res.cloudinary.com/dxbu3zk6i/image/upload/logos/${userUid}.png` : userLogo,
+      titulo: currentTitle,
+      sinopse: currentSynopsis,
+      genero: '', ano:'', duracao:''
+    };
+    try{
+      visualizarPreviewBtn.disabled = true; visualizarPreviewBtn.textContent = 'Gerando...';
+      const res = await fetch('/api/gerar-banner',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!res.ok){ const txt = await res.text(); throw new Error(txt || 'Erro no servidor'); }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      previewImg.src = url; previewImg.style.display = 'block';
+      baixarBannerBtn.href = url; baixarBannerBtn.download = `${(currentTitle||'preview').replace(/\s+/g,'_')}.png`; baixarBannerBtn.style.display = 'inline-block';
+    }catch(err){ console.error(err); alert('Erro ao gerar o banner. Veja console.'); }
+    finally{ visualizarPreviewBtn.disabled = false; visualizarPreviewBtn.textContent = '👁️ Visualizar Preview'; }
+  }
+
+  // ---------------------------
+  // 🔹 Busca
+  // ---------------------------
+  searchButton.addEventListener('click', async ()=>{
+    const q = searchInput.value.trim(); const tipo = filterType.value;
+    if(!q) return alert('Digite algo para buscar!');
+    try{
+      const res = await fetch(`/api/tmdb?query=${encodeURIComponent(q)}&tipo=${encodeURIComponent(tipo)}`);
+      if(!res.ok) throw new Error('Erro busca');
+      const results = await res.json();
+      const items = results.results || results || [];
+      let searchContainer = document.getElementById('searchResults');
+      if(!searchContainer){
+        searchContainer = document.createElement('div');
+        searchContainer.id = 'searchResults';
+        document.getElementById('conteudo').prepend(searchContainer);
+      }
+      searchContainer.innerHTML = '';
+      renderScroll(items, 'searchResults', tipo);
+    }catch(err){ console.error(err); alert('Erro na busca'); }
+  });
+
+  clearButton.addEventListener('click', ()=>{
+    searchInput.value = '';
+    filterType.value = 'movie';
+    const searchContainer = document.getElementById('searchResults');
+    if(searchContainer) searchContainer.innerHTML = '';
+    carregarFilmes();
+  });
+
+  // ---------------------------
+  // 🔹 Inicialização
+  // ---------------------------
   carregarFilmes();
+
+  // ---------------------------
+  // 🔹 Expor funções
+  // ---------------------------
+  window.abrirDetalhesBanner = abrirDetalhesBanner;
+  window.fecharModalBanner = fecharModal;
+  window.mostrarCoresBanner = mostrarCores;
+  window.visualizarPreview = visualizarPreview;
 </script>
 </body>
 </html>

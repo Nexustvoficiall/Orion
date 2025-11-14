@@ -209,99 +209,117 @@
   </div>
 
   <!-- Script -->
-  <script type="module">
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+<script type="module">
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
-      authDomain: "orion-lab-a9298.firebaseapp.com",
-      projectId: "orion-lab-a9298",
-      storageBucket: "orion-lab-a9298.firebasestorage.app",
-      messagingSenderId: "421847499235",
-      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
-      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+  authDomain: "orion-lab-a9298.firebaseapp.com",
+  projectId: "orion-lab-a9298",
+  storageBucket: "orion-lab-a9298.firebasestorage.app",
+  messagingSenderId: "421847499235",
+  appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+  databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+};
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-    const usernameEl = document.getElementById('username');
-    const emailEl = document.getElementById('email');
-    const whatsappEl = document.getElementById('whatsapp');
-    const logoImg = document.getElementById('user-logo');
-    const logoUpload = document.getElementById('logo-upload');
-    const logoInfo = document.getElementById('logo-info');
-    const saveBtn = document.getElementById('saveProfile');
-    const backBtn = document.getElementById('backBtn');
+const usernameEl = document.getElementById('username');
+const emailEl = document.getElementById('email');
+const whatsappEl = document.getElementById('whatsapp');
+const logoImg = document.getElementById('user-logo');
+const logoUpload = document.getElementById('logo-upload');
+const logoInfo = document.getElementById('logo-info');
+const saveBtn = document.getElementById('saveProfile');
+const backBtn = document.getElementById('backBtn');
 
-    let currentUserData = null;
+let currentUserData = null;
 
-    onAuthStateChanged(auth, async user => {
-      if (!user) return window.location.href = 'index.html';
+onAuthStateChanged(auth, async user => {
+  if (!user) return window.location.href = 'index.html';
+  emailEl.value = user.email;
 
-      emailEl.value = user.email;
+  // Busca dados no Realtime DB
+  const snapshot = await get(child(ref(db), 'usuarios/' + user.uid));
+  if (snapshot.exists()) {
+    currentUserData = snapshot.val();
+    usernameEl.value = currentUserData.nome || '';
+    whatsappEl.value = currentUserData.whatsapp || '';
+    currentUserData.logoChanges = currentUserData.logoChanges || 0;
 
-      // Busca dados no Realtime DB
-      const snapshot = await get(child(ref(db), 'usuarios/' + user.uid));
-      if (snapshot.exists()) {
-        currentUserData = snapshot.val();
-        usernameEl.value = currentUserData.nome || '';
-        whatsappEl.value = currentUserData.whatsapp || '';
-        currentUserData.logoChanges = currentUserData.logoChanges || 0;
+    if (currentUserData.logo) {
+      logoImg.src = currentUserData.logo;
+      logoImg.style.display = 'block';
+    }
+    logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+  } else {
+    currentUserData = { logoChanges: 0 };
+    logoInfo.textContent = `Trocas de logo usadas: 0/2 (por mês)`;
+  }
 
-        if (currentUserData.logo) {
-          logoImg.src = currentUserData.logo;
-          logoImg.style.display = 'block';
-        }
-        logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
-      } else {
-        currentUserData = { logoChanges: 0 };
-        logoInfo.textContent = `Trocas de logo usadas: 0/2 (por mês)`;
-      }
+  // Upload de logo para Cloudinary
+  logoUpload.addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      // Upload de logo
-      logoUpload.addEventListener('change', async e => {
-        const file = e.target.files[0];
-        if (!file) return;
+    if (currentUserData.logoChanges >= 2) {
+      alert('⚠️ Você já atingiu o limite de 2 trocas de logo neste mês.');
+      logoUpload.value = '';
+      return;
+    }
 
-        if (currentUserData.logoChanges >= 2) {
-          alert('⚠️ Você já atingiu o limite de 2 trocas de logo neste mês.');
-          logoUpload.value = '';
-          return;
-        }
+    // Cria FormData para enviar para o server
+    const formData = new FormData();
+    formData.append('file', file);
 
-        const reader = new FileReader();
-        reader.onload = async event => {
-          logoImg.src = event.target.result;
-          logoImg.style.display = 'block';
-          currentUserData.logo = event.target.result;
-          currentUserData.logoChanges++;
-          logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
-        };
-        reader.readAsDataURL(file);
+    try {
+      logoInfo.textContent = '⏳ Enviando logo...';
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
       });
 
-      // Salvar alterações
-      saveBtn.addEventListener('click', async () => {
-        if (!currentUserData) return;
-        currentUserData.nome = usernameEl.value.trim();
-        currentUserData.whatsapp = whatsappEl.value.trim();
+      if (!response.ok) throw new Error('Erro no upload');
 
-        try {
-          await update(ref(db, 'usuarios/' + user.uid), currentUserData);
-          alert('✅ Perfil atualizado com sucesso!');
-        } catch (err) {
-          console.error(err);
-          alert('❌ Erro ao atualizar perfil!');
-        }
-      });
+      const data = await response.json();
+      const logoUrl = data.url;
 
-      // Botão Voltar
-      backBtn.onclick = () => window.location.href = 'home.html';
-    });
-  </script>
+      // Atualiza preview e Firebase
+      logoImg.src = logoUrl;
+      logoImg.style.display = 'block';
+      currentUserData.logo = logoUrl;
+      currentUserData.logoChanges++;
+      logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+
+    } catch (err) {
+      console.error(err);
+      alert('❌ Erro ao enviar logo. Tente novamente.');
+    }
+  });
+
+  // Salvar alterações
+  saveBtn.addEventListener('click', async () => {
+    if (!currentUserData) return;
+    currentUserData.nome = usernameEl.value.trim();
+    currentUserData.whatsapp = whatsappEl.value.trim();
+
+    try {
+      await update(ref(db, 'usuarios/' + user.uid), currentUserData);
+      alert('✅ Perfil atualizado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('❌ Erro ao atualizar perfil!');
+    }
+  });
+
+  // Botão Voltar
+  backBtn.onclick = () => window.location.href = 'home.html';
+});
+</script>
 </body>
 </html>

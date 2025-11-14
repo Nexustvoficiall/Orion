@@ -15,9 +15,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start; /* muda pra começar do topo */
+      justify-content: flex-start;
       position: relative;
-      padding-top: 40px; /* ajusta a distância inicial do topo */
+      padding-top: 40px;
     }
 
     .stars {
@@ -43,7 +43,7 @@
       align-items: center;
       text-align: center;
       padding: 0;
-      gap: 5px; /* reduz o espaçamento entre os elementos */
+      gap: 5px;
     }
 
     .logo {
@@ -144,6 +144,15 @@
       text-shadow: 0 0 10px #a855f7;
     }
 
+    .show-pass {
+      position: absolute;
+      right: 25px;
+      top: 20px;
+      cursor: pointer;
+      font-size: 18px;
+      user-select: none;
+    }
+
     @media (max-width: 600px) {
       body {
         padding-top: 20px;
@@ -169,11 +178,23 @@
 
     <div class="auth-box">
       <h2>Cadastro</h2>
+
       <input type="text" id="register-username" placeholder="Nome de usuário" />
       <input type="email" id="register-email" placeholder="E-mail" />
-      <input type="password" id="register-password" placeholder="Senha" />
-      <input type="password" id="confirm-password" placeholder="Confirme sua senha" />
+
+      <!-- SENHA COM MOSTRAR/OCULTAR -->
+      <div style="position: relative; width: 100%; display:flex; justify-content:center;">
+        <input type="password" id="register-password" placeholder="Senha" />
+        <span id="toggle-pass" class="show-pass">👁️</span>
+      </div>
+
+      <div style="position: relative; width: 100%; display:flex; justify-content:center;">
+        <input type="password" id="confirm-password" placeholder="Confirme sua senha" />
+        <span id="toggle-pass2" class="show-pass">👁️</span>
+      </div>
+
       <input type="text" id="register-whatsapp" placeholder="WhatsApp (opcional)" />
+
       <button id="register-btn">Criar Conta</button>
 
       <p class="link" style="margin-top:15px;">
@@ -184,5 +205,20 @@
   </div>
 
   <script type="module" src="js/login.js"></script>
+
+  <script>
+    const pass = document.getElementById("register-password");
+    const pass2 = document.getElementById("confirm-password");
+    const toggle1 = document.getElementById("toggle-pass");
+    const toggle2 = document.getElementById("toggle-pass2");
+
+    toggle1.onclick = () => {
+      pass.type = pass.type === "password" ? "text" : "password";
+    };
+
+    toggle2.onclick = () => {
+      pass2.type = pass2.type === "password" ? "text" : "password";
+    };
+  </script>
 </body>
 </html>
