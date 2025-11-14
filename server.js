@@ -24,43 +24,38 @@ import { getFirestore } from "firebase-admin/firestore";
 dotenv.config();
 
 // -------------------------
-// 🔥 Firebase Admin
-const serviceAccount = path.join(
-  dirname(fileURLToPath(import.meta.url)),
-  "orion-lab-a9298-firebase-adminsdk-fbsvc-2111a1d5f0.json"
-);
+// 🔥 Firebase Admin (JSON na raiz)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com"
-  });
+// 🔥 Firebase Admin usando JSON direto do .env
+let serviceAccount = null;
+
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+} catch (err) {
+  console.error("❌ Erro ao fazer parse do FIREBASE_SERVICE_ACCOUNT no .env");
+  console.error("Conteúdo recebido:", process.env.FIREBASE_SERVICE_ACCOUNT);
+  throw err;
 }
 
-const db = getFirestore();
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
-// -------------------------
-// 🔹 Teste rápido do Firestore
-(async () => {
-  try {
-    await db.collection("teste").doc("abc").set({ foo: "bar" });
-    console.log("✅ Firestore funcionando!");
-  } catch (err) {
-    console.error("❌ Firestore ERRO na inicialização:", err);
-  }
-})();
+const db = getFirestore();
 
 // -------------------------
 // 🌟 Inicialização do app
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 app.use(express.json({ limit: "50mb" }));
 
 // -------------------------
 // 🌐 Servir o Frontend
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 app.use(express.static(path.join(__dirname, "public")));
+
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -75,6 +70,7 @@ const leagueCodes = {
 
 app.get("/api/jogos", async (req, res) => {
   const leagueCode = req.query.league || "BSA";
+
   try {
     const response = await fetch(
       `https://api.football-data.org/v4/competitions/${leagueCode}/matches`,
@@ -137,6 +133,7 @@ app.get("/api/tmdb", async (req, res) => {
 // 🔹 Detalhes TMDB
 app.get("/api/tmdb/detalhes/:tipo/:id", async (req, res) => {
   const { tipo, id } = req.params;
+
   try {
     const response = await fetch(
       `https://api.themoviedb.org/3/${tipo}/${id}?api_key=${process.env.TMDB_KEY}&language=pt-BR`
@@ -163,7 +160,9 @@ const storage = new CloudinaryStorage({
     allowed_formats: ["jpg", "png", "jpeg", "webp"],
   },
 });
+
 const upload = multer({ storage });
+
 app.post("/api/upload", upload.single("file"), (req, res) => {
   res.json({ url: req.file.path || req.file.url });
 });
@@ -180,28 +179,22 @@ async function fetchBuffer(url) {
 }
 
 // -------------------------
-// 🖼️ GERAR BANNER – usando logo automática do Firebase
+// 🖼️ GERAR BANNER
 app.post("/api/gerar-banner", async (req, res) => {
   try {
     const { uid, tipo, modeloCor, posterUrl, titulo, sinopse, genero, ano, duracao } = req.body;
 
-    if (!uid || typeof uid !== "string")
-      return res.status(400).json({ error: "UID inválido." });
+    if (!uid) return res.status(400).json({ error: "UID inválido." });
 
-    // 🔥 Buscar dados do cliente na coleção correta
     const snap = await db.collection("usuarios").doc(uid).get();
     if (!snap.exists) return res.status(404).json({ error: "Usuário não encontrado." });
 
     const userData = snap.data();
+
     const logoUrl = userData.logo;
+    if (!logoUrl) return res.status(400).json({ error: "Usuário não possui logo configurada." });
 
-    if (!logoUrl)
-      return res.status(400).json({ error: "Usuário não possui uma logo configurada." });
-
-    if (!posterUrl)
-      return res.status(400).json({ error: "Poster não informado." });
-
-    // 🎨 Backgrounds
+    // 🔥 Backgrounds
     const verticalBanners = {
       "ROXO": "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868011/vertical_roxo_hmse9c.png",
       "AZUL": "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1762868011/vertical_azul_qdlxzx.png",
@@ -214,27 +207,22 @@ app.post("/api/gerar-banner", async (req, res) => {
     };
 
     const backgrounds = tipo === "vertical" ? verticalBanners : {};
-    const backgroundUrl = backgrounds[modeloCor?.toUpperCase()];
-    if (!backgroundUrl)
-      return res.status(400).json({ error: `Background não encontrado: ${modeloCor}` });
+    const bgUrl = backgrounds[modeloCor?.toUpperCase()];
 
-    // ⚡ Baixar imagens
+    if (!bgUrl) return res.status(400).json({ error: `Background não encontrado: ${modeloCor}` });
+
+    // 🔥 Baixar imagens
     const [bgBuffer, posterBuffer, logoBuffer] = await Promise.all([
-      fetchBuffer(backgroundUrl),
+      fetchBuffer(bgUrl),
       fetchBuffer(posterUrl),
       fetchBuffer(logoUrl)
     ]);
 
-    const dimensoes = tipo === "vertical" ? { w: 1080, h: 1920 } : { w: 1920, h: 1080 };
+    const dims = tipo === "vertical" ? { w: 1080, h: 1920 } : { w: 1920, h: 1080 };
 
-    // 🔹 Poster ajustado
-    const posterWidth = 540;
-    const posterHeight = 850;
-    const posterLeft = (dimensoes.w - posterWidth) / 2;
-    const posterTop = 190;
-
+    // 🔹 Poster
     const posterSharp = await sharp(posterBuffer)
-      .resize(posterWidth, posterHeight, { fit: "cover" })
+      .resize(540, 850)
       .png()
       .toBuffer();
 
@@ -244,23 +232,21 @@ app.post("/api/gerar-banner", async (req, res) => {
       .png()
       .toBuffer();
 
-    // 🔹 Texto SVG
-    const wrappedSinopse = sinopse
-      ?.replace(/(.{0,40})(\s|$)/g, '$1\n')
-      .trim() || "";
+    // 🔹 Texto
+    const wrappedSinopse = sinopse?.replace(/(.{0,40})(\s|$)/g, '$1\n').trim() || "";
 
     const textoSvg = Buffer.from(`
-      <svg width="${dimensoes.w}" height="${dimensoes.h}">
+      <svg width="${dims.w}" height="${dims.h}">
         <style>
-          .titulo { fill: white; font-size: 70px; font-weight: 900; font-family: 'Bebas Neue', sans-serif; }
-          .sinopse { fill: white; font-size: 40px; font-family: 'Open Sans', sans-serif; }
-          .info { fill: rgba(230,230,230,0.95); font-size: 36px; font-family: 'Open Sans', sans-serif; font-weight: bold; }
+          .titulo { fill: white; font-size: 70px; font-weight: 900; font-family: 'Bebas Neue'; }
+          .sinopse { fill: white; font-size: 40px; font-family: 'Open Sans'; }
+          .info { fill: rgba(230,230,230,0.95); font-size: 36px; font-family: 'Open Sans'; font-weight: bold; }
         </style>
         <text x="50%" y="1345" text-anchor="middle" class="titulo">${titulo}</text>
         <text x="50%" y="1410" text-anchor="middle" class="sinopse">
           ${wrappedSinopse.split("\n").map((line, i) =>
             `<tspan x="50%" dy="${i === 0 ? 0 : 60}">${line}</tspan>`
-          ).join('')}
+          ).join("")}
         </text>
         <text x="50%" y="1700" text-anchor="middle" class="info">
           ${genero} • ${ano} • ${duracao}
@@ -268,17 +254,21 @@ app.post("/api/gerar-banner", async (req, res) => {
       </svg>
     `);
 
-    // 🔹 Escurecimento suave
-    const overlaySvg = Buffer.from(`<svg width="${dimensoes.w}" height="${dimensoes.h}"><rect width="100%" height="100%" fill="rgba(0,0,0,0.25)" /></svg>`);
+    // 🔹 Escurecimento
+    const overlay = Buffer.from(
+      `<svg width="${dims.w}" height="${dims.h}">
+        <rect width="100%" height="100%" fill="rgba(0,0,0,0.25)"/>
+      </svg>`
+    );
 
-    // 🧩 Montagem final
+    // 🧩 Montagem
     const banner = await sharp(bgBuffer)
-      .resize(dimensoes.w, dimensoes.h)
+      .resize(dims.w, dims.h)
       .composite([
-        { input: overlaySvg, blend: "over" },
-        { input: posterSharp, top: posterTop, left: posterLeft },
-        { input: logoSharp, top: 40, left: dimensoes.w - 190 },
-        { input: textoSvg, blend: "over" }
+        { input: overlay },
+        { input: posterSharp, top: 190, left: (dims.w - 540) / 2 },
+        { input: logoSharp, top: 40, left: dims.w - 190 },
+        { input: textoSvg }
       ])
       .png()
       .toBuffer();
