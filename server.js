@@ -286,6 +286,7 @@ app.post("/api/gerar-banner", async (req, res) => {
 });
 
 // 🚀 Inicialização
-app.listen(PORT, () => {
-  console.log(`🔥 Servidor rodando em: http://localhost:${PORT}`);
+const HOST = '0.0.0.0'; // funciona local e Railway
+app.listen(PORT, HOST, () => {
+  console.log(`🔥 Servidor rodando em: http://localhost:${PORT} (ou acesso externo: http://${HOST}:${PORT})`);
 });
