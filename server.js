@@ -20,24 +20,14 @@ import {
 
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import serviceAccount from "./api/firebaseServiceAccount.js";
 
 dotenv.config();
 
 // -------------------------
-// 🔥 Firebase Admin (JSON na raiz)
+// 🔥 Firebase Admin
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// 🔥 Firebase Admin usando JSON direto do .env
-let serviceAccount = null;
-
-try {
-  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-} catch (err) {
-  console.error("❌ Erro ao fazer parse do FIREBASE_SERVICE_ACCOUNT no .env");
-  console.error("Conteúdo recebido:", process.env.FIREBASE_SERVICE_ACCOUNT);
-  throw err;
-}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -58,6 +48,18 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// 🔹 Teste de Firebase
+app.get("/api/test-firebase", async (req, res) => {
+  try {
+    const snapshot = await db.collection("usuarios").limit(1).get();
+    const usuarios = snapshot.docs.map(doc => doc.data());
+    res.json({ ok: true, usuarios });
+  } catch (err) {
+    console.error("❌ Erro no Firebase:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // -------------------------
