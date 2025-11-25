@@ -198,9 +198,9 @@
     </div>
 
     <div class="form-group">
-      <label for="logo-upload">Envie sua logo (PNG)</label>
+      <label for="logo-upload">Envie sua logo (PNG, JPG, WEBP)</label>
       <img id="user-logo" src="" alt="Logo do usuário" style="display:none;">
-      <input type="file" id="logo-upload" accept="image/png">
+      <input type="file" id="logo-upload" accept="image/*">
       <p id="logo-info"></p>
     </div>
 
@@ -212,6 +212,7 @@
 <script type="module">
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
 const firebaseConfig = {
@@ -227,6 +228,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
+const firestore = getFirestore(app); // 🔧 NOVO: Firestore
 
 const usernameEl = document.getElementById('username');
 const emailEl = document.getElementById('email');
@@ -261,7 +263,7 @@ onAuthStateChanged(auth, async user => {
     logoInfo.textContent = `Trocas de logo usadas: 0/2 (por mês)`;
   }
 
-  // Upload de logo para Cloudinary
+  // 🔧 Upload de logo para Cloudinary COM AUTENTICAÇÃO
   logoUpload.addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -272,6 +274,16 @@ onAuthStateChanged(auth, async user => {
       return;
     }
 
+    // 🔧 NOVO: Obter token de autenticação
+    let token;
+    try {
+      token = await user.getIdToken();
+    } catch (err) {
+      console.error('❌ Erro ao obter token:', err);
+      alert('❌ Erro de autenticação. Faça login novamente.');
+      return;
+    }
+
     // Cria FormData para enviar para o server
     const formData = new FormData();
     formData.append('file', file);
@@ -279,26 +291,49 @@ onAuthStateChanged(auth, async user => {
     try {
       logoInfo.textContent = '⏳ Enviando logo...';
 
+      // 🔧 NOVO: Adicionar header Authorization com token Bearer
       const response = await fetch('/api/upload', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData
       });
 
-      if (!response.ok) throw new Error('Erro no upload');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
 
       const data = await response.json();
       const logoUrl = data.url;
 
-      // Atualiza preview e Firebase
+      // Atualiza preview
       logoImg.src = logoUrl;
       logoImg.style.display = 'block';
       currentUserData.logo = logoUrl;
       currentUserData.logoChanges++;
-      logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+      logoInfo.textContent = `✅ Logo atualizada! Trocas usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+
+      // 🔧 NOVO: Salva no Realtime Database
+      await update(ref(db, 'usuarios/' + user.uid), {
+        logo: logoUrl,
+        logoChanges: currentUserData.logoChanges
+      });
+
+      // 🔧 NOVO: Salva no Firestore também
+      await setDoc(doc(firestore, 'usuarios', user.uid), {
+        logo: logoUrl,
+        logoChanges: currentUserData.logoChanges
+      }, { merge: true }); // merge: true = não sobrescreve outros campos
+
+      console.log('✅ Logo salva em Realtime DB e Firestore');
 
     } catch (err) {
-      console.error(err);
-      alert('❌ Erro ao enviar logo. Tente novamente.');
+      console.error('❌ Erro ao enviar logo:', err);
+      logoInfo.textContent = `❌ Erro: ${err.message}`;
+      alert(`❌ Erro ao enviar logo: ${err.message}`);
+      logoUpload.value = '';
     }
   });
 
@@ -309,7 +344,15 @@ onAuthStateChanged(auth, async user => {
     currentUserData.whatsapp = whatsappEl.value.trim();
 
     try {
+      // 🔧 NOVO: Salva em Realtime DB
       await update(ref(db, 'usuarios/' + user.uid), currentUserData);
+
+      // 🔧 NOVO: Salva em Firestore também
+      await setDoc(doc(firestore, 'usuarios', user.uid), {
+        nome: currentUserData.nome,
+        whatsapp: currentUserData.whatsapp
+      }, { merge: true });
+
       alert('✅ Perfil atualizado com sucesso!');
     } catch (err) {
       console.error(err);

@@ -20,6 +20,12 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+import {
+  getDatabase,
+  ref,
+  set
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 /* ======= CONFIG FIREBASE ======= */
 const firebaseConfig = {
   apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
@@ -27,12 +33,14 @@ const firebaseConfig = {
   projectId: "orion-lab-a9298",
   storageBucket: "orion-lab-a9298.appspot.com",
   messagingSenderId: "421847499235",
-  appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6"
+  appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+  databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const rtdb = getDatabase(app);
 
 /* =====================================================
     UTIL — TOAST
@@ -63,7 +71,7 @@ function sessaoExpirada() {
   const last = Number(localStorage.getItem("orion_last_activity"));
   if (!last) return true;
   const diff = (Date.now() - last) / 1000 / 60;
-  return diff > 30; // 30 minutos
+  return diff > 30;
 }
 
 window.addEventListener("mousemove", atualizarSessao);
@@ -81,7 +89,6 @@ async function verificarPlano(uid) {
   const venc = data.data_expiracao ? new Date(data.data_expiracao) : null;
 
   if (!data.data_inicio) return "sem-plano";
-
   if (!venc || agora > venc || data.status !== "ativo") return "expirado";
 
   return "ativo";
@@ -111,14 +118,14 @@ if (registerBtn) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const user = cred.user;
+
       await updateProfile(user, { displayName: username });
 
       const agora = new Date();
       const expira = new Date();
       expira.setDate(expira.getDate() + 2);
 
-      // Firestore
-      await setDoc(doc(db, "usuarios", user.uid), {
+      const userData = {
         uid: user.uid,
         nome: username,
         email,
@@ -128,9 +135,15 @@ if (registerBtn) {
         data_inicio: formatISO(agora),
         data_expiracao: formatISO(expira),
         ultima_atividade: formatISO(),
-        logo: "/logos/default.png",
+        logo: "",            // AGORA CORRIGIDO
         logoChanges: 0
-      });
+      };
+
+      // Firestore
+      await setDoc(doc(db, "usuarios", user.uid), userData);
+
+      // Realtime Database
+      await set(ref(rtdb, "usuarios/" + user.uid), userData);
 
       toast("Conta criada! Seu teste gratuito de 2 dias começou.");
       atualizarSessao();
@@ -166,6 +179,7 @@ if (loginBtn) {
           status: "bloqueado",
           plano: "Expirado"
         });
+
         await signOut(auth);
         return window.location.href = "/plano-expirado.html";
       }
@@ -203,7 +217,7 @@ if (resetBtn) {
 }
 
 /* =====================================================
-    AUTOLOGIN + VERIFICAÇÃO DE PLANO
+    AUTOLOGIN + VERIFICAÇÃO
 ===================================================== */
 onAuthStateChanged(auth, async (user) => {
   const path = window.location.pathname;
@@ -227,6 +241,7 @@ onAuthStateChanged(auth, async (user) => {
       status: "bloqueado",
       plano: "Expirado"
     });
+
     await signOut(auth);
     return window.location.href = "/plano-expirado.html";
   }
