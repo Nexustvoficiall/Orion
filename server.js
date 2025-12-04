@@ -1,3 +1,6 @@
+// server.js (Orion Creator API 2.8.x - DEBUG MODE)
+// VERSÃO COM AJUSTES DE POSIÇÃO AGRESSIVOS + LOGS PARA DIAGNÓSTICO
+
 import express from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
@@ -12,8 +15,9 @@ import { promises as fsPromises } from "fs";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import validator from "validator";
+import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 
-// Imports da API TMDB
 import {
   buscarTMDB,
   getLancamentos,
@@ -22,59 +26,54 @@ import {
   getTendencias
 } from "./api/tmdb.js";
 
-import admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import FanartService from "./api/fanart-service.js";
 
 dotenv.config();
 
-// -------------------------
-// CONFIGURAÇÕES E VALIDAÇÃO
-// -------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Validar variáveis de ambiente críticas
-const requiredEnvVars = ['TMDB_KEY', 'PORT', 'FIREBASE_PROJECT_ID', 'FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL'];
-requiredEnvVars.forEach(varName => {
+const requiredEnvVars = [
+  "TMDB_KEY",
+  "PORT",
+  "FIREBASE_PROJECT_ID",
+  "FIREBASE_PRIVATE_KEY",
+  "FIREBASE_CLIENT_EMAIL",
+  "FANART_API_KEY"
+];
+
+for (const varName of requiredEnvVars) {
   if (!process.env[varName]) {
     console.error(`❌ ERRO: Variável ${varName} não definida no .env`);
     process.exit(1);
   }
-});
+}
 
-// Inicializar Firebase com variáveis do .env
+const firebasePrivateKey = (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
 if (!admin.apps.length) {
   try {
     admin.initializeApp({
       credential: admin.credential.cert({
-        type: "service_account",
         project_id: process.env.FIREBASE_PROJECT_ID,
-        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-        client_email: process.env.FIREBASE_CLIENT_EMAIL,
-        client_id: process.env.FIREBASE_CLIENT_ID,
-        auth_uri: "https://accounts.google.com/o/oauth2/auth",
-        token_uri: "https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
-        universe_domain: "googleapis.com"
-      }),
+        private_key: firebasePrivateKey,
+        client_email: process.env.FIREBASE_CLIENT_EMAIL
+      })
     });
-    console.log("✅ Firebase inicializado com sucesso");
-  } catch (error) {
-    console.error("❌ Erro ao inicializar Firebase:", error.message);
+    console.log("✅ Firebase inicializado");
+  } catch (err) {
+    console.error("❌ Erro ao inicializar Firebase:", err.message);
     process.exit(1);
   }
 }
 const db = getFirestore();
 
-// Inicializar Express
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// -------------------------
-// MIDDLEWARES DE SEGURANÇA
-// -------------------------
+const fanartService = new FanartService(process.env.FANART_API_KEY);
+console.log("✅ Fanart.tv Service inicializado");
+
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
@@ -84,413 +83,421 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Rate Limiters
-const apiLimiter = rateLimit({
+const tmdbLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  message: { error: "Muitas requisições. Tente novamente em alguns minutos." }
+});
+
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: { error: "Muitas requisições. Tente novamente em 15 minutos." },
-  standardHeaders: true,
-  legacyHeaders: false,
+  message: { error: "Muitas requisições. Tente novamente em 15 minutos." }
 });
 
 const bannerLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 20,
-  message: { error: "Limite de geração de banners atingido. Aguarde 15 minutos." }
+  message: { error: "Limite de geração de banners atingido. Aguarde alguns minutos." }
 });
 
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
-  message: { error: "Limite de uploads atingido. Aguarde 1 hora." }
+  message: { error: "Limite de uploads atingido. Tente novamente depois." }
 });
 
-app.use("/api", apiLimiter);
-
-// -------------------------
-// MIDDLEWARE DE AUTENTICAÇÃO
-// -------------------------
 const verificarAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader = req.headers.authorization || "";
+    if (!authHeader.startsWith("Bearer ")) {
       return res.status(401).json({ error: "Token de autenticação não fornecido" });
     }
-
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    
-    req.uid = decodedToken.uid;
-    req.user = decodedToken;
+    const token = authHeader.slice(7);
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.uid = decoded.uid;
+    req.user = decoded;
     next();
-  } catch (error) {
-    console.error("❌ Erro na autenticação:", error.message);
+  } catch (err) {
+    console.error("❌ Erro na autenticação:", err.message);
     res.status(401).json({ error: "Token inválido ou expirado" });
   }
 };
 
-// -------------------------
-// CACHE EM MEMÓRIA
-// -------------------------
 class SimpleCache {
-  constructor(ttl = 3600000) {
-    this.cache = new Map();
-    this.ttl = ttl;
+  constructor(ttlMs = 60 * 60 * 1000, maxItems = 500) {
+    this.ttl = ttlMs;
+    this.maxItems = maxItems;
+    this.map = new Map();
+    this.timer = setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
-
   get(key) {
-    const item = this.cache.get(key);
-    if (!item) return null;
-    
-    if (Date.now() - item.timestamp > this.ttl) {
-      this.cache.delete(key);
+    const entry = this.map.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > this.ttl) {
+      this.map.delete(key);
       return null;
     }
-    
-    return item.data;
+    return entry.data;
   }
-
   set(key, data) {
-    this.cache.set(key, { data, timestamp: Date.now() });
-    
-    if (this.cache.size > 1000) {
-      const now = Date.now();
-      for (const [k, v] of this.cache.entries()) {
-        if (now - v.timestamp > this.ttl) {
-          this.cache.delete(k);
-        }
+    if (this.map.size >= this.maxItems) {
+      this.cleanup();
+      if (this.map.size >= this.maxItems) {
+        const oldestKey = this.map.keys().next().value;
+        this.map.delete(oldestKey);
       }
     }
+    this.map.set(key, { data, ts: Date.now() });
   }
-
-  clear() {
-    this.cache.clear();
+  cleanup() {
+    const now = Date.now();
+    let removed = 0;
+    for (const [key, entry] of this.map.entries()) {
+      if (now - entry.ts > this.ttl) {
+        this.map.delete(key);
+        removed++;
+      }
+    }
+    if (removed) console.log(`🧹 Cache: ${removed} itens expirados removidos`);
   }
+  clear() { this.map.clear(); }
+  destroy() { clearInterval(this.timer); this.clear(); }
+  get size() { return this.map.size; }
 }
+const imageCache = new SimpleCache(60 * 60 * 1000, 200);
+const tmdbCache = new SimpleCache(30 * 60 * 1000, 500);
 
-const imageCache = new SimpleCache(3600000);
-const tmdbCache = new SimpleCache(1800000);
-
-// -------------------------
-// UPLOAD (MULTER + CLOUDINARY)
-// -------------------------
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: "orioncreator",
     allowed_formats: ["jpg", "png", "jpeg", "webp"],
     transformation: [{ width: 2000, height: 3000, crop: "limit" }]
-  },
-});
-
-const upload = multer({ 
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024,
-    files: 1
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (allowedMimes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Formato de arquivo não suportado. Use JPG, PNG ou WEBP.'));
-    }
   }
 });
 
-// -------------------------
-// PALETA DE CORES
-// -------------------------
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Formato não suportado. Use JPG, PNG ou WEBP."));
+  }
+});
+
 const COLORS = {
-  ROXO:      { hex: "#8A2BE2", gradient: ["#4B0082", "#000000"] },
-  AZUL:      { hex: "#007bff", gradient: ["#001f3f", "#000000"] },
-  VERDE:     { hex: "#28a745", gradient: ["#0f3e18", "#000000"] },
-  VERMELHO:  { hex: "#dc3545", gradient: ["#4a0808", "#000000"] },
-  LARANJA:   { hex: "#fd7e14", gradient: ["#692800", "#000000"] },
-  AMARELO:   { hex: "#ffc107", gradient: ["#856404", "#000000"] },
-  DOURADO:   { hex: "#FFD700", gradient: ["#755c00", "#000000"] },
-  PRATA:     { hex: "#C0C0C0", gradient: ["#383838", "#000000"] }
+  ROXO: { hex: "#8A2BE2", gradient: ["#4B0082", "#000000"] },
+  AZUL: { hex: "#007bff", gradient: ["#001f3f", "#000000"] },
+  VERDE: { hex: "#28a745", gradient: ["#0f3e18", "#000000"] },
+  VERMELHO: { hex: "#dc3545", gradient: ["#4a0808", "#000000"] },
+  LARANJA: { hex: "#fd7e14", gradient: ["#692800", "#000000"] },
+  AMARELO: { hex: "#ffc107", gradient: ["#856404", "#000000"] },
+  DOURADO: { hex: "#cc9b07ff", gradient: ["#856404", "#000000"] },
+  ROSA: { hex: "#ff00ddff", gradient: ["#750065ff", "#000000"] },
+  PRATA: { hex: "#C0C0C0", gradient: ["#383838", "#000000"] }
 };
 
+const PREMIUM_OVERLAYS = {
+  ROXO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_roxo_vdnbwk.png",
+  AZUL: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_azul_h83cpu.png",
+  VERMELHO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_vermelho_bjb2u1.png",
+  VERDE: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_verde_i2nekv.png",
+  PRATA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_prata_xuvzoi.png",
+  AMARELO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_amarelo_urqjlu.png",
+  DOURADO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_dourado_asthju.png",
+  LARANJA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_lajanja_qtyj6n.png"
+};
+
+const PREMIUM_LOCAL_DIR = "public/images/vods";
+
 const ALLOWED_IMAGE_DOMAINS = [
-  'res.cloudinary.com',
-  'image.tmdb.org',
-  'themoviedb.org'
+  "res.cloudinary.com",
+  "image.tmdb.org",
+  "themoviedb.org",
+  "assets.fanart.tv"
 ];
 
-// -------------------------
-// FUNÇÕES AUXILIARES
-// -------------------------
+const TIPOS_BANNER_VALIDOS = ["horizontal", "vertical"];
+
 async function fileExists(p) {
+  try { await fsPromises.access(p); return true; } catch { return false; }
+}
+
+function validarURL(url) {
+  if (!url || typeof url !== "string") return false;
+  if (url.startsWith("file://")) return false;
+  if (!validator.isURL(url, { protocols: ["http", "https"], require_protocol: true })) return false;
   try {
-    await fsPromises.access(p);
-    return true;
-  } catch (e) {
+    const u = new URL(url);
+    return ALLOWED_IMAGE_DOMAINS.some(domain => u.hostname === domain || u.hostname.endsWith(`.${domain}`));
+  } catch {
     return false;
   }
 }
 
-function validarURL(url) {
-  if (!url || typeof url !== 'string') return false;
-  
-  if (url.startsWith('file://') || url.startsWith('/')) {
-    return false;
+function buildTMDBUrl(endpoint, params = {}) {
+  const base = "https://api.themoviedb.org/3";
+  const url = new URL(base + endpoint);
+  url.searchParams.set("api_key", process.env.TMDB_KEY);
+  if (!("language" in params)) {
+    url.searchParams.set("language", "pt-BR");
   }
-  
-  if (!validator.isURL(url, { protocols: ['http', 'https'], require_protocol: true })) {
-    return false;
-  }
-  
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) url.searchParams.set(k, v);
+  });
+  return url.toString();
+}
+
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort(), timeout);
   try {
-    const urlObj = new URL(url);
-    return ALLOWED_IMAGE_DOMAINS.some(domain => 
-      urlObj.hostname === domain || urlObj.hostname.endsWith(`.${domain}`)
-    );
-  } catch (e) {
-    return false;
+    const resp = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(to);
+    return resp;
+  } catch (err) {
+    clearTimeout(to);
+    if (err.name === "AbortError") throw new Error("Timeout ao acessar recurso externo");
+    throw err;
   }
 }
 
 async function fetchBuffer(url, useCache = true) {
-  if (!url) throw new Error("URL inválida para imagem.");
-  
-  if (!validarURL(url)) {
-    throw new Error(`URL não permitida ou inválida: ${url}`);
-  }
+  if (!url) throw new Error("URL de imagem ausente");
+  if (!validarURL(url)) throw new Error(`URL não permitida: ${url}`);
 
   if (useCache) {
     const cached = imageCache.get(url);
     if (cached) return cached;
   }
 
-  try {
-    const res = await fetch(url, { 
-      headers: { 'User-Agent': 'OrionCreator/1.0' }
-    });
-    
-    if (!res.ok) {
-      throw new Error(`Falha ao baixar imagem: status ${res.status}`);
-    }
-    
-    const buffer = Buffer.from(await res.arrayBuffer());
-    
-    const metadata = await sharp(buffer).metadata();
-    if (!metadata.format) {
-      throw new Error("Arquivo não é uma imagem válida");
-    }
-    
-    const pngBuffer = await sharp(buffer).png().toBuffer();
-    
-    if (useCache) {
-      imageCache.set(url, pngBuffer);
-    }
-    
-    return pngBuffer;
-  } catch (error) {
-    console.error(`❌ Erro ao buscar imagem ${url}:`, error.message);
-    throw new Error(`Falha ao baixar imagem: ${error.message}`);
-  }
+  const resp = await fetchWithTimeout(url, { headers: { "User-Agent": "OrionCreator/1.0" } }, 15000);
+  if (!resp.ok) throw new Error(`Falha HTTP ${resp.status}`);
+
+  const arrayBuf = await resp.arrayBuffer();
+  const buffer = Buffer.from(arrayBuf);
+  const meta = await sharp(buffer).metadata();
+  if (!meta.format) throw new Error("Conteúdo não é imagem válida");
+  const pngBuf = await sharp(buffer).png().toBuffer();
+
+  if (useCache) imageCache.set(url, pngBuf);
+  return pngBuf;
 }
 
 function wrapText(text, maxChars) {
   if (!text) return [];
-  const words = text.split(' ');
-  let lines = [];
-  let currentLine = words[0] || '';
-
-  for (let i = 1; i < words.length; i++) {
-    if ((words[i].length + currentLine.length + 1) <= maxChars) {
-      currentLine += " " + words[i];
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  for (const w of words) {
+    if ((current + " " + w).trim().length <= maxChars) {
+      current = current ? current + " " + w : w;
     } else {
-      lines.push(currentLine);
-      currentLine = words[i];
+      if (current) lines.push(current);
+      current = w;
     }
   }
-  
-  if (currentLine) lines.push(currentLine);
+  if (current) lines.push(current);
   return lines.slice(0, 8);
 }
 
 function formatTime(minutes) {
-  if (!minutes || isNaN(minutes)) return "";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const m = parseInt(minutes, 10);
+  if (isNaN(m) || m <= 0) return "";
+  const h = Math.floor(m / 60);
+  const mm = m % 60;
+  return h ? `${h}h ${mm}m` : `${mm}m`;
 }
 
-const safeXml = (s) => String(s || "")
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&apos;");
+function safeXml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
 
-// -------------------------
-// ROTAS DA API TMDB
-// -------------------------
-app.get("/api/tmdb", async (req, res) => {
+app.get("/", async (req, res) => {
+  const index = path.join(__dirname, "public", "index.html");
+  if (await fileExists(index)) return res.sendFile(index);
+  res.send(`
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Orion Creator API</title>
+<style>
+body{font-family:Arial,sans-serif;background:#121212;color:#eee;margin:40px auto;max-width:760px;line-height:1.5}
+h1{color:#8A2BE2}
+code{background:#000;padding:2px 5px;border-radius:4px;color:#8A2BE2}
+.endpoint{padding:10px;border-left:4px solid #8A2BE2;background:#1e1e1e;margin:8px 0;border-radius:6px}
+.method{display:inline-block;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;background:#333;color:#fff;margin-right:8px}
+.get{background:#2d7a2d}
+.post{background:#0d5ca8}
+</style>
+</head>
+<body>
+<h1>🎬 Orion Creator API</h1>
+<p>API para geração de banners de filmes e séries (TMDB + Fanart.tv)</p>
+<div class="endpoint"><span class="method get">GET</span><code>/api/health</code> - Status</div>
+<div class="endpoint"><span class="method get">GET</span><code>/api/cores</code> - Paleta de cores</div>
+<div class="endpoint"><span class="method get">GET</span><code>/api/tmdb</code> - Home TMDB agregada</div>
+<div class="endpoint"><span class="method get">GET</span><code>/api/tmdb/detalhes/:tipo/:id</code> - Detalhes (movie|tv)</div>
+<div class="endpoint"><span class="method get">GET</span><code>/api/tmdb/detalhes/tv/:id/season/:num</code> - Temporada</div>
+<div class="endpoint"><span class="method post">POST</span><code>/api/gerar-banner</code> - Gerar banner (auth)</div>
+<div class="endpoint"><span class="method post">POST</span><code>/api/upload</code> - Upload (auth)</div>
+<p>Versão: 2.8.0 (Premium + Exclusive Ajustado)</p>
+</body>
+</html>
+  `);
+});
+
+app.get("/api/tmdb", tmdbLimiter, async (req, res) => {
   try {
     const { query, tipo } = req.query;
-    
     if (query) {
-      const cacheKey = `search_${tipo}_${query}`;
+      const cacheKey = `search_${tipo || "movie"}_${query}`;
       const cached = tmdbCache.get(cacheKey);
       if (cached) return res.json(cached);
-      
-      const resultados = await buscarTMDB(query, tipo || "movie");
-      tmdbCache.set(cacheKey, resultados);
-      return res.json(resultados);
+      const results = await buscarTMDB(query, tipo || "movie");
+      tmdbCache.set(cacheKey, results);
+      return res.json(results);
     }
 
-    const cacheKey = "tmdb_home";
-    const cached = tmdbCache.get(cacheKey);
-    if (cached) return res.json(cached);
+    const homeKey = "tmdb_home_v2";
+    const cachedHome = tmdbCache.get(homeKey);
+    if (cachedHome) return res.json(cachedHome);
 
-    const [lancamentos, filmesPop, seriesPop, tendencias] = await Promise.all([
-      getLancamentos().catch(() => ({ filmes: [], series: [] })),
-      getFilmesPopulares().catch(() => []),
-      getSeriesPopulares().catch(() => []),
-      getTendencias().catch(() => []),
+    const [l, fp, sp, t] = await Promise.allSettled([
+      getLancamentos(),
+      getFilmesPopulares(),
+      getSeriesPopulares(),
+      getTendencias()
     ]);
 
-    const response = {
-      filmesLancamentos: lancamentos?.filmes || [],
-      seriesLancamentos: lancamentos?.series || [],
-      filmesPopulares: filmesPop || [],
-      seriesPopulares: seriesPop || [],
-      tendencias: tendencias || [],
+    const payload = {
+      filmesLancamentos: l.status === "fulfilled" ? l.value?.filmes || [] : [],
+      seriesLancamentos: l.status === "fulfilled" ? l.value?.series || [] : [],
+      filmesPopulares: fp.status === "fulfilled" ? fp.value || [] : [],
+      seriesPopulares: sp.status === "fulfilled" ? sp.value || [] : [],
+      tendencias: t.status === "fulfilled" ? t.value || [] : []
     };
-
-    tmdbCache.set(cacheKey, response);
-    return res.json(response);
+    tmdbCache.set(homeKey, payload);
+    res.json(payload);
   } catch (err) {
-    console.error("❌ Erro TMDB:", err.message);
+    console.error("❌ /api/tmdb erro:", err.message);
     res.status(500).json({ error: "Erro ao buscar dados da TMDB" });
   }
 });
 
-app.get("/api/tmdb/detalhes/:tipo/:id", async (req, res) => {
+app.get("/api/tmdb/detalhes/:tipo/:id", tmdbLimiter, async (req, res) => {
   const { tipo, id } = req.params;
-  
-  if (!['movie', 'tv'].includes(tipo) || !id || isNaN(id)) {
+  if (!["movie", "tv"].includes(tipo) || isNaN(id)) {
     return res.status(400).json({ error: "Parâmetros inválidos" });
   }
-  
   try {
-    const cacheKey = `details_${tipo}_${id}`;
-    const cached = tmdbCache.get(cacheKey);
+    const key = `det_${tipo}_${id}`;
+    const cached = tmdbCache.get(key);
     if (cached) return res.json(cached);
-
-    const url = `https://api.themoviedb.org/3/${tipo}/${id}?api_key=${process.env.TMDB_KEY}&language=pt-BR&append_to_response=images,credits,release_dates`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return res.status(response.status).json({ error: "Item não encontrado" });
+    const url = buildTMDBUrl(`/${tipo}/${id}`, {
+      append_to_response: "images,credits,release_dates"
+    });
+    const r = await fetchWithTimeout(url);
+    if (!r.ok) {
+      console.error("TMDB detalhes status:", r.status, url);
+      return res.status(r.status).json({ error: "Item não encontrado" });
     }
-    
-    const item = await response.json();
-    tmdbCache.set(cacheKey, item);
-    res.json(item);
+    const json = await r.json();
+    tmdbCache.set(key, json);
+    res.json(json);
   } catch (err) {
-    console.error("❌ Erro Detalhes:", err.message);
+    console.error("❌ Detalhes TMDB erro:", err.message);
     res.status(500).json({ error: "Erro ao buscar detalhes" });
   }
 });
 
-// 🔧 NOVO: Endpoint para dados da temporada
-app.get("/api/tmdb/detalhes/tv/:id/season/:seasonNumber", async (req, res) => {
+app.get("/api/tmdb/detalhes/tv/:id/season/:seasonNumber", tmdbLimiter, async (req, res) => {
   const { id, seasonNumber } = req.params;
-  
-  if (!id || isNaN(id) || !seasonNumber || isNaN(seasonNumber)) {
+  if (isNaN(id) || isNaN(seasonNumber)) {
     return res.status(400).json({ error: "Parâmetros inválidos" });
   }
-  
   try {
-    const cacheKey = `season_${id}_${seasonNumber}`;
-    const cached = tmdbCache.get(cacheKey);
+    const key = `tv_season_${id}_${seasonNumber}`;
+    const cached = tmdbCache.get(key);
     if (cached) return res.json(cached);
-
-    const url = `https://api.themoviedb.org/3/tv/${id}/season/${seasonNumber}?api_key=${process.env.TMDB_KEY}&language=pt-BR`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      return res.status(response.status).json({ error: "Temporada não encontrada" });
+    const url = buildTMDBUrl(`/tv/${id}/season/${seasonNumber}`);
+    const r = await fetchWithTimeout(url);
+    if (!r.ok) {
+      return res.status(r.status).json({ error: "Temporada não encontrada" });
     }
-    
-    const seasonData = await response.json();
-    tmdbCache.set(cacheKey, seasonData);
-    res.json(seasonData);
+    const json = await r.json();
+    tmdbCache.set(key, json);
+    res.json(json);
   } catch (err) {
-    console.error("❌ Erro ao buscar temporada:", err.message);
-    res.status(500).json({ error: "Erro ao buscar dados da temporada" });
+    console.error("❌ Temporada erro:", err.message);
+    res.status(500).json({ error: "Erro ao buscar temporada" });
   }
 });
 
-app.get("/api/search", async (req, res) => {
+app.get("/api/search", tmdbLimiter, async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.trim().length < 2) {
+    return res.status(400).json({ error: "Query muito curta (>=2)" });
+  }
   try {
-    const { q } = req.query;
-    if (!q || q.trim().length < 2) {
-      return res.status(400).json({ error: "Query muito curta (mínimo 2 caracteres)" });
-    }
-
-    const cacheKey = `search_multi_${q}`;
-    const cached = tmdbCache.get(cacheKey);
+    const key = `multi_${q}`;
+    const cached = tmdbCache.get(key);
     if (cached) return res.json(cached);
-
-    const url = `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_KEY}&language=pt-BR&query=${encodeURIComponent(q)}`;
-    const r = await fetch(url);
+    const url = buildTMDBUrl("/search/multi", { query: q });
+    const r = await fetchWithTimeout(url);
     const json = await r.json();
-    
-    tmdbCache.set(cacheKey, json);
+    tmdbCache.set(key, json);
     res.json(json);
   } catch (err) {
-    console.error("❌ Erro search:", err.message);
+    console.error("❌ /api/search erro:", err.message);
     res.status(500).json({ error: "Erro na busca" });
   }
 });
 
-app.get("/api/vods", async (req, res) => {
+app.get("/api/vods", tmdbLimiter, async (req, res) => {
   try {
     const { q } = req.query;
-    
     if (q) {
-      const url = `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_KEY}&language=pt-BR&query=${encodeURIComponent(q)}`;
-      const r = await fetch(url);
+      const url = buildTMDBUrl("/search/multi", { query: q });
+      const r = await fetchWithTimeout(url);
       const json = await r.json();
       return res.json(json);
     }
-    
     const lanc = await getLancamentos();
-    const combined = [...(lanc?.filmes || []), ...(lanc?.series || [])].slice(0, 20);
-    return res.json({ results: combined });
-  } catch (e) {
-    console.error("❌ Erro VODs:", e.message);
+    const arr = [];
+    if (lanc?.filmes) arr.push(...lanc.filmes);
+    if (lanc?.series) arr.push(...lanc.series);
+    res.json({ results: arr.slice(0, 20) });
+  } catch (err) {
+    console.error("❌ /api/vods erro:", err.message);
     res.status(500).json({ error: "Erro ao buscar VODs" });
   }
 });
 
 app.post("/api/upload", verificarAuth, uploadLimiter, upload.single("file"), (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "Nenhum arquivo enviado" });
-    }
-    
-    res.json({ 
+    if (!req.file) return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    res.json({
       url: req.file.path || req.file.url,
       filename: req.file.filename,
       size: req.file.size
     });
-  } catch (error) {
-    console.error("❌ Erro no upload:", error.message);
-    res.status(500).json({ error: "Erro ao fazer upload do arquivo" });
+  } catch (err) {
+    console.error("❌ Upload erro:", err.message);
+    res.status(500).json({ error: "Erro no upload" });
   }
 });
 
-// -------------------------
-// GERADOR DE BANNER (PROTEGIDO)
-// -------------------------
+// =====================================================================
+// /api/gerar-banner
+// =====================================================================
 app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => {
   try {
     const {
@@ -510,718 +517,757 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       temporada
     } = req.body || {};
 
-    // Validações
-    if (!posterUrl) {
-      return res.status(400).json({ error: "URL do Poster é obrigatória." });
-    }
+    // LOG PARA DIAGNÓSTICO DO TIPO DE MODELO RECEBIDO
+    console.log(`➡️ REQUISIÇÃO RECEBIDA: modeloTipo="${modeloTipo}", tipo="${tipo}"`);
 
-    if (!validarURL(posterUrl)) {
-      return res.status(400).json({ error: "URL do poster inválida ou não permitida." });
-    }
+    if (!posterUrl) return res.status(400).json({ error: "posterUrl obrigatório" });
+    if (!validarURL(posterUrl)) return res.status(400).json({ error: "posterUrl inválida" });
+    if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
+    if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
+    if (backdropUrl && !validarURL(backdropUrl)) return res.status(400).json({ error: "backdropUrl inválida" });
 
-    if (!titulo || titulo.trim().length === 0) {
-      return res.status(400).json({ error: "Título é obrigatório." });
-    }
-
-    if (titulo.length > 100) {
-      return res.status(400).json({ error: "Título muito longo (máximo 100 caracteres)." });
-    }
-
-    if (backdropUrl && !validarURL(backdropUrl)) {
-      return res.status(400).json({ error: "URL do backdrop inválida." });
+    const tipoNorm = (tipo || "vertical").toLowerCase();
+    if (!TIPOS_BANNER_VALIDOS.includes(tipoNorm)) {
+      return res.status(400).json({ error: "Tipo deve ser horizontal ou vertical" });
     }
 
     const corKey = (modeloCor || "ROXO").toUpperCase();
     if (!COLORS[corKey]) {
-      return res.status(400).json({ error: `Cor '${corKey}' não existe. Cores disponíveis: ${Object.keys(COLORS).join(', ')}` });
+      return res.status(400).json({ error: `Cor inválida. Opções: ${Object.keys(COLORS).join(", ")}` });
     }
     const corConfig = COLORS[corKey];
 
-    const width = tipo === "horizontal" ? 1920 : 1080;
-    const height = tipo === "horizontal" ? 1080 : 1920;
+    const width = tipoNorm === "horizontal" ? 1920 : 1080;
+    const height = tipoNorm === "horizontal" ? 1080 : 1920;
+    const isPremium = modeloTipo === "ORION_PREMIUM" || modeloTipo === "PADRAO";
+    const isExclusive = modeloTipo === "ORION_EXCLUSIVO";
+    const isOrionExclusivoVertical = isExclusive && tipoNorm === "vertical";
 
-    // 🔧 NOVO: Buscar dados da temporada se for série
-    let anoTemporada = ano;
-    let notaTemporada = nota;
+    console.log(`📊 Gerando banner: tipo=${tipoNorm}, modelo=${modeloTipo}, cor=${corKey}, ExclusivoVertical=${isOrionExclusivoVertical}`);
 
-    if (tmdbTipo === 'tv' && temporada) {
+    // --- Ajuste ano/nota para temporada ---
+    let anoFinal = ano;
+    let notaFinal = nota;
+    if (tmdbTipo === "tv" && tmdbId && temporada) {
       try {
-        const urlTemporada = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${temporada}?api_key=${process.env.TMDB_KEY}&language=pt-BR`;
-        const resTemporada = await fetch(urlTemporada);
-        
-        if (resTemporada.ok) {
-          const temporadaDados = await resTemporada.json();
-          console.log(`📺 Dados da temporada ${temporada} carregados`);
-          
-          // 🔧 NOVO: Extrair ano da temporada
-          if (temporadaDados.air_date) {
-            anoTemporada = temporadaDados.air_date.substring(0, 4);
-            console.log(`📅 Ano da temporada ${temporada}: ${anoTemporada}`);
-          }
-          
-          // 🔧 NOVO: Extrair nota/rating da temporada
-          if (temporadaDados.vote_average && temporadaDados.vote_average > 0) {
-            notaTemporada = temporadaDados.vote_average;
-            console.log(`⭐ Nota da temporada ${temporada}: ${notaTemporada}`);
-          } else if (temporadaDados.episodes && temporadaDados.episodes.length > 0) {
-            const mediaEpisodios = temporadaDados.episodes.reduce((acc, ep) => acc + (ep.vote_average || 0), 0) / temporadaDados.episodes.length;
-            if (mediaEpisodios > 0) {
-              notaTemporada = mediaEpisodios;
-              console.log(`⭐ Nota média dos episódios: ${notaTemporada.toFixed(1)}`);
-            }
+        const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`);
+        const rs = await fetchWithTimeout(seasonUrl);
+        if (rs.ok) {
+          const seasonData = await rs.json();
+          if (seasonData.air_date) anoFinal = seasonData.air_date.slice(0, 4);
+          if (seasonData.vote_average && seasonData.vote_average > 0) {
+            notaFinal = seasonData.vote_average;
+          } else if (seasonData.episodes?.length) {
+            const avg = seasonData.episodes.reduce((acc, ep) => acc + (ep.vote_average || 0), 0) / seasonData.episodes.length;
+            if (avg > 0) notaFinal = avg;
           }
         }
-      } catch (error) {
-        console.warn("⚠️ Falha ao buscar dados da temporada:", error.message);
+      } catch (err) {
+        console.warn("⚠️ Falha ao buscar dados da temporada:", err.message);
       }
     }
 
-    // -------------------------
-    // BACKGROUND - LÓGICA ATUALIZADA
-    // -------------------------
-    let finalBackgroundBuffer;
-    let overlayColorBuffer;
-
-    if (modeloTipo === "ORION_EXCLUSIVO") {
-      let backUrlToUse = backdropUrl;
-
-      if (!backUrlToUse && tmdbId) {
-        const tTipo = tmdbTipo || "movie";
-        const urlTMDB = `https://api.themoviedb.org/3/${tTipo}/${tmdbId}/images?api_key=${process.env.TMDB_KEY}`;
-        
+    // --- Logo / título limpo ---
+    // Exclusive: tenta logo do TMDB em PT-BR primeiro; se não houver, cai para Fanart.
+    // Premium/Padrão: não usam logo automática (apenas título em texto).
+    let logoFanartBuffer = null;
+    let fanartTitle = null;
+    if (tmdbId) {
+      if (isExclusive) {
+        // 1) Tentar logo do TMDB (priorizando PT-BR)
         try {
-          const resTMDB = await fetch(urlTMDB);
-          if (resTMDB.ok) {
-            const data = await resTMDB.json();
-            if (data.backdrops && data.backdrops.length > 0) {
-              backUrlToUse = `https://image.tmdb.org/t/p/original${data.backdrops[0].file_path}`;
+          const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
+            include_image_language: "pt-BR,pt-br,pt,en,null"
+          });
+          const imgsResp = await fetchWithTimeout(imgsUrl);
+          if (imgsResp.ok) {
+            const imgsData = await imgsResp.json();
+            const logos = imgsData.logos || [];
+            const pickByLang = (langs) =>
+              logos.find(l => langs.includes(l.iso_639_1 || "null"));
+            const chosenLogo =
+              pickByLang(["pt-BR", "pt-br"]) ||
+              pickByLang(["pt"]) ||
+              pickByLang(["en"]) ||
+              logos[0];
+            if (chosenLogo && chosenLogo.file_path) {
+              const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+              if (validarURL(logoUrl)) {
+                logoFanartBuffer = await fetchBuffer(logoUrl, true);
+              }
             }
           }
-        } catch (error) {
-          console.warn("⚠️ Falha ao buscar backdrop do TMDB:", error.message);
+        } catch (err) {
+          console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
+        }
+
+        // 2) Se não achou logo válida no TMDB, tentar Fanart (também priorizando PT-BR)
+        if (!logoFanartBuffer) {
+          try {
+            let logoUrl = null;
+            if (tmdbTipo === "movie") {
+              logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
+            } else if (tmdbTipo === "tv") {
+              const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
+              if (tvdbId) {
+                logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
+              }
+            }
+            if (logoUrl && validarURL(logoUrl)) {
+              logoFanartBuffer = await fetchBuffer(logoUrl, true);
+              try {
+                fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
+              } catch {}
+            }
+          } catch (err) {
+            console.warn("⚠️ Logo Fanart não obtida:", err.message);
+          }
         }
       }
+    }
 
-      if (backUrlToUse) {
-        try {
-          const backBuf = await fetchBuffer(backUrlToUse);
-          finalBackgroundBuffer = await sharp(backBuf)
-            .resize(width, height, { fit: 'cover', position: 'center' })
-            .toBuffer();
-        } catch (error) {
-          console.warn("⚠️ Falha ao processar backdrop, usando cor sólida:", error.message);
-          finalBackgroundBuffer = await sharp({
-            create: { width, height, channels: 4, background: { r: 10, g: 10, b: 10, alpha: 1 } }
-          }).png().toBuffer();
+    // --- Backdrop ---
+    async function obterBackdrop() {
+      if (backdropUrl && validarURL(backdropUrl)) return backdropUrl;
+      if (!tmdbId) return null;
+      try {
+        const imgUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, { include_image_language: "null" });
+        const r = await fetchWithTimeout(imgUrl);
+        if (r.ok) {
+          const json = await r.json();
+          const first = json.backdrops?.[0]?.file_path;
+          if (first) return `https://image.tmdb.org/t/p/original${first}`;
         }
-      } else {
-        finalBackgroundBuffer = await sharp({
-          create: { width, height, channels: 4, background: { r: 10, g: 10, b: 10, alpha: 1 } }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    const backdropFinalUrl = await obterBackdrop();
+
+    let backgroundBuffer;
+    if (backdropFinalUrl) {
+      try {
+        const raw = await fetchBuffer(backdropFinalUrl);
+        backgroundBuffer = await sharp(raw).resize(width, height, { fit: "cover" }).toBuffer();
+      } catch {
+        backgroundBuffer = await sharp({
+          create: { width, height, channels: 4, background: { r: 15, g: 15, b: 25, alpha: 1 } }
         }).png().toBuffer();
       }
-
     } else {
-      let backUrlToUse = backdropUrl;
+      backgroundBuffer = await sharp({
+        create: { width, height, channels: 4, background: { r: 18, g: 18, b: 28, alpha: 1 } }
+      }).png().toBuffer();
+    }
 
-      if (!backUrlToUse && tmdbId) {
-        const tTipo = tmdbTipo || "movie";
-        const urlTMDB = `https://api.themoviedb.org/3/${tTipo}/${tmdbId}/images?api_key=${process.env.TMDB_KEY}`;
-        
+    // Premium: aplica blur/sombra no backdrop
+    if (isPremium) {
+      backgroundBuffer = await sharp(backgroundBuffer)
+        .blur(5)
+        .modulate({ brightness: 0.75 })
+        .toBuffer();
+    }
+
+    // --- Overlay de cor ---
+    let overlayColorBuffer = null;
+
+    if (isPremium) {
+      let overlayOk = false;
+      const premiumUrl = PREMIUM_OVERLAYS[corKey];
+      if (premiumUrl && validarURL(premiumUrl)) {
         try {
-          const resTMDB = await fetch(urlTMDB);
-          if (resTMDB.ok) {
-            const data = await resTMDB.json();
-            if (data.backdrops && data.backdrops.length > 0) {
-              backUrlToUse = `https://image.tmdb.org/t/p/original${data.backdrops[0].file_path}`;
+          console.log(`🎨 Overlay Premium Cloudinary (${corKey})...`);
+        const premiumBuffer = await fetchBuffer(premiumUrl, true);
+          overlayColorBuffer = await sharp(premiumBuffer)
+            .resize(width, height, { fit: "cover" })
+            .png()
+            .toBuffer();
+          overlayOk = true;
+        } catch (err) {
+          console.warn(`⚠️ Falha overlay Premium Cloudinary ${corKey}:`, err.message);
+        }
+      }
+      if (!overlayOk) {
+        const localDir = path.join(__dirname, PREMIUM_LOCAL_DIR);
+        const corLower = corKey.toLowerCase();
+        const localCandidates = [
+          path.join(localDir, `premium_${corLower}.png`),
+          path.join(localDir, `premium-${corLower}.png`),
+          path.join(localDir, `${corLower}.png`)
+        ];
+        for (const p of localCandidates) {
+          if (await fileExists(p)) {
+            try {
+              console.log(`🎨 Overlay Premium local (${p})...`);
+              const localBuf = await fsPromises.readFile(p);
+              overlayColorBuffer = await sharp(localBuf)
+                .resize(width, height, { fit: "cover" })
+                .png()
+                .toBuffer();
+              overlayOk = true;
+              break;
+            } catch (err) {
+              console.warn("⚠️ Erro overlay Premium local:", err.message);
             }
           }
-        } catch (error) {
-          console.warn("⚠️ Falha ao buscar backdrop do TMDB:", error.message);
         }
       }
+    }
 
-      if (backUrlToUse) {
-        try {
-          const backBuf = await fetchBuffer(backUrlToUse);
-          finalBackgroundBuffer = await sharp(backBuf)
-            .resize(width, height, { fit: 'cover', position: 'center' })
-            .blur(3)
-            .toBuffer();
-        } catch (error) {
-          console.warn("⚠️ Falha ao processar backdrop, usando cor sólida:", error.message);
-          finalBackgroundBuffer = await sharp({
-            create: { width, height, channels: 4, background: { r: 20, g: 20, b: 30, alpha: 1 } }
-          }).png().toBuffer();
+    if (isExclusive && !overlayColorBuffer) {
+      const corLower = corKey.toLowerCase();
+      const modelo2Dir = path.join(__dirname, "public", "images", "modelo2");
+      const tryLocalPaths = [
+        path.join(modelo2Dir, `vertical_${corLower}.png`),
+        path.join(modelo2Dir, `vertical-${corLower}.png`)
+      ];
+      for (const p of tryLocalPaths) {
+        if (await fileExists(p)) {
+          try {
+            console.log(`🎨 Overlay Exclusive local (${corKey})...`);
+            const localBuf = await fsPromises.readFile(p);
+            overlayColorBuffer = await sharp(localBuf)
+              .resize(width, height)
+              .png()
+              .toBuffer();
+            break;
+          } catch (err) {
+            console.warn("⚠️ Erro overlay Exclusive local:", err.message);
+          }
         }
-      } else {
-        finalBackgroundBuffer = await sharp({
-          create: { width, height, channels: 4, background: { r: 20, g: 20, b: 30, alpha: 1 } }
-        }).png().toBuffer();
       }
+    }
 
-      const verticalBanners = {
-        ROXO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_roxo_vdnbwk.png",
-        AZUL: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_azul_h83cpu.png",
-        VERMELHO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_vermelho_bjb2u1.png",
-        VERDE: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_verde_i2nekv.png",
-        PRATA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_prata_xuvzoi.png",
-        AMARELO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_amarelo_urqjlu.png",
-        DOURADO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_dourado_asthju.png",
-        LARANJA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_lajanja_qtyj6n.png"
+    // --- Poster (Exclusive tenta poster FANART limpo, depois TMDB limpo;
+    //             Premium usa sempre TMDB, preferindo poster limpo/sem título em PT) ---
+    let effectivePosterUrl = posterUrl;
+    if (tmdbId) {
+      const endpointBase = tmdbTipo === "tv" ? `/tv/${tmdbId}/images` : `/movie/${tmdbId}/images`;
+      const urlImgs = buildTMDBUrl(endpointBase, { include_image_language: "pt-BR,pt-br,pt,en,null" });
+
+      // Função auxiliar para escolher poster limpo/sem título, priorizando sempre PT-BR primeiro.
+      const escolherPosterTMDB = async () => {
+        const r = await fetchWithTimeout(urlImgs);
+        if (!r.ok) return null;
+        const imgs = await r.json();
+        const posters = imgs.posters || [];
+        if (!posters.length) return null;
+
+        const byLang = (langs) =>
+          posters.filter(p => langs.includes(p.iso_639_1 || "null"));
+        // Priorizar idiomas PT-BR > PT > EN > qualquer.
+        let candidatos = byLang(["pt-BR", "pt-br"]);
+        if (!candidatos.length) candidatos = byLang(["pt"]);
+        if (!candidatos.length) candidatos = byLang(["en"]);
+        if (!candidatos.length) candidatos = posters;
+
+        const preferClean =
+          candidatos.find(p => /clean|no[-_ ]?text/i.test(p.file_path || "")) ||
+          candidatos.find(p => /keyart|artwork/i.test(p.file_path || "")) ||
+          candidatos[0];
+
+        return preferClean && preferClean.file_path
+          ? `https://image.tmdb.org/t/p/original${preferClean.file_path}`
+          : null;
       };
-      
-      const colorOverlayUrl = verticalBanners[corKey];
-      if (!colorOverlayUrl) {
-        return res.status(400).json({ error: "Overlay colorido não encontrado para a cor selecionada." });
+
+      if (isExclusive) {
+        try {
+          // 1) Primeiro tenta poster do TMDB em PT-BR/PT
+          const tmdbPoster = await escolherPosterTMDB();
+          if (tmdbPoster && validarURL(tmdbPoster)) {
+            effectivePosterUrl = tmdbPoster;
+          } else {
+            // 2) Se não houver poster adequado no TMDB, tenta Fanart (priorizando PT-BR)
+            let fanartPosterUrl = null;
+            if (tmdbTipo === "movie") {
+              fanartPosterUrl = await fanartService.getMoviePoster(tmdbId, "pt-BR");
+              if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getMoviePoster(tmdbId, "pt-br");
+              if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getMoviePoster(tmdbId, "pt");
+              if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getMoviePoster(tmdbId, "en");
+            } else if (tmdbTipo === "tv") {
+              const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
+              if (tvdbId) {
+                fanartPosterUrl = await fanartService.getTVPoster(tvdbId, "pt-BR");
+                if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getTVPoster(tvdbId, "pt-br");
+                if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getTVPoster(tvdbId, "pt");
+                if (!fanartPosterUrl) fanartPosterUrl = await fanartService.getTVPoster(tvdbId, "en");
+              }
+            }
+            if (fanartPosterUrl && validarURL(fanartPosterUrl)) {
+              effectivePosterUrl = fanartPosterUrl;
+            }
+          }
+        } catch (err) {
+          console.warn("⚠️ Falha ao buscar poster limpo para Exclusive:", err.message);
+        }
+      } else if (isPremium) {
+        try {
+          const tmdbPoster = await escolherPosterTMDB();
+          if (tmdbPoster && validarURL(tmdbPoster)) {
+            effectivePosterUrl = tmdbPoster;
+          }
+        } catch (err) {
+          console.warn("⚠️ Falha ao buscar poster limpo para Premium:", err.message);
+        }
       }
-      
+    }
+
+    const posterOriginal = await fetchBuffer(effectivePosterUrl);
+    let pW, pH, pLeft, pTop, posterResized;
+
+// ========= AJUSTE EXCLUSIVO VERTICAL (CORRIGIDO + deslocamentos) =========
+let titleY, synopseStartY, metaY;  // Definir variáveis no início
+
+// Definir linhas ANTES de usar
+const wrapLimit = tipoNorm === "horizontal" ? 45 : 55;
+// No modelo exclusivo vertical, limitar a sinopse a no máximo 7 linhas
+const maxLines = isOrionExclusivoVertical ? 7 : 6;
+const linhas = wrapText(sinopse || "", wrapLimit).slice(0, maxLines);
+
+// Fontes sinopse: negrito com leve sombra
+let synopFontSize, lineHeight;
+if (tipoNorm === "horizontal") {
+  if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 62; }
+  else if (linhas.length <= 3) { synopFontSize = 44; lineHeight = 58; }
+  else if (linhas.length <= 4) { synopFontSize = 40; lineHeight = 54; }
+  else { synopFontSize = 36; lineHeight = 48; }
+} else {
+  // ORION_EXCLUSIVO vertical: fontes ajustadas para não ficar exagerado em sinopses curtas
+  if (isOrionExclusivoVertical) {
+    if (linhas.length <= 2) { synopFontSize = 42; lineHeight = 56; }
+    else if (linhas.length <= 3) { synopFontSize = 40; lineHeight = 54; }
+    else if (linhas.length <= 4) { synopFontSize = 38; lineHeight = 52; }
+    else if (linhas.length <= 5) { synopFontSize = 36; lineHeight = 50; }
+    // 6–7 linhas: fonte um pouco menor para não quebrar o layout
+    else { synopFontSize = 34; lineHeight = 48; }
+  } else {
+    if (linhas.length <= 2) { synopFontSize = 42; lineHeight = 58; }
+    else if (linhas.length <= 3) { synopFontSize = 40; lineHeight = 56; }
+    else if (linhas.length <= 4) { synopFontSize = 38; lineHeight = 52; }
+    else if (linhas.length <= 5) { synopFontSize = 34; lineHeight = 48; }
+    else { synopFontSize = 30; lineHeight = 44; }
+  }
+}
+
+const textX = tipoNorm === "horizontal" ? pLeft + pW + 40 : Math.round(width / 2);
+const textAnchor = tipoNorm === "horizontal" ? "start" : "middle";
+
+let titleFontSize;
+if (isOrionExclusivoVertical) {
+  // Título maior para ORION_EXCLUSIVO
+  titleFontSize =
+    titulo.length <= 22 ? 125 :
+    titulo.length <= 36 ? 105 :
+    88;
+} else {
+  titleFontSize =
+    titulo.length <= 22 ? (tipoNorm === "horizontal" ? 55 : 50) :
+    titulo.length <= 36 ? (tipoNorm === "horizontal" ? 48 : 40) :
+    (tipoNorm === "horizontal" ? 40 : 34);
+}
+
+const notaFmt = notaFinal ? parseFloat(notaFinal).toFixed(1) : "N/A";
+const durFmt = formatTime(duracao) || duracao || "";
+
+// Meta sem o ícone de estrela (a estrela dourada é desenhada via SVG)
+let metaString = `${notaFmt} | ${anoFinal || ""} | ${genero || ""} | ${durFmt}`;
+if (tmdbTipo === "tv" && temporada) {
+  metaString = `Temporada ${temporada} | ${notaFmt} | ${anoFinal || ""} | ${genero || ""}`;
+}
+
+const metaColor = isExclusive ? "#ffffff" : corConfig.hex;
+// Metadados maior para ORION_EXCLUSIVO vertical
+const metaFontSize = isOrionExclusivoVertical ? 34 : (tipoNorm === "horizontal" ? 26 : 29);
+
+if (isOrionExclusivoVertical) {
+  // Layout do ORION_EXCLUSIVO vertical sem frame de celular (celular já embutido no overlay)
+  // Poster centralizado, com cantos arredondados
+  // Leve redução na largura para "encolher" um pouco o lado direito
+  pW = Math.round(width * 0.58);
+  pH = Math.round(pW * 1.7);
+  pLeft = Math.round((width - pW) / 2) - 4;
+  pTop = 220;
+
+  const posterBase = await sharp(posterOriginal)
+    .resize(pW, pH, { fit: "cover", position: "center" })
+    .png()
+    .toBuffer();
+
+  const radius = 70;
+  const roundedCorner = Buffer.from(`
+    <svg width="${pW}" height="${pH}">
+      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}"/>
+    </svg>
+  `);
+
+  posterResized = await sharp(posterBase)
+    .composite([{ input: roundedCorner, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+
+  // Ajustes de texto para Orion Exclusivo Vertical - alinhado ao poster
+  // Calcula baseado na parte inferior do poster
+  const posterBottom = pTop + pH;
+  // Título/logotipo um pouco abaixo do poster
+  titleY = posterBottom + 90;
+
+  // Posição base da sinopse/metadados
+  let baseSynopseY = titleY + 55;
+  let baseMetaY = baseSynopseY + (linhas.length * lineHeight);
+
+  // Se a sinopse for curta, desce um pouco o conjunto sinopse+meta para não ficar colado no título.
+  if (linhas.length <= 3) {
+    const extra = 40;
+    baseSynopseY += extra;
+    baseMetaY += extra;
+  } else if (linhas.length <= 5) {
+    const extra = 20;
+    baseSynopseY += extra;
+    baseMetaY += extra;
+  }
+
+  synopseStartY = baseSynopseY;
+  metaY = baseMetaY;
+
+} else {
+  console.log("DEBUG: CAIU NO BLOCO ELSE (MODO PADRÃO/PREMIUM OU HORIZONTAL)");
+  // Lógica padrão
+  if (tipoNorm === "horizontal") {
+    pW = isPremium || isExclusive ? 560 : Math.round(width * 0.32);
+    pH = Math.round(pW * 1.58);
+    pLeft = isPremium || isExclusive ? 160 : Math.round((width - pW) / 2);
+    pTop = Math.round((height - pH) / 2) - 153;
+  } else {
+    pW = Math.round(width * 0.5);
+    pH = Math.round(pW * 1.58);
+    pLeft = Math.round((width - pW) / 2);
+    pTop = 193;
+  }
+
+  posterResized = await sharp(posterOriginal)
+    .resize(pW, pH, { fit: "cover" })
+    .png()
+    .toBuffer();
+
+  // Bloco else para texto padrão
+  const spaceAfterPoster = tipoNorm === "horizontal" ? 190 : 230;
+  const titleMargin = tipoNorm === "horizontal" ? 50 : 65;
+  const spaceAfterTitle = tipoNorm === "horizontal" ? 45 : 55;
+
+  const startY = pTop + pH + spaceAfterPoster;
+
+  titleY = startY + titleMargin;
+  synopseStartY = titleY + spaceAfterTitle;
+  metaY = synopseStartY + (linhas.length * lineHeight) + 20;
+}
+    // Logo acima
+    let logoFanartLayer = null;
+    if (logoFanartBuffer) {
       try {
-        const overlayBuf = await fetchBuffer(colorOverlayUrl);
-        overlayColorBuffer = await sharp(overlayBuf)
-          .resize(width, height, { fit: 'cover' })
+        // Logo Fanart: garantir que nunca ultrapasse o tamanho do banner
+        const maxLogoWVertical = Math.round(width * 0.9);  // no máximo 90% da largura do banner
+        const maxLogoHVertical = 420;
+
+        const logoMaxW =
+          tipoNorm === "horizontal"
+            ? 1000
+            : Math.min(isOrionExclusivoVertical ? maxLogoWVertical : 1200, maxLogoWVertical);
+
+        const logoMaxH =
+          tipoNorm === "horizontal"
+            ? 300
+            : (isOrionExclusivoVertical ? maxLogoHVertical : 360);
+
+        const logoProcessed = await sharp(logoFanartBuffer)
+          .resize(logoMaxW, logoMaxH, { fit: "inside" })
+          .png()
           .toBuffer();
-      } catch (error) {
-        console.error("❌ Erro ao processar overlay colorido:", error.message);
-        return res.status(500).json({ error: "Falha ao processar overlay de cor" });
+
+        const { width: lw, height: lh } = await sharp(logoProcessed).metadata();
+        const logoX = tipoNorm === "horizontal" ? textX : Math.round((width - lw) / 2);
+
+        let logoY;
+        if (isOrionExclusivoVertical) {
+          // Logo levemente mais próxima do título, mas um pouco mais alta no layout
+          logoY = titleY - lh - 20;
+        } else {
+          logoY = synopseStartY - lh - 270;
+        }
+
+        logoFanartLayer = { input: logoProcessed, top: Math.round(logoY), left: logoX };
+
+      } catch (err) {
+        console.warn("Logo Fanart layer erro:", err.message);
       }
     }
 
-    // -------------------------
-    // GRADIENTE
-    // -------------------------
-    let gradientOverlay;
-    if (modeloTipo === "ORION_EXCLUSIVO") {
-      const svgGrad = `
-        <svg width="${width}" height="${height}">
-          <defs>
-            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="${corConfig.gradient[0]}" stop-opacity="0.95" />
-              <stop offset="45%" stop-color="${corConfig.gradient[0]}" stop-opacity="0.85" />
-              <stop offset="100%" stop-color="#000000" stop-opacity="0.1" />
-            </linearGradient>
-          </defs>
-          <rect x="0" y="0" width="${width}" height="${height}" fill="url(#grad)" />
-        </svg>
-      `;
-      gradientOverlay = Buffer.from(svgGrad);
-    } else {
-      gradientOverlay = Buffer.from(`
-        <svg width="${width}" height="${height}">
-          <rect width="100%" height="100%" fill="rgba(0,0,0,0.4)"/>
-        </svg>
-      `);
-    }
+    const exclusiveTitleValue = fanartTitle || titulo;
+    const titleTextValue = isExclusive ? exclusiveTitleValue : titulo;
+    const shouldDrawTitleText = isPremium || !logoFanartLayer;
+    const finalTitleTextY = titleY;
 
-    // ===========================================================
-    // POSTER
-    // ===========================================================
-    const posterBufferOriginal = await fetchBuffer(posterUrl);
-
-    let pW, pH, pLeft, pTop;
-
-    if (tipo === "horizontal") {
-      pW = modeloTipo === "ORION_EXCLUSIVO" ? 560 : Math.round(width * 0.32);
-      pLeft = modeloTipo === "ORION_EXCLUSIVO" ? 160 : Math.round((width - pW) / 2);
-      pH = Math.round(pW * 1.58);
-      pTop = Math.round((height - pH) / 2) - 153;
-    } else {
-      pW = modeloTipo === "ORION_EXCLUSIVO" ? 720 : Math.round(width * 0.5);
-      pLeft = Math.round((width - pW) / 2);
-      pH = Math.round(pW * 1.58);
-      pTop = 193;
-    }
-
-    const posterResized = await sharp(posterBufferOriginal)
-      .resize(pW, pH, { fit: "cover", position: "center" })
-      .png()
-      .toBuffer();
-
-    // ===========================================================
-    // SINOPSE
-    // ===========================================================
-    const wrapLimit = tipo === "horizontal" ? 45 : 55;
-    let linhasSinopse = wrapText(sinopse || "", wrapLimit).slice(0, 6);
-
-    let synopFontSize, lineHeight;
-
-    if (tipo === "horizontal") {
-      if (linhasSinopse.length <= 2) {
-        synopFontSize = 46;
-        lineHeight = 62;
-      } else if (linhasSinopse.length <= 3) {
-        synopFontSize = 44;
-        lineHeight = 58;
-      } else if (linhasSinopse.length <= 4) {
-        synopFontSize = 40;
-        lineHeight = 54;
-      } else {
-        synopFontSize = 36;
-        lineHeight = 48;
-      }
-    } else {
-      if (linhasSinopse.length <= 2) {
-        synopFontSize = 42;
-        lineHeight = 58;
-      } else if (linhasSinopse.length <= 3) {
-        synopFontSize = 40;
-        lineHeight = 56;
-      } else if (linhasSinopse.length <= 4) {
-        synopFontSize = 38;
-        lineHeight = 52;
-      } else if (linhasSinopse.length <= 5) {
-        synopFontSize = 34;
-        lineHeight = 48;
-      } else {
-        synopFontSize = 30;
-        lineHeight = 44;
-      }
-    }
-
-    // ===========================================================
-    // POSIÇÕES
-    // ===========================================================
-    const textX = tipo === "horizontal" 
-      ? (pLeft + pW + 40)
-      : Math.round(width / 2);
-      
-    const textAnchor = tipo === "horizontal" ? "start" : "middle";
-
-    const titleFontSize =
-      titulo.length <= 22 ? (tipo === "horizontal" ? 55 : 50) :
-      titulo.length <= 36 ? (tipo === "horizontal" ? 48 : 40) :
-      (tipo === "horizontal" ? 40 : 34);
-
-    const spaceAfterPoster = tipo === "horizontal" ? 190 : 230;
-    const titleMargin = tipo === "horizontal" ? 50 : 65;
-    const spaceAfterTitle = tipo === "horizontal" ? 45 : 55;
-    const metaFontSize = tipo === "horizontal" ? 26 : 29;
-
-    let textYStart = pTop + pH + spaceAfterPoster;
-
-    const titleY = textYStart + titleMargin;
-    const synopseStartY = titleY + spaceAfterTitle;
-    const metaY = synopseStartY + (linhasSinopse.length * lineHeight) + 20;
-
-    // ===========================================================
-    // METADADOS - COM ANO E NOTA DA TEMPORADA
-    // ===========================================================
-    const notaF = notaTemporada ? parseFloat(notaTemporada).toFixed(1) : "N/A";
-    const duracaoF = formatTime(duracao) || duracao || "";
-    
-    let metaString = `⭐ ${notaF} | ${anoTemporada || ''} | ${genero || ''} | ${duracaoF}`;
-    if (tmdbTipo === 'tv' && temporada) {
-      metaString = `Temporada ${temporada} | ⭐ ${notaF} | ${anoTemporada || ''} | ${genero || ''}`;
-    }
-
-    // ===========================================================
-    // SVG FINAL
-    // ===========================================================
-    const svgText = `
-      <svg width="${width}" height="${height}">
+    // Sombra leve e sinopse/meta em negrito
+    const svgContent = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+            <feOffset dx="2" dy="2" result="offsetblur"/>
+            <feFlood flood-color="#000000" flood-opacity="0.9"/>
+            <feComposite in2="offsetblur" operator="in"/>
+            <feMerge>
+              <feMergeNode/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
         <style>
-          .title { 
-            fill: white;
+          .title {
+            fill: #ffffff;
             font-family: Arial, sans-serif;
             font-weight: 900;
             font-size: ${titleFontSize}px;
             letter-spacing: -1px;
-          }
-          .meta {
-            fill: ${corConfig.hex};
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-            font-size: ${metaFontSize}px;
+            filter: url(#dropShadow);
           }
           .synop {
             fill: #ffffff;
-            font-family: Arial, sans-serif;
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-weight: 600; /* levemente mais clean */
             font-size: ${synopFontSize}px;
-            line-height: ${lineHeight}px;
+            letter-spacing: 0.3px;
+            filter: url(#dropShadow); /* leve sombra */
+          }
+          .meta {
+            font-family: "Segoe UI", Arial, sans-serif;
+            font-weight: 700;
+            font-size: ${metaFontSize}px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            filter: url(#dropShadow);
+          }
+          .meta-star {
+            fill: #ffc107; /* amarelo IMDB */
+          }
+          .meta-text {
+            fill: ${metaColor};
           }
         </style>
 
-        <text x="${textX}" y="${titleY}" text-anchor="${textAnchor}" class="title">
-          ${safeXml(titulo).toUpperCase()}
-        </text>
+        ${shouldDrawTitleText ? `
+        <text x="${textX}" y="${finalTitleTextY}" text-anchor="${textAnchor}" class="title">
+          ${safeXml(titleTextValue.toUpperCase())}
+        </text>` : ""}
 
-        ${linhasSinopse.map((line, i) => `
-          <text x="${textX}" 
-                y="${synopseStartY + (i * lineHeight)}"
-                text-anchor="${textAnchor}" class="synop">
+        ${linhas.map((line, i) => `
+          <text x="${textX}" y="${synopseStartY + i * lineHeight}" text-anchor="${textAnchor}" class="synop">
             ${safeXml(line)}
           </text>
         `).join("")}
 
         <text x="${textX}" y="${metaY}" text-anchor="${textAnchor}" class="meta">
-          ${safeXml(metaString)}
+          <tspan class="meta-star">★ </tspan>
+          <tspan class="meta-text">${safeXml(metaString)}</tspan>
         </text>
+
       </svg>
     `;
+    const svgBuffer = Buffer.from(svgContent);
 
-    // -------------------------
-    // LOGO
-    // -------------------------
-    let logoBuffer = null;
-    
+    // Logo do usuário
+    let userLogoLayer = null;
     try {
-      const userSnap = await db.collection("usuarios").doc(req.uid).get();
-      if (userSnap.exists && userSnap.data().logo) {
-        const logoUrl = userSnap.data().logo;
-        if (validarURL(logoUrl)) {
-          logoBuffer = await fetchBuffer(logoUrl, false).catch(() => null);
-        }
+      const userDoc = await db.collection("usuarios").doc(req.uid).get();
+      const userLogo = userDoc.exists ? userDoc.data().logo : null;
+      if (userLogo && validarURL(userLogo)) {
+        let lb = await fetchBuffer(userLogo, false);
+        lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
+        // Logo principal (como já existia): canto superior direito
+        userLogoLayer = { input: lb, top: 40, left: width - 220 };
       }
-    } catch (error) {
-      console.warn("⚠️ Erro ao buscar logo do usuário:", error.message);
-    }
+    } catch {}
 
-    if (!logoBuffer) {
-      const pathLogoPadrao = path.join(__dirname, "public", "images", "default_logo.png");
-      if (await fileExists(pathLogoPadrao)) {
-        try {
-          logoBuffer = await sharp(pathLogoPadrao).toBuffer();
-        } catch (error) {
-          console.warn("⚠️ Erro ao carregar logo padrão:", error.message);
-        }
-      }
-    }
-
-    let logoLayer = null;
-    if (logoBuffer) {
-      try {
-        const logoRes = await sharp(logoBuffer)
-          .resize(180, 180, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .png()
-          .toBuffer();
-        logoLayer = { input: logoRes, top: 40, left: width - 220 };
-      } catch (error) {
-        console.warn("⚠️ Erro ao processar logo:", error.message);
-      }
-    }
-
-    // -------------------------
-    // COMPOSIÇÃO FINAL
-    // -------------------------
     const layers = [];
-    
-    if (modeloTipo !== "ORION_EXCLUSIVO" && overlayColorBuffer) {
-      layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
-    }
-    
-    layers.push({ input: gradientOverlay, top: 0, left: 0 });
-    layers.push({ input: posterResized, top: pTop, left: pLeft });
-    layers.push({ input: Buffer.from(svgText), top: 0, left: 0 });
-    
-    if (logoLayer) layers.push(logoLayer);
 
-    const finalImage = await sharp(finalBackgroundBuffer)
-      .resize(width, height)
+    // Ordem das camadas:
+    if (isOrionExclusivoVertical && overlayColorBuffer) {
+      // Exclusive: poster POR TRÁS do overlay
+      layers.push({ input: posterResized, top: pTop, left: pLeft });
+      layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
+    } else {
+      // Premium / outros: overlay cobre backdrop e poster por cima
+      if (overlayColorBuffer) {
+        layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
+      }
+      layers.push({ input: posterResized, top: pTop, left: pLeft });
+    }
+
+    if (logoFanartLayer) layers.push(logoFanartLayer);
+
+    layers.push({ input: svgBuffer, top: 0, left: 0 });
+
+    if (userLogoLayer) {
+      // Logo principal (opaca) no canto superior direito
+      layers.push(userLogoLayer);
+
+      // Removidas as marcas d'água extras para deixar o layout mais limpo no modelo exclusivo
+    }
+
+    const final = await sharp(backgroundBuffer)
       .composite(layers)
-      .png({ quality: 90, compressionLevel: 9 })
+      .png({ quality: 95 })
       .toBuffer();
 
-    const sanitizedTitle = titulo.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
-    res.setHeader("Content-Disposition", `attachment; filename=banner_${sanitizedTitle}.png`);
+    const safeTitle = titulo.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
+    res.setHeader("Content-Disposition", `attachment; filename=banner_${safeTitle}.png`);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "public, max-age=3600");
-    res.send(finalImage);
+    res.send(final);
 
-    console.log(`✅ Banner gerado com sucesso para usuário ${req.uid} - Modelo: ${modeloTipo || 'PREMIUM'}${temporada ? ` - Temporada: ${temporada} (${anoTemporada})` : ''}`);
-
-  } catch (error) {
-    console.error("❌ Erro Crítico no Gerador:", error.message, error.stack);
-    res.status(500).json({ 
-      error: "Falha ao gerar o banner",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    console.log(`✅ Banner gerado: usuario=${req.uid} modelo=${modeloTipo || "PADRAO"} cor=${corKey} overlay=${!!overlayColorBuffer}`);
+  } catch (err) {
+    console.error("❌ Erro gerar banner:", err.message);
+    res.status(500).json({ error: "Falha ao gerar o banner", details: err.message });
   }
 });
 
-// -------------------------
-// HEALTH CHECK
-// -------------------------
+// =====================================================================
+
 app.get("/api/health", async (req, res) => {
-  const checks = {
+  const result = {
     server: true,
     firebase: false,
     tmdb: false,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    fanart: false,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
   };
-
   try {
     await db.collection("usuarios").limit(1).get();
-    checks.firebase = true;
-  } catch (error) {
-    console.error("❌ Health check Firebase falhou:", error.message);
-  }
+    result.firebase = true;
+  } catch {}
 
   try {
-    const response = await fetch(
-      `https://api.themoviedb.org/3/movie/popular?api_key=${process.env.TMDB_KEY}&page=1`
-    );
-    checks.tmdb = response.ok;
-  } catch (error) {
-    console.error("❌ Health check TMDB falhou:", error.message);
-  }
+    const r = await fetchWithTimeout(buildTMDBUrl("/movie/popular", { page: 1 }), {}, 6000);
+    result.tmdb = r.ok;
+  } catch {}
 
-  const allHealthy = checks.firebase && checks.tmdb;
-  const statusCode = allHealthy ? 200 : 503;
+  try {
+    const r = await fetchWithTimeout(`https://webservice.fanart.tv/v3/movies/550?api_key=${process.env.FANART_API_KEY}`, {}, 6000);
+    result.fanart = r.ok || r.status === 404;
+  } catch {}
 
-  res.status(statusCode).json(checks);
+  res.status(result.firebase && result.tmdb && result.fanart ? 200 : 503).json(result);
 });
 
-// -------------------------
-// CACHE CLEAR
-// -------------------------
-app.post("/api/cache/clear", verificarAuth, async (req, res) => {
+app.post("/api/cache/clear", verificarAuth, authLimiter, async (req, res) => {
   try {
-    const userDoc = await db.collection("usuarios").doc(req.uid).get();
-    const userData = userDoc.data();
-    
-    if (!userData?.isAdmin) {
-      return res.status(403).json({ error: "Acesso negado. Apenas administradores." });
-    }
-
+    const doc = await db.collection("usuarios").doc(req.uid).get();
+    const isAdmin = doc.exists && doc.data().isAdmin;
+    if (!isAdmin) return res.status(403).json({ error: "Apenas administradores" });
     imageCache.clear();
     tmdbCache.clear();
-    
-    res.json({ 
-      success: true, 
-      message: "Cache limpo com sucesso",
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error("❌ Erro ao limpar cache:", error.message);
+    res.json({ cleared: true, timestamp: new Date().toISOString() });
+  } catch (err) {
+    console.error("❌ Limpar cache erro:", err.message);
     res.status(500).json({ error: "Erro ao limpar cache" });
   }
 });
 
-// -------------------------
-// STATS
-// -------------------------
-app.get("/api/stats", verificarAuth, async (req, res) => {
+app.get("/api/stats", verificarAuth, authLimiter, async (req, res) => {
   try {
-    const userDoc = await db.collection("usuarios").doc(req.uid).get();
-    const userData = userDoc.data();
-    
-    if (!userData?.isAdmin) {
-      return res.status(403).json({ error: "Acesso negado" });
-    }
-
+    const doc = await db.collection("usuarios").doc(req.uid).get();
+    const isAdmin = doc.exists && doc.data().isAdmin;
+    if (!isAdmin) return res.status(403).json({ error: "Acesso negado" });
     res.json({
-      cache: {
-        images: imageCache.cache.size,
-        tmdb: tmdbCache.cache.size
-      },
-      server: {
+      cache: { imagens: imageCache.size, tmdb: tmdbCache.size },
+      process: {
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        nodeVersion: process.version,
+        node: process.version,
         platform: process.platform
       },
       colors: Object.keys(COLORS),
+      premiumOverlays: Object.keys(PREMIUM_OVERLAYS),
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
-    console.error("❌ Erro ao buscar stats:", error.message);
-    res.status(500).json({ error: "Erro ao buscar estatísticas" });
+  } catch (err) {
+    console.error("❌ Stats erro:", err.message);
+    res.status(500).json({ error: "Erro ao obter estatísticas" });
   }
 });
 
-// -------------------------
-// CORES
-// -------------------------
 app.get("/api/cores", (req, res) => {
-  const coresDisponiveis = Object.entries(COLORS).map(([nome, config]) => ({
-    nome,
-    hex: config.hex,
-    gradient: config.gradient
-  }));
-  
-  res.json({ cores: coresDisponiveis });
-});
-
-// -------------------------
-// TRATAMENTO DE ERROS
-// -------------------------
-app.use((err, req, res, next) => {
-  console.error("❌ Erro não tratado:", err.stack);
-  
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: "Arquivo muito grande (máximo 10MB)" });
-    }
-    return res.status(400).json({ error: `Erro no upload: ${err.message}` });
-  }
-  
-  res.status(err.status || 500).json({ 
-    error: err.message || "Erro interno do servidor",
-    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  res.json({
+    cores: Object.entries(COLORS).map(([k, v]) => ({
+      nome: k,
+      hex: v.hex,
+      gradient: v.gradient,
+      premiumOverlay: !!PREMIUM_OVERLAYS[k]
+    }))
   });
 });
 
-// 404
+app.use((err, req, res, next) => {
+  console.error("❌ Erro não tratado:", err);
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: `Upload: ${err.message}` });
+  }
+  res.status(500).json({ error: err.message || "Erro interno" });
+});
+
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: "Rota não encontrada",
     path: req.path,
     method: req.method
   });
 });
 
-// -------------------------
-// PÁGINA PRINCIPAL
-// -------------------------
-app.get("/", async (req, res) => {
-  const indexPath = path.join(__dirname, "public", "index.html");
-  
-  if (await fileExists(indexPath)) {
-    return res.sendFile(indexPath);
-  }
-  
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Orion Creator API</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          max-width: 800px;
-          margin: 50px auto;
-          padding: 20px;
-          background: #1a1a1a;
-          color: #fff;
-        }
-        h1 { color: #8A2BE2; }
-        .endpoint {
-          background: #2a2a2a;
-          padding: 15px;
-          margin: 10px 0;
-          border-radius: 5px;
-          border-left: 4px solid #8A2BE2;
-        }
-        .method {
-          display: inline-block;
-          padding: 3px 8px;
-          border-radius: 3px;
-          font-weight: bold;
-          font-size: 12px;
-          margin-right: 10px;
-        }
-        .get { background: #28a745; }
-        .post { background: #007bff; }
-        code {
-          background: #000;
-          padding: 2px 6px;
-          border-radius: 3px;
-          color: #8A2BE2;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>🎬 Orion Creator API</h1>
-      <p>API para geração de banners de filmes e séries com integração TMDB.</p>
-      
-      <h2>📡 Endpoints Disponíveis:</h2>
-      
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/health</code> - Status do servidor
-      </div>
-      
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/cores</code> - Cores disponíveis
-      </div>
-      
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/tmdb</code> - Dados do TMDB
-      </div>
-      
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/tmdb/detalhes/:tipo/:id</code> - Detalhes de filme/série
-      </div>
-
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/tmdb/detalhes/tv/:id/season/:seasonNumber</code> - Dados da temporada
-      </div>
-      
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/gerar-banner</code> - Gerar banner (requer autenticação)
-      </div>
-      
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/upload</code> - Upload de imagem (requer autenticação)
-      </div>
-      
-      <p><strong>Status:</strong> ✅ Online</p>
-      <p><strong>Versão:</strong> 2.2.0</p>
-    </body>
-    </html>
-  `);
-});
-
-// -------------------------
-// GRACEFUL SHUTDOWN
-// -------------------------
-const gracefulShutdown = async (signal) => {
-  console.log(`\n📴 Recebido ${signal}. Encerrando servidor...`);
-  
-  imageCache.clear();
-  tmdbCache.clear();
-  
+async function gracefulShutdown(signal) {
+  console.log(`\n📴 Recebido ${signal}. Encerrando...`);
+  imageCache.destroy();
+  tmdbCache.destroy();
   try {
     await admin.app().delete();
-    console.log("✅ Firebase encerrado com sucesso");
-  } catch (error) {
-    console.error("❌ Erro ao encerrar Firebase:", error.message);
+    console.log("✅ Firebase encerrado");
+  } catch (err) {
+    console.error("Erro ao encerrar Firebase:", err.message);
   }
-  
   process.exit(0);
-};
+}
 
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection:', reason);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("unhandledRejection", (reason) => console.error("Unhandled Rejection:", reason));
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
   process.exit(1);
 });
 
-// -------------------------
-// INICIAR SERVIDOR
-// -------------------------
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`
 ╔═══════════════════════════════════════╗
-║   🚀 ORION CREATOR SERVER 2.2        ║
+║   🚀 ORION CREATOR SERVER 2.8.0      ║
+║   TMDB + Fanart + Firebase           ║
+║   Premium: Blur + Overlay            ║
+║   Exclusive: Poster limpo + Modelo2  ║
 ╚═══════════════════════════════════════╝
-
-✅ Servidor rodando em: http://0.0.0.0:${PORT}
-✅ Ambiente: ${process.env.NODE_ENV || 'development'}
-✅ Firebase: Conectado
-✅ TMDB API: Ativa
-✅ Cache: Habilitado
-✅ Rate Limiting: Ativo
-✅ Segurança: Helmet + Auth
-
-📚 Documentação: http://localhost:${PORT}/
-🏥 Health Check: http://localhost:${PORT}/api/health
-🎨 Cores: http://localhost:${PORT}/api/cores
-
-Pressione Ctrl+C para encerrar
-  `);
+Porta: ${PORT}
+Node: ${process.version}
+Env: ${process.env.NODE_ENV || "development"}
+TMDB Key: ${process.env.TMDB_KEY ? "✔" : "✘"}
+Fanart Key: ${process.env.FANART_API_KEY ? "✔" : "✘"}
+Cores: ${Object.keys(COLORS).join(", ")}
+Premium Overlays: ${Object.keys(PREMIUM_OVERLAYS).filter(k => PREMIUM_OVERLAYS[k]).length}/8
+`);
 });
