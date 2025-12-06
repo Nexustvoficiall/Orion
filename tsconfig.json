@@ -5,10 +5,16 @@
     "moduleResolution": "node",
     "allowJs": true,
     "checkJs": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
+  "include": [
+    "*.js",
+    "api/**/*.js",
+    "public/**/*.js"
+  ],
   "exclude": [
-    "node_modules",
-    "**/*.spec.ts"
+    "node_modules/**/*",
+    "**/node_modules/**/*"
   ]
 }
