@@ -81,7 +81,18 @@ app.use(helmet({
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+
+// Desabilitar cache para arquivos estáticos (FORCE NO-CACHE)
+app.use(express.static(path.join(__dirname, "public"), {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  }
+}));
 
 const tmdbLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -186,6 +197,9 @@ const upload = multer({
     else cb(new Error("Formato não suportado. Use JPG, PNG ou WEBP."));
   }
 });
+
+// Multer para processar FormData sem arquivos
+const formDataParser = multer();
 
 const COLORS = {
   ROXO: { hex: "#8A2BE2", gradient: ["#4B0082", "#000000"] },
@@ -517,10 +531,14 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       temporada
     } = req.body || {};
 
-    // LOG PARA DIAGNÓSTICO DO TIPO DE MODELO RECEBIDO
-    console.log(`➡️ REQUISIÇÃO RECEBIDA: modeloTipo="${modeloTipo}", tipo="${tipo}"`);
+    // LOG COMPLETO PARA DIAGNÓSTICO
+    console.log('📥 req.body recebido:', JSON.stringify(req.body, null, 2));
+    console.log(`➡️ posterUrl="${posterUrl}", modeloTipo="${modeloTipo}", tipo="${tipo}"`);
 
-    if (!posterUrl) return res.status(400).json({ error: "posterUrl obrigatório" });
+    if (!posterUrl) {
+      console.error('❌ posterUrl está vazio ou undefined!');
+      return res.status(400).json({ error: "posterUrl obrigatório" });
+    }
     if (!validarURL(posterUrl)) return res.status(400).json({ error: "posterUrl inválida" });
     if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
     if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
@@ -1134,11 +1152,161 @@ if (isOrionExclusivoVertical) {
     res.send(final);
 
     console.log(`✅ Banner gerado: usuario=${req.uid} modelo=${modeloTipo || "PADRAO"} cor=${corKey} overlay=${!!overlayColorBuffer}`);
+    
+    // Salvar banner no Cloudinary e registro no Firestore (async, não bloqueia resposta)
+    (async () => {
+      try {
+        console.log(`📤 Iniciando upload do banner para Cloudinary...`);
+        
+        // Upload do banner para o Cloudinary
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: 'banners_gerados',
+              public_id: `banner_${req.uid}_${Date.now()}`,
+              resource_type: 'image',
+              format: 'png'
+            },
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+          uploadStream.end(final);
+        });
+        
+        console.log(`☁️ Upload Cloudinary concluído: ${uploadResult.secure_url}`);
+        
+        // Calcular data de expiração (7 dias)
+        const dataExpiracao = new Date();
+        dataExpiracao.setDate(dataExpiracao.getDate() + 7);
+        
+        // Salvar registro no Firestore
+        const docRef = await db.collection('banners').add({
+          userId: req.uid,
+          titulo: titulo,
+          modeloCor: corKey,
+          modeloTipo: modeloTipo || 'PADRAO',
+          tipo: tipoNorm,
+          tmdbId: tmdbId,
+          tmdbTipo: tmdbTipo,
+          temporada: temporada || null,
+          posterUrl: posterUrl,
+          bannerUrl: uploadResult.secure_url,
+          cloudinaryPublicId: uploadResult.public_id,
+          criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+          expiraEm: admin.firestore.Timestamp.fromDate(dataExpiracao)
+        });
+        
+        console.log(`💾 Banner salvo no Firestore (ID: ${docRef.id})`);
+        console.log(`✅ URL do banner: ${uploadResult.secure_url}`);
+        console.log(`⏰ Expira em: ${dataExpiracao.toLocaleDateString('pt-BR')}`);
+      } catch (saveErr) {
+        console.error('❌ Erro ao salvar banner:', saveErr.message);
+        console.error(saveErr.stack);
+      }
+    })();
   } catch (err) {
     console.error("❌ Erro gerar banner:", err.message);
     res.status(500).json({ error: "Falha ao gerar o banner", details: err.message });
   }
 });
+
+// =====================================================================
+// ROTA: Buscar últimas criações do usuário
+// =====================================================================
+
+app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
+  try {
+    const agora = admin.firestore.Timestamp.now();
+    
+    // Buscar todos os banners do usuário SEM ordenação (evita necessidade de índice)
+    const snapshot = await db.collection('banners')
+      .where('userId', '==', req.uid)
+      .get();
+    
+    const banners = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      // Filtrar apenas banners não expirados
+      if (data.bannerUrl && data.expiraEm && data.expiraEm > agora) {
+        banners.push({
+          id: doc.id,
+          titulo: data.titulo,
+          modeloCor: data.modeloCor,
+          modeloTipo: data.modeloTipo,
+          tipo: data.tipo,
+          tmdbId: data.tmdbId,
+          tmdbTipo: data.tmdbTipo,
+          temporada: data.temporada,
+          posterUrl: data.posterUrl,
+          thumbnailUrl: data.bannerUrl,
+          bannerUrl: data.bannerUrl,
+          criadoEm: data.criadoEm?.toDate().toISOString(),
+          expiraEm: data.expiraEm?.toDate().toISOString(),
+          criadoEmTimestamp: data.criadoEm?.toMillis() || 0
+        });
+      }
+    });
+    
+    // Ordenar por data de criação no JavaScript (mais recentes primeiro)
+    banners.sort((a, b) => b.criadoEmTimestamp - a.criadoEmTimestamp);
+    
+    // Limitar a 20 resultados
+    res.json(banners.slice(0, 20));
+  } catch (err) {
+    console.error('❌ Erro ao buscar últimas criações:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar últimas criações' });
+  }
+});
+
+// =====================================================================
+// JOB: Limpeza automática de banners expirados
+// =====================================================================
+
+// Job de limpeza - executa a cada 1 hora
+const cleanupJob = setInterval(async () => {
+  try {
+    const agora = admin.firestore.Timestamp.now();
+    const snapshot = await db.collection('banners')
+      .where('expiraEm', '<=', agora)
+      .limit(100)
+      .get();
+    
+    if (snapshot.empty) {
+      console.log('🧹 Limpeza automática: Nenhum banner expirado');
+      return;
+    }
+    
+    console.log(`🧹 Limpando ${snapshot.size} banners expirados...`);
+    
+    const batch = db.batch();
+    const deletePromises = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      // Deletar do Cloudinary
+      if (data.cloudinaryPublicId) {
+        deletePromises.push(
+          cloudinary.uploader.destroy(data.cloudinaryPublicId)
+            .then(() => console.log(`☁️ Cloudinary: ${data.cloudinaryPublicId} deletado`))
+            .catch(err => console.warn(`⚠️ Erro ao deletar do Cloudinary: ${err.message}`))
+        );
+      }
+      // Deletar do Firestore
+      batch.delete(doc.ref);
+    });
+    
+    await Promise.all(deletePromises);
+    await batch.commit();
+    
+    console.log(`✅ ${snapshot.size} banners expirados removidos (Cloudinary + Firestore)`);
+  } catch (err) {
+    console.error('❌ Erro na limpeza de banners:', err.message);
+  }
+}, 60 * 60 * 1000); // Executar a cada 1 hora
+
+console.log('🤖 Job de limpeza automática iniciado (roda a cada 1 hora)');
 
 // =====================================================================
 
@@ -1269,5 +1437,6 @@ TMDB Key: ${process.env.TMDB_KEY ? "✔" : "✘"}
 Fanart Key: ${process.env.FANART_API_KEY ? "✔" : "✘"}
 Cores: ${Object.keys(COLORS).join(", ")}
 Premium Overlays: ${Object.keys(PREMIUM_OVERLAYS).filter(k => PREMIUM_OVERLAYS[k]).length}/8
+📦 Banners salvos automaticamente (expiram em 7 dias)
 `);
 });

@@ -916,7 +916,7 @@
         <!-- Grade de posters será inserida aqui via JS -->
       </div>
 
-      <div class="modal-right" id="massModalRight" style="padding:30px; max-height:90vh; overflow-y:auto;">
+      <div class="modal-right" id="massModalRight" style="padding:30px;">
         
         <!-- ETAPA 1: CONFIGURAÇÃO -->
         <div id="massStep1">
@@ -2082,13 +2082,11 @@
           
           // Salvar blob e URL
           const bannerUrl = URL.createObjectURL(bannerBlob);
-          console.log('💾 Salvando banner:', item.title, 'Blob size:', bannerBlob.size, 'URL:', bannerUrl);
           generatedBanners.push({
             title: item.title,
             blob: bannerBlob,
             url: bannerUrl
           });
-          console.log('📊 Total de banners salvos:', generatedBanners.length);
           
           // Atualizar UI - sucesso
           progressItem.className = 'mass-progress-item success';
@@ -2099,15 +2097,11 @@
                 <div style="font-weight:600; color:#10b981;">${item.title}</div>
                 <div style="font-size:13px; color:#a0a0c0;">Gerado com sucesso!</div>
               </div>
-              <button class="btn download-single-btn" data-index="${i}" style="font-size:12px; padding:6px 12px;">
+              <button class="btn" style="font-size:12px; padding:6px 12px;" onclick="downloadSingleBanner(${i})">
                 ⬇️ Baixar
               </button>
             </div>
           `;
-          
-          // Adicionar event listener ao botão
-          const downloadBtn = progressItem.querySelector('.download-single-btn');
-          downloadBtn.addEventListener('click', () => downloadSingleBanner(i));
           
           // Atualizar poster no painel esquerdo
           const leftPoster = document.getElementById(`mass-left-${i}`);
@@ -2186,7 +2180,7 @@
         console.log('📊 tmdbData completo:', JSON.stringify(tmdbData, null, 2));
         
         // Determinar o tipo correto baseado no modelo
-        const tipoModelo = 'vertical'; // Sempre vertical para banners em massa
+        const tipoModelo = massConfig.modelId || 'PADRAO'; // PADRAO ou ORION_EXCLUSIVO
         const modeloTipoKey = massConfig.modelKey || 'ORION_PREMIUM'; // ORION_PREMIUM ou ORION_EXCLUSIVO
         
         // Montar posterUrl corretamente
@@ -2284,27 +2278,17 @@
       }
     }
     
-    // Tornar funções globais para acesso via onclick
-    window.downloadSingleBanner = function(index) {
-      console.log('📥 Download single banner:', index, generatedBanners[index]);
+    function downloadSingleBanner(index) {
       const banner = generatedBanners[index];
-      if (!banner) {
-        console.error('❌ Banner não encontrado no índice:', index);
-        return;
-      }
+      if (!banner) return;
       
       const a = document.createElement('a');
       a.href = banner.url;
       a.download = `${banner.title.replace(/[^a-z0-9]/gi, '_')}_banner.png`;
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      console.log('✅ Download iniciado:', banner.title);
-    };
+    }
     
-    window.downloadAllAsZip = async function() {
-      console.log('📦 Iniciando download ZIP. Total de banners:', generatedBanners.length);
-      
+    async function downloadAllAsZip() {
       if (generatedBanners.length === 0) {
         alert('Nenhum banner gerado!');
         return;
@@ -2312,41 +2296,31 @@
       
       // Verificar se JSZip está disponível
       if (typeof JSZip === 'undefined') {
-        console.error('❌ JSZip não carregado!');
         alert('Biblioteca JSZip não carregada. Baixe os banners individualmente.');
         return;
       }
       
       try {
         const zip = new JSZip();
-        console.log('✅ JSZip inicializado');
         
         generatedBanners.forEach((banner, index) => {
           const filename = `${banner.title.replace(/[^a-z0-9]/gi, '_')}_banner.png`;
-          console.log(`📁 Adicionando ao ZIP [${index}]:`, filename, 'Blob size:', banner.blob?.size);
           zip.file(filename, banner.blob);
         });
         
-        console.log('🔄 Gerando arquivo ZIP...');
         const zipBlob = await zip.generateAsync({ type: 'blob' });
-        console.log('✅ ZIP gerado! Tamanho:', zipBlob.size, 'bytes');
-        
         const url = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `banners_${Date.now()}.zip`;
-        document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        
-        console.log('✅ Download do ZIP iniciado!');
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        URL.revokeObjectURL(url);
         
       } catch (error) {
-        console.error('❌ Erro ao criar ZIP:', error);
+        console.error('Erro ao criar ZIP:', error);
         alert('Erro ao criar arquivo ZIP. Baixe os banners individualmente.');
       }
-    };
+    }
     
   </script>
   
