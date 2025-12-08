@@ -9,6 +9,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <!-- v2.0.1 - Orion X Support -->
   <title>Orion Creator — Premium</title>
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1513,8 +1514,9 @@
             <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">✨ Selecione o Modelo:</label>
             <select id="massSelectModelo" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
               <option value="" selected style="color:#a0a0c0;">-- Escolha um Modelo --</option>
-              <option value="ORION_PREMIUM" style="color:#e8e3ff; background:#2a1f3d;">Orion Premium (Vertical)</option>
-              <option value="ORION_EXCLUSIVO" style="color:#e8e3ff; background:#2a1f3d;">Orion Exclusivo (Vertical)</option>
+              <option value="ORION_PREMIUM" style="color:#e8e3ff; background:#2a1f3d;">Orion Rigel (Vertical)</option>
+              <option value="ORION_EXCLUSIVO" style="color:#e8e3ff; background:#2a1f3d;">Orion Betelgeuse (Vertical)</option>
+              <option value="ORION_X" style="color:#e8e3ff; background:#2a1f3d;">Orion Bellatrix (Horizontal)</option>
             </select>
             <div id="massModelDescription" class="model-description" style="margin-top:12px;"></div>
 
@@ -1586,8 +1588,9 @@
             <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">✨ Selecione o Modelo:</label>
             <select id="selectModelo" class="filtro-tipo">
               <option value="" selected>-- Escolha um Modelo --</option>
-              <option value="ORION_PREMIUM">🎨 Orion Premium (8 Cores)</option>
-              <option value="ORION_EXCLUSIVO">✨ Orion Exclusive (8 Cores + Logo Oficial)</option>
+              <option value="ORION_PREMIUM">⭐ Orion Rigel (8 Cores)</option>
+              <option value="ORION_EXCLUSIVO">✨ Orion Betelgeuse (8 Cores + Logo Oficial)</option>
+              <option value="ORION_X">🔥 Orion Bellatrix (8 Cores + Logo Oficial)</option>
             </select>
             <div id="modelDescription" class="model-description" style="margin-top:12px;"></div>
 
@@ -1673,19 +1676,37 @@
       PRATA: "/images/modelo2/vertical_prata.png",
     };
 
+    const orionXBanners = {
+      PRETO: "/images/modelo3/preto.png",
+      ROXO: "/images/modelo3/roxo.png",
+      AZUL: "/images/modelo3/azul.png",
+      VERMELHO: "/images/modelo3/vermelho.png",
+      VERDE: "/images/modelo3/verde.png",
+      AMARELO: "/images/modelo3/amarelo.png",
+      LARANJA: "/images/modelo3/laranja.png",
+      ROSA: "/images/modelo3/rosa.png"
+    };
+
     const models = {
       ORION_PREMIUM: {
         id: 'PADRAO',
-        label: 'Orion Premium',
-        description: 'Modelo clássico com 8 opções de cores vibrantes.',
+        label: 'Orion Rigel',
+        description: '⭐ Modelo clássico com 8 opções de cores vibrantes.',
         colors: premiumBanners,
         usesFanart: false
       },
       ORION_EXCLUSIVO: {
         id: 'ORION_EXCLUSIVO',
-        label: 'Orion Exclusive',
+        label: 'Orion Betelgeuse',
         description: '✨ Usa logos oficiais automaticamente quando disponíveis!',
         colors: exclusiveBanners,
+        usesFanart: true
+      },
+      ORION_X: {
+        id: 'ORION_X',
+        label: 'Orion Bellatrix',
+        description: '🔥 Layout horizontal com logo TMDB oficial e 8 cores exclusivas!',
+        colors: orionXBanners,
         usesFanart: true
       }
     };
@@ -2106,10 +2127,20 @@
       
       // Gerar banner
       try {
+        // Mapear modelId para modeloTipo correto
+        let modeloTipo;
+        if (config.modelId === 'ORION_PREMIUM' || config.modelId === 'PADRAO') {
+          modeloTipo = 'PADRAO';
+        } else if (config.modelId === 'ORION_X') {
+          modeloTipo = 'ORION_X';
+        } else {
+          modeloTipo = 'ORION_EXCLUSIVO';
+        }
+        
         const payload = {
           tipo: config.orientation,
           modeloCor: config.colorKey,
-          modeloTipo: config.modelId === 'ORION_PREMIUM' ? 'PADRAO' : 'ORION_EXCLUSIVO',
+          modeloTipo: modeloTipo,
           posterUrl: currentData.poster,
           titulo: currentData.originalTitle,
           sinopse: currentData.synopsis,
@@ -2768,7 +2799,8 @@
         
         // Determinar o tipo correto baseado no modelo
         const tipoModelo = 'vertical'; // Sempre vertical para banners em massa
-        const modeloTipoKey = massConfig.modelKey || 'ORION_PREMIUM'; // ORION_PREMIUM ou ORION_EXCLUSIVO
+        // Usar o modelId ao invés do modelKey para ter o valor correto (PADRAO, ORION_EXCLUSIVO, ou ORION_X)
+        const modeloTipoKey = massConfig.modelId || 'PADRAO';
         
         // Montar posterUrl corretamente
         let posterUrl = item.poster;

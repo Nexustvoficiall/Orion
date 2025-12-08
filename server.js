@@ -202,6 +202,7 @@ const upload = multer({
 const formDataParser = multer();
 
 const COLORS = {
+  PRETO: { hex: "#000000", gradient: ["#1a1a1a", "#000000"] },
   ROXO: { hex: "#8A2BE2", gradient: ["#4B0082", "#000000"] },
   AZUL: { hex: "#007bff", gradient: ["#001f3f", "#000000"] },
   VERDE: { hex: "#28a745", gradient: ["#0f3e18", "#000000"] },
@@ -222,6 +223,17 @@ const PREMIUM_OVERLAYS = {
   AMARELO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_amarelo_urqjlu.png",
   DOURADO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_dourado_asthju.png",
   LARANJA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_lajanja_qtyj6n.png"
+};
+
+const ORION_X_OVERLAYS = {
+  PRETO: "preto.png",
+  ROXO: "roxo.png",
+  AZUL: "azul.png",
+  VERMELHO: "vermelho.png",
+  VERDE: "verde.png",
+  AMARELO: "amarelo.png",
+  LARANJA: "laranja.png",
+  ROSA: "rosa.png"
 };
 
 const PREMIUM_LOCAL_DIR = "public/images/vods";
@@ -555,13 +567,22 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
     }
     const corConfig = COLORS[corKey];
 
-    const width = tipoNorm === "horizontal" ? 1920 : 1080;
-    const height = tipoNorm === "horizontal" ? 1080 : 1920;
     const isPremium = modeloTipo === "ORION_PREMIUM" || modeloTipo === "PADRAO";
     const isExclusive = modeloTipo === "ORION_EXCLUSIVO";
+    const isOrionX = modeloTipo === "ORION_X";
+    
+    // Dimensões específicas por modelo
+    let width, height;
+    if (isOrionX) {
+      width = 1080;
+      height = 1540;
+    } else {
+      width = tipoNorm === "horizontal" ? 1920 : 1080;
+      height = tipoNorm === "horizontal" ? 1080 : 1920;
+    }
     const isOrionExclusivoVertical = isExclusive && tipoNorm === "vertical";
 
-    console.log(`📊 Gerando banner: tipo=${tipoNorm}, modelo=${modeloTipo}, cor=${corKey}, ExclusivoVertical=${isOrionExclusivoVertical}`);
+    console.log(`📊 Gerando banner: tipo=${tipoNorm}, modelo=${modeloTipo}, cor=${corKey}, ExclusivoVertical=${isOrionExclusivoVertical}, OrionX=${isOrionX}`);
 
     // --- Ajuste ano/nota para temporada ---
     let anoFinal = ano;
@@ -586,66 +607,118 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
     }
 
     // --- Logo / título limpo ---
-    // Exclusive: tenta logo do TMDB em PT-BR primeiro; se não houver, cai para Fanart.
-    // Premium/Padrão: não usam logo automática (apenas título em texto).
     let logoFanartBuffer = null;
     let fanartTitle = null;
-    if (tmdbId) {
-      if (isExclusive) {
-        // 1) Tentar logo do TMDB (priorizando PT-BR)
-        try {
-          const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
-            include_image_language: "pt-BR,pt-br,pt,en,null"
-          });
-          const imgsResp = await fetchWithTimeout(imgsUrl);
-          if (imgsResp.ok) {
-            const imgsData = await imgsResp.json();
-            const logos = imgsData.logos || [];
-            const pickByLang = (langs) =>
-              logos.find(l => langs.includes(l.iso_639_1 || "null"));
-            const chosenLogo =
-              pickByLang(["pt-BR", "pt-br"]) ||
-              pickByLang(["pt"]) ||
-              pickByLang(["en"]) ||
-              logos[0];
-            if (chosenLogo && chosenLogo.file_path) {
-              const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
-              if (validarURL(logoUrl)) {
-                logoFanartBuffer = await fetchBuffer(logoUrl, true);
-              }
+    
+    // ==================== ORION X: LOGO TMDB ====================
+    if (tmdbId && isOrionX) {
+      console.log("🔥 Orion X: Buscando logo TMDB...");
+      try {
+        const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
+          include_image_language: "pt-BR,pt-br,pt,en,null"
+        });
+        const imgsResp = await fetchWithTimeout(imgsUrl);
+        if (imgsResp.ok) {
+          const imgsData = await imgsResp.json();
+          const logos = imgsData.logos || [];
+          const pickByLang = (langs) =>
+            logos.find(l => langs.includes(l.iso_639_1 || "null"));
+          const chosenLogo =
+            pickByLang(["pt-BR", "pt-br"]) ||
+            pickByLang(["pt"]) ||
+            pickByLang(["en"]) ||
+            logos[0];
+          if (chosenLogo && chosenLogo.file_path) {
+            const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+            if (validarURL(logoUrl)) {
+              logoFanartBuffer = await fetchBuffer(logoUrl, true);
+              console.log("✅ Orion X: Logo TMDB carregada!");
             }
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Orion X: Logo TMDB não obtida:", err.message);
+      }
+
+      // Fallback para Fanart se não achou no TMDB
+      if (!logoFanartBuffer) {
+        try {
+          let logoUrl = null;
+          if (tmdbTipo === "movie") {
+            logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
+            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
+          } else if (tmdbTipo === "tv") {
+            const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
+            if (tvdbId) {
+              logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
+              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
+            }
+          }
+          if (logoUrl && validarURL(logoUrl)) {
+            logoFanartBuffer = await fetchBuffer(logoUrl, true);
+            console.log("✅ Orion X: Logo Fanart carregada!");
           }
         } catch (err) {
-          console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
+          console.warn("⚠️ Orion X: Logo Fanart não obtida:", err.message);
         }
+      }
+    }
 
-        // 2) Se não achou logo válida no TMDB, tentar Fanart (também priorizando PT-BR)
-        if (!logoFanartBuffer) {
-          try {
-            let logoUrl = null;
-            if (tmdbTipo === "movie") {
-              logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
-            } else if (tmdbTipo === "tv") {
-              const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
-              if (tvdbId) {
-                logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
-              }
-            }
-            if (logoUrl && validarURL(logoUrl)) {
+    // ==================== EXCLUSIVE: LOGO TMDB/FANART ====================
+    if (tmdbId && isExclusive) {
+      // 1) Tentar logo do TMDB (priorizando PT-BR)
+      try {
+        const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
+          include_image_language: "pt-BR,pt-br,pt,en,null"
+        });
+        const imgsResp = await fetchWithTimeout(imgsUrl);
+        if (imgsResp.ok) {
+          const imgsData = await imgsResp.json();
+          const logos = imgsData.logos || [];
+          const pickByLang = (langs) =>
+            logos.find(l => langs.includes(l.iso_639_1 || "null"));
+          const chosenLogo =
+            pickByLang(["pt-BR", "pt-br"]) ||
+            pickByLang(["pt"]) ||
+            pickByLang(["en"]) ||
+            logos[0];
+          if (chosenLogo && chosenLogo.file_path) {
+            const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+            if (validarURL(logoUrl)) {
               logoFanartBuffer = await fetchBuffer(logoUrl, true);
-              try {
-                fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
-              } catch {}
             }
-          } catch (err) {
-            console.warn("⚠️ Logo Fanart não obtida:", err.message);
           }
+        }
+      } catch (err) {
+        console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
+      }
+
+      // 2) Se não achou logo válida no TMDB, tentar Fanart (também priorizando PT-BR)
+      if (!logoFanartBuffer) {
+        try {
+          let logoUrl = null;
+          if (tmdbTipo === "movie") {
+            logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
+            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
+            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
+            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
+          } else if (tmdbTipo === "tv") {
+            const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
+            if (tvdbId) {
+              logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
+              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
+              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
+              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
+            }
+          }
+          if (logoUrl && validarURL(logoUrl)) {
+            logoFanartBuffer = await fetchBuffer(logoUrl, true);
+            try {
+              fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
+            } catch {}
+          }
+        } catch (err) {
+          console.warn("⚠️ Logo Fanart não obtida:", err.message);
         }
       }
     }
@@ -694,6 +767,14 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
         .toBuffer();
     }
 
+    // Orion X (Bellatrix): aplica blur leve e escurecimento no background
+    if (isOrionX) {
+      backgroundBuffer = await sharp(backgroundBuffer)
+        .blur(6)
+        .modulate({ brightness: 0.65 })
+        .toBuffer();
+    }
+
     // --- Overlay de cor ---
     let overlayColorBuffer = null;
 
@@ -737,6 +818,31 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
             }
           }
         }
+      }
+    }
+
+    // Orion X: overlay da pasta modelo3 (VERIFICAR PRIMEIRO)
+    if (isOrionX && !overlayColorBuffer) {
+      const overlayFilename = ORION_X_OVERLAYS[corKey] || ORION_X_OVERLAYS.PRETO;
+      const modelo3Dir = path.join(__dirname, "public", "images", "modelo3");
+      const overlayPath = path.join(modelo3Dir, overlayFilename);
+      
+      console.log(`🔍 Orion X: Tentando carregar overlay - Cor: ${corKey}, Arquivo: ${overlayFilename}, Path: ${overlayPath}`);
+      
+      if (await fileExists(overlayPath)) {
+        try {
+          console.log(`🎨 Overlay Orion X local (${corKey} - ${overlayFilename})...`);
+          const localBuf = await fsPromises.readFile(overlayPath);
+          overlayColorBuffer = await sharp(localBuf)
+            .resize(width, height)
+            .png()
+            .toBuffer();
+          console.log(`✅ Overlay Orion X carregado com sucesso!`);
+        } catch (err) {
+          console.warn("⚠️ Erro overlay Orion X local:", err.message);
+        }
+      } else {
+        console.warn(`❌ Arquivo overlay Orion X não encontrado: ${overlayPath}`);
       }
     }
 
@@ -846,26 +952,42 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 let titleY, synopseStartY, metaY;  // Definir variáveis no início
 
 // Definir linhas ANTES de usar
-const wrapLimit = tipoNorm === "horizontal" ? 45 : 55;
-// No modelo exclusivo vertical, limitar a sinopse a no máximo 7 linhas
-const maxLines = isOrionExclusivoVertical ? 7 : 6;
+let wrapLimit, maxLines;
+if (isOrionX) {
+  wrapLimit = 32;  // Limite maior para sinopse mais longa
+  maxLines = 12;     // Máximo 12 linhas - tem espaço para mais conteúdo
+} else if (isOrionExclusivoVertical) {
+  wrapLimit = 55;
+  maxLines = 7;
+} else {
+  wrapLimit = tipoNorm === "horizontal" ? 45 : 55;
+  maxLines = 6;
+}
 const linhas = wrapText(sinopse || "", wrapLimit).slice(0, maxLines);
 
 // Fontes sinopse: negrito com leve sombra
 let synopFontSize, lineHeight;
-if (tipoNorm === "horizontal") {
+if (isOrionX) {
+  // ORION X (1080x1540): sinopses pequenas ficam maiores, grandes se ajustam
+  if (linhas.length <= 2) { synopFontSize = 38; lineHeight = 48; }  // Bem maior para sinopses curtas
+  else if (linhas.length <= 3) { synopFontSize = 34; lineHeight = 44; }
+  else if (linhas.length <= 5) { synopFontSize = 30; lineHeight = 40; }
+  else if (linhas.length <= 7) { synopFontSize = 28; lineHeight = 38; }
+  else if (linhas.length <= 9) { synopFontSize = 26; lineHeight = 36; }
+  else { synopFontSize = 24; lineHeight = 34; }  // Menor para sinopses muito longas
+} else if (tipoNorm === "horizontal") {
   if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 62; }
   else if (linhas.length <= 3) { synopFontSize = 44; lineHeight = 58; }
   else if (linhas.length <= 4) { synopFontSize = 40; lineHeight = 54; }
   else { synopFontSize = 36; lineHeight = 48; }
 } else {
-  // ORION_EXCLUSIVO vertical: fontes ajustadas para não ficar exagerado em sinopses curtas
+  // ORION_EXCLUSIVO vertical (Betelgeuse): sinopses pequenas maiores, grandes se ajustam
   if (isOrionExclusivoVertical) {
-    if (linhas.length <= 2) { synopFontSize = 42; lineHeight = 56; }
-    else if (linhas.length <= 3) { synopFontSize = 40; lineHeight = 54; }
+    if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 60; }  // Bem maior para sinopses curtas
+    else if (linhas.length <= 3) { synopFontSize = 42; lineHeight = 56; }
     else if (linhas.length <= 4) { synopFontSize = 38; lineHeight = 52; }
     else if (linhas.length <= 5) { synopFontSize = 36; lineHeight = 50; }
-    // 6–7 linhas: fonte um pouco menor para não quebrar o layout
+    // 6–7 linhas: fonte menor para não quebrar o layout
     else { synopFontSize = 34; lineHeight = 48; }
   } else {
     if (linhas.length <= 2) { synopFontSize = 42; lineHeight = 58; }
@@ -876,11 +998,14 @@ if (tipoNorm === "horizontal") {
   }
 }
 
-const textX = tipoNorm === "horizontal" ? pLeft + pW + 40 : Math.round(width / 2);
-const textAnchor = tipoNorm === "horizontal" ? "start" : "middle";
-
 let titleFontSize;
-if (isOrionExclusivoVertical) {
+if (isOrionX) {
+  // Título para ORION_X (formato 1080x1540)
+  titleFontSize =
+    titulo.length <= 22 ? 90 :
+    titulo.length <= 36 ? 75 :
+    65;
+} else if (isOrionExclusivoVertical) {
   // Título maior para ORION_EXCLUSIVO
   titleFontSize =
     titulo.length <= 22 ? 125 :
@@ -898,15 +1023,91 @@ const durFmt = formatTime(duracao) || duracao || "";
 
 // Meta sem o ícone de estrela (a estrela dourada é desenhada via SVG)
 let metaString = `${notaFmt} | ${anoFinal || ""} | ${genero || ""} | ${durFmt}`;
-if (tmdbTipo === "tv" && temporada) {
-  metaString = `Temporada ${temporada} | ${notaFmt} | ${anoFinal || ""} | ${genero || ""}`;
+let metaStringLine2 = "";
+
+// Quebrar linha apenas se o texto for muito longo (mais de 35 caracteres) ou for série
+if (metaString.length > 35 || (tmdbTipo === "tv" && temporada)) {
+  if (tmdbTipo === "tv" && temporada) {
+    metaString = `Temporada ${temporada} - ${notaFmt}`;
+    metaStringLine2 = `${anoFinal || ""} | ${genero || ""}`;
+  } else {
+    metaString = `${notaFmt} | ${anoFinal || ""} | ${genero || ""}`;
+    metaStringLine2 = durFmt || "";
+  }
 }
 
-const metaColor = isExclusive ? "#ffffff" : corConfig.hex;
-// Metadados maior para ORION_EXCLUSIVO vertical
-const metaFontSize = isOrionExclusivoVertical ? 34 : (tipoNorm === "horizontal" ? 26 : 29);
+// Cor dos metadados: branco para Exclusive e Orion X
+const metaColor = (isExclusive || isOrionX) ? "#ffffff" : corConfig.hex;
+// Metadados ajustados por modelo
+const metaFontSize = isOrionX ? 24 : (isOrionExclusivoVertical ? 34 : (tipoNorm === "horizontal" ? 26 : 29));
 
-if (isOrionExclusivoVertical) {
+if (isOrionX) {
+  // ========= LAYOUT ORION X (1080x1540) =========
+  // Logo centralizada no topo, poster menor à esquerda, texto à direita
+  
+  // Poster maior à esquerda (42% da largura)
+  pW = Math.round(width * 0.42);
+  pH = Math.round(pW * 1.5);
+  pLeft = 83;  // Ajustado para direita
+  pTop = 420;   // Mais descido ainda para encaixar na moldura
+
+  // Criar poster com bordas arredondadas
+  const posterBase = await sharp(posterOriginal)
+    .resize(pW, pH, { fit: "cover", position: "center" })
+    .png()
+    .toBuffer();
+
+  const radius = 25;  // Raio das bordas arredondadas
+  
+  // Criar máscara com bordas arredondadas
+  const roundedCorner = Buffer.from(`
+    <svg width="${pW}" height="${pH}">
+      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}" fill="white"/>
+    </svg>
+  `);
+
+  // Aplicar bordas arredondadas
+  const posterRounded = await sharp(posterBase)
+    .composite([{ input: roundedCorner, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+  
+  // Criar sombra SVG como overlay separado (mesmo tamanho do poster)
+  const shadowOverlay = Buffer.from(`
+    <svg width="${pW}" height="${pH}">
+      <defs>
+        <filter id="dropshadow" height="130%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+          <feOffset dx="3" dy="5" result="offsetblur"/>
+          <feComponentTransfer>
+            <feFuncA type="linear" slope="0.5"/>
+          </feComponentTransfer>
+          <feMerge>
+            <feMergeNode/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}" fill="rgba(0,0,0,0)" filter="url(#dropshadow)"/>
+    </svg>
+  `);
+  
+  // Adicionar efeito de sombra ao poster arredondado
+  posterResized = await sharp(posterRounded)
+    .composite([{ input: shadowOverlay, blend: "over" }])
+    .png()
+    .toBuffer();
+
+  // Logo/título no topo centralizado (será posicionado depois)
+  titleY = 80;  // Logo no topo
+  
+  // Sinopse à direita do poster (começa na mesma altura do poster, mais descida)
+  synopseStartY = pTop + 60;
+  
+  // Metadados abaixo da sinopse (mas ainda acima do final do poster)
+  metaY = synopseStartY + (linhas.length * lineHeight) + 40;
+
+} else if (isOrionExclusivoVertical) {
   // Layout do ORION_EXCLUSIVO vertical sem frame de celular (celular já embutido no overlay)
   // Poster centralizado, com cantos arredondados
   // Leve redução na largura para "encolher" um pouco o lado direito
@@ -987,6 +1188,11 @@ if (isOrionExclusivoVertical) {
   synopseStartY = titleY + spaceAfterTitle;
   metaY = synopseStartY + (linhas.length * lineHeight) + 20;
 }
+
+// Definir textX e textAnchor DEPOIS dos blocos de layout (quando pW e pLeft já estão definidos)
+const textX = isOrionX ? (pLeft + pW + 70) : (tipoNorm === "horizontal" ? pLeft + pW + 40 : Math.round(width / 2));
+const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "middle");
+
     // Logo acima
     let logoFanartLayer = null;
     if (logoFanartBuffer) {
@@ -996,14 +1202,18 @@ if (isOrionExclusivoVertical) {
         const maxLogoHVertical = 420;
 
         const logoMaxW =
-          tipoNorm === "horizontal"
-            ? 1000
-            : Math.min(isOrionExclusivoVertical ? maxLogoWVertical : 1200, maxLogoWVertical);
+          isOrionX
+            ? Math.round(width * 0.85)
+            : (tipoNorm === "horizontal"
+              ? 1000
+              : Math.min(isOrionExclusivoVertical ? maxLogoWVertical : 1200, maxLogoWVertical));
 
         const logoMaxH =
-          tipoNorm === "horizontal"
-            ? 300
-            : (isOrionExclusivoVertical ? maxLogoHVertical : 360);
+          isOrionX
+            ? 280
+            : (tipoNorm === "horizontal"
+              ? 300
+              : (isOrionExclusivoVertical ? maxLogoHVertical : 360));
 
         const logoProcessed = await sharp(logoFanartBuffer)
           .resize(logoMaxW, logoMaxH, { fit: "inside" })
@@ -1011,10 +1221,14 @@ if (isOrionExclusivoVertical) {
           .toBuffer();
 
         const { width: lw, height: lh } = await sharp(logoProcessed).metadata();
-        const logoX = tipoNorm === "horizontal" ? textX : Math.round((width - lw) / 2);
+        // Logo centralizada para Orion X
+        const logoX = isOrionX ? Math.round((width - lw) / 2) : (tipoNorm === "horizontal" ? textX : Math.round((width - lw) / 2));
 
         let logoY;
-        if (isOrionExclusivoVertical) {
+        if (isOrionX) {
+          // Logo TMDB centralizada no topo (formato 1080x1540)
+          logoY = 60;
+        } else if (isOrionExclusivoVertical) {
           // Logo levemente mais próxima do título, mas um pouco mais alta no layout
           logoY = titleY - lh - 20;
         } else {
@@ -1060,7 +1274,7 @@ if (isOrionExclusivoVertical) {
           .synop {
             fill: #ffffff;
             font-family: "Segoe UI", Arial, sans-serif;
-            font-weight: 600; /* levemente mais clean */
+            font-weight: ${isOrionX ? '800' : '600'}; /* negrito forte para Orion X */
             font-size: ${synopFontSize}px;
             letter-spacing: 0.3px;
             filter: url(#dropShadow); /* leve sombra */
@@ -1093,9 +1307,20 @@ if (isOrionExclusivoVertical) {
         `).join("")}
 
         <text x="${textX}" y="${metaY}" text-anchor="${textAnchor}" class="meta">
-          <tspan class="meta-star">★ </tspan>
-          <tspan class="meta-text">${safeXml(metaString)}</tspan>
+          ${(tmdbTipo === "tv" && temporada && metaStringLine2) ? `
+            <tspan class="meta-text">${safeXml(metaString.split(' - ')[0])} - </tspan>
+            <tspan class="meta-star">★ </tspan>
+            <tspan class="meta-text">${safeXml(metaString.split(' - ')[1] || '')}</tspan>
+          ` : `
+            <tspan class="meta-star">★ </tspan>
+            <tspan class="meta-text">${safeXml(metaString)}</tspan>
+          `}
         </text>
+        ${metaStringLine2 ? `
+        <text x="${textX}" y="${metaY + metaFontSize + 8}" text-anchor="${textAnchor}" class="meta">
+          <tspan class="meta-text">${safeXml(metaStringLine2)}</tspan>
+        </text>
+        ` : ''}
 
       </svg>
     `;
@@ -1103,22 +1328,103 @@ if (isOrionExclusivoVertical) {
 
     // Logo do usuário
     let userLogoLayer = null;
+    let userLogoFooterLayer = null;
     try {
       const userDoc = await db.collection("usuarios").doc(req.uid).get();
       const userLogo = userDoc.exists ? userDoc.data().logo : null;
       if (userLogo && validarURL(userLogo)) {
         let lb = await fetchBuffer(userLogo, false);
-        lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
-        // Logo principal (como já existia): canto superior direito
-        userLogoLayer = { input: lb, top: 40, left: width - 220 };
+        
+        if (isOrionX) {
+          // Orion X: logo no canto inferior esquerdo com efeito de sombra
+          const logoSize = 200; // Levemente menor
+          lb = await sharp(lb)
+            .resize(logoSize, logoSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .ensureAlpha()
+            .png()
+            .toBuffer();
+          
+          // Aplicar 95% de opacidade (5% de transparência) com efeito de sombra
+          const logoWithEffect = Buffer.from(`
+            <svg width="${logoSize}" height="${logoSize}">
+              <defs>
+                <filter id="logoShadow">
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+                  <feOffset dx="2" dy="3" result="offsetblur"/>
+                  <feComponentTransfer>
+                    <feFuncA type="linear" slope="0.6"/>
+                  </feComponentTransfer>
+                  <feMerge>
+                    <feMergeNode/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+            </svg>
+          `);
+          
+          lb = await sharp(lb)
+            .composite([{
+              input: Buffer.from(`
+                <svg width="${logoSize}" height="${logoSize}">
+                  <rect x="0" y="0" width="${logoSize}" height="${logoSize}" fill="white" opacity="0.95"/>
+                </svg>
+              `),
+              blend: 'dest-in'
+            }])
+            .toBuffer();
+          
+          // Posicionar bem no canto inferior esquerdo
+          const userLogoTop = height - logoSize - 30;
+          const userLogoLeft = 30;
+          userLogoLayer = { input: lb, top: userLogoTop, left: userLogoLeft };
+        } else {
+          // Outros modelos: posição padrão no canto superior direito
+          lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
+          userLogoLayer = { input: lb, top: 40, left: width - 220 };
+        }
+        
+        // Logo adicional para Orion X (Bellatrix): grande no rodapé com transparência (sem rotação)
+        if (isOrionX) {
+          const logoFooterSize = Math.round(width * 0.36); // 36% da largura (ainda maior)
+          let lbFooter = await fetchBuffer(userLogo, false);
+          lbFooter = await sharp(lbFooter)
+            .resize(logoFooterSize, logoFooterSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+            .ensureAlpha()
+            .toBuffer();
+          
+          // Aplicar 20% de opacidade (80% de transparência)
+          lbFooter = await sharp(lbFooter)
+            .composite([{
+              input: Buffer.from([
+                `<svg width="${logoFooterSize}" height="${logoFooterSize}">`,
+                `<rect x="0" y="0" width="${logoFooterSize}" height="${logoFooterSize}" fill="white" opacity="0.2"/>`,
+                `</svg>`
+              ].join('')),
+              blend: 'dest-in'
+            }])
+            .toBuffer();
+          
+          // Posicionar mais para baixo e mais à esquerda
+          const footerTop = height - logoFooterSize - 150;  // Mais abaixo (200 → 150)
+          const footerLeft = width - logoFooterSize - 160;  // Mais à esquerda (120 → 160)
+          userLogoFooterLayer = { input: lbFooter, top: footerTop, left: footerLeft };
+        }
       }
     } catch {}
 
     const layers = [];
 
     // Ordem das camadas:
-    if (isOrionExclusivoVertical && overlayColorBuffer) {
-      // Exclusive: poster POR TRÁS do overlay
+    if (isOrionX && overlayColorBuffer) {
+      // Orion X: logo translúcida primeiro (atrás de tudo), depois overlay, poster e logo principal POR CIMA
+      if (userLogoFooterLayer) {
+        layers.push(userLogoFooterLayer);
+      }
+      layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
+      layers.push({ input: posterResized, top: pTop, left: pLeft });
+    } else if (isOrionExclusivoVertical && overlayColorBuffer) {
+      // Exclusive: poster POR TRÁS do overlay (usa modelo2)
       layers.push({ input: posterResized, top: pTop, left: pLeft });
       layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
     } else {
@@ -1139,6 +1445,8 @@ if (isOrionExclusivoVertical) {
 
       // Removidas as marcas d'água extras para deixar o layout mais limpo no modelo exclusivo
     }
+    
+    // Logo adicional translúcida já foi adicionada antes do overlay para Orion X
 
     const final = await sharp(backgroundBuffer)
       .composite(layers)
