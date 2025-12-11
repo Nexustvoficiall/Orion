@@ -12,6 +12,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { promises as fsPromises } from "fs";
+import ffmpeg from "fluent-ffmpeg";
+import { Readable } from "stream";
+import { spawn } from "child_process";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import validator from "validator";
@@ -1245,7 +1248,45 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
     const exclusiveTitleValue = fanartTitle || titulo;
     const titleTextValue = isExclusive ? exclusiveTitleValue : titulo;
     const shouldDrawTitleText = isPremium || !logoFanartLayer;
-    const finalTitleTextY = titleY;
+    
+    // Quando não há logo oficial nos modelos exclusivos, centralizar título onde seria a logo
+    let finalTitleTextY = titleY;
+    let finalTitleTextX = textX;
+    let finalTitleAnchor = textAnchor;
+    let adjustedTitleFontSize = titleFontSize;
+    
+    if ((isOrionX || isOrionExclusivoVertical) && !logoFanartLayer) {
+      // Centralizar título horizontalmente
+      finalTitleTextX = Math.round(width / 2);
+      finalTitleAnchor = "middle";
+      
+      // Posicionar na região da logo
+      if (isOrionX) {
+        finalTitleTextY = 280; // Centralizado verticalmente na região superior
+      } else {
+        // ORION_EXCLUSIVO: logo acima da sinopse (mesmo lugar que ficaria a logo oficial)
+        finalTitleTextY = synopseStartY - 180;
+      }
+      
+      // Tamanho dinâmico baseado no comprimento do título para não quebrar layout
+      if (isOrionX) {
+        adjustedTitleFontSize = 
+          titulo.length <= 12 ? 75 :
+          titulo.length <= 18 ? 62 :
+          titulo.length <= 25 ? 52 :
+          titulo.length <= 35 ? 44 :
+          titulo.length <= 45 ? 38 :
+          32;
+      } else {
+        adjustedTitleFontSize = 
+          titulo.length <= 12 ? 95 :
+          titulo.length <= 18 ? 82 :
+          titulo.length <= 25 ? 68 :
+          titulo.length <= 35 ? 56 :
+          titulo.length <= 45 ? 48 :
+          40;
+      }
+    }
 
     // Sombra leve e sinopse/meta em negrito
     const svgContent = `
@@ -1267,7 +1308,7 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
             fill: #ffffff;
             font-family: Arial, sans-serif;
             font-weight: 900;
-            font-size: ${titleFontSize}px;
+            font-size: ${adjustedTitleFontSize}px;
             letter-spacing: -1px;
             filter: url(#dropShadow);
           }
@@ -1296,7 +1337,7 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
         </style>
 
         ${shouldDrawTitleText ? `
-        <text x="${textX}" y="${finalTitleTextY}" text-anchor="${textAnchor}" class="title">
+        <text x="${finalTitleTextX}" y="${finalTitleTextY}" text-anchor="${finalTitleAnchor}" class="title">
           ${safeXml(titleTextValue.toUpperCase())}
         </text>` : ""}
 
@@ -1701,12 +1742,585 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || "Erro interno" });
 });
 
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Rota não encontrada",
-    path: req.path,
-    method: req.method
+// ============================================
+// 🎬 FUNÇÕES AUXILIARES PARA GERAÇÃO DE VÍDEO
+// ============================================
+
+// Função para baixar trailer do YouTube
+async function downloadTrailer(trailerKey, outputPath) {
+  return new Promise((resolve, reject) => {
+    // Caminho completo do yt-dlp.exe no Windows
+    const ytdlpPath = process.platform === 'win32'
+      ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
+      : 'yt-dlp';
+    
+    const ytdlp = spawn(ytdlpPath, [
+      '-f', 'best[height<=480]', // Baixar 480p para geração mais rápida
+      '--no-playlist',
+      '--no-warnings',
+      '-o', outputPath,
+      `https://youtube.com/watch?v=${trailerKey}`
+    ]);
+
+    ytdlp.on('close', (code) => {
+      if (code === 0) {
+        console.log(`✅ Trailer baixado: ${outputPath}`);
+        resolve();
+      } else {
+        reject(new Error(`yt-dlp falhou com código ${code}`));
+      }
+    });
+
+    ytdlp.on('error', (err) => {
+      reject(new Error(`Erro ao executar yt-dlp: ${err.message}`));
+    });
   });
+}
+
+// Função para gerar vídeo vertical com FFmpeg
+async function generateVideoFFmpeg(options) {
+  return new Promise((resolve, reject) => {
+    const {
+      trailerPath,      // Caminho do trailer baixado
+      backdropPath,     // Backdrop processado
+      framePath,        // Frame com overlay+poster+textos
+      outputPath,       // Caminho de saída
+      duracao,          // Duração em segundos
+      width = 640,      // Largura (padrão 480p)
+      height = 1200     // Altura (padrão 480p)
+    } = options;
+    
+    // Sempre processa em 1080x1920, depois escala para qualidade desejada
+    const trailerHeight = 576;  // 30% de 1920
+    const backdropHeight = 1344; // 70% de 1920
+    
+    // FPS baseado na qualidade FINAL
+    const fps = width >= 1080 ? 30 : width >= 720 ? 24 : 24;
+
+    ffmpeg()
+      // ENTRADA 1: Backdrop (loop)
+      .input(backdropPath)
+      .inputOptions(['-loop 1', '-framerate 30'])
+      .duration(duracao)
+
+      // ENTRADA 2: Trailer
+      .input(trailerPath)
+      .inputOptions(['-t', duracao])
+
+      // ENTRADA 3: Frame overlay (loop)
+      .input(framePath)
+      .inputOptions(['-loop 1', '-framerate 30'])
+      .duration(duracao)
+
+      // FILTROS COMPLEXOS (processa em 1080x1920, escala na saída)
+      .complexFilter([
+        // 1. Processar trailer: escalar e cortar para 1080x576 (topo)
+        `[1:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576,setsar=1,fps=30[trailer]`,
+        
+        // 2. Processar backdrop: já está em 1080x1920, cortar para 1080x1344 (parte inferior)
+        `[0:v]scale=1080:1344:force_original_aspect_ratio=increase,crop=1080:1344,setsar=1,fps=30[backdrop]`,
+        
+        // 3. Empilhar trailer (topo) + backdrop (embaixo) = 1080x1920
+        `[trailer][backdrop]vstack=inputs=2[bg]`,
+        
+        // 4. Sobrepor frame e escalar para qualidade desejada
+        `[bg][2:v]overlay=0:0:shortest=1,scale=${width}:${height},fps=${fps}[final]`
+      ])
+
+      // MAPEAMENTO E CODECS (OTIMIZAÇÃO POR QUALIDADE)
+      .outputOptions([
+        '-map', '[final]',
+        '-map', '1:a?',
+        '-c:v', 'libx264',
+        '-preset', width >= 1080 ? 'medium' : width >= 720 ? 'fast' : 'ultrafast',
+        '-crf', width >= 1080 ? '20' : width >= 720 ? '23' : '26',
+        '-g', fps * 2,
+        '-bf', width >= 1080 ? '3' : '2',
+        '-refs', width >= 1080 ? '4' : '2',
+        '-c:a', 'aac',
+        '-b:a', width >= 1080 ? '160k' : '128k',
+        '-ar', '48000',
+        '-t', duracao.toString(),
+        '-pix_fmt', 'yuv420p',
+        '-threads', '0',
+        '-movflags', '+faststart'
+      ])
+
+      // SAÍDA
+      .output(outputPath)
+
+      // EVENTOS
+      .on('start', (cmd) => {
+        console.log(`🎬 FFmpeg iniciado (${width}x${height} @ ${fps}fps): ${cmd}`);
+      })
+      .on('progress', (progress) => {
+        if (progress.percent) {
+          console.log(`⏳ Progresso: ${progress.percent.toFixed(1)}%`);
+        }
+      })
+      .on('end', () => {
+        console.log(`✅ Vídeo gerado: ${outputPath}`);
+        resolve();
+      })
+      .on('error', (err) => {
+        console.error(`❌ Erro FFmpeg: ${err.message}`);
+        reject(err);
+      })
+      .run();
+  });
+}
+
+// ============================================
+// 🎬 ROTA DE TESTE (SEM MIDDLEWARE)
+// ============================================
+console.log('🧪 Registrando rota de teste POST /api/test-video');
+app.post("/api/test-video", async (req, res) => {
+  console.log('✅ Rota de teste funcionou!');
+  res.json({ success: true, message: 'Rota de teste OK!' });
+});
+
+// ============================================
+// 🎬 ENDPOINT: GERAR VÍDEO COM TRAILER (VERTICAL 1080x1920)
+// Layout: Trailer horizontal no topo (atrás do overlay) + Overlay com poster, título, metadados e sinopse
+// Não salva no Cloudinary/Firestore - apenas gera e retorna para download
+// ============================================
+console.log('🎬 Registrando rota POST /api/gerar-video');
+app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
+  console.log('🚀 Requisição recebida em /api/gerar-video');
+  const startTime = Date.now();
+  let tempFiles = [];
+
+  try {
+    const {
+      tmdbId,
+      tmdbTipo,
+      duracao = 30, // Duração em segundos (15, 30, 60, 90)
+      qualidade = 480, // Qualidade em pixels (480, 720, 1080)
+      temporada
+    } = req.body;
+
+    // Definir dimensões baseado na qualidade
+    let width, height;
+    switch (parseInt(qualidade)) {
+      case 1080:
+        width = 1080;
+        height = 1920;
+        break;
+      case 720:
+        width = 720;
+        height = 1280;
+        break;
+      case 480:
+      default:
+        width = 640;
+        height = 1200;
+        break;
+    }
+
+    console.log(`\n🎬 === INICIANDO GERAÇÃO DE VÍDEO VERTICAL (${width}x${height}) ===`);
+    console.log(`📋 TMDB ID: ${tmdbId} | Tipo: ${tmdbTipo} | Duração: ${duracao}s | Qualidade: ${qualidade}p`);
+
+    // Validações
+    if (!tmdbId || !tmdbTipo) {
+      return res.status(400).json({ error: "tmdbId e tmdbTipo são obrigatórios" });
+    }
+
+    if (![15, 30, 60, 90].includes(parseInt(duracao))) {
+      return res.status(400).json({ error: "Duração inválida. Use: 15, 30, 60 ou 90" });
+    }
+    
+    if (![480, 720, 1080].includes(parseInt(qualidade))) {
+      return res.status(400).json({ error: "Qualidade inválida. Use: 480, 720 ou 1080" });
+    }
+
+    // 1. Buscar dados do TMDB
+    const tmdbUrl = `https://api.themoviedb.org/3/${tmdbTipo}/${tmdbId}?api_key=${process.env.TMDB_KEY}&language=pt-BR&append_to_response=videos`;
+    const tmdbRes = await fetch(tmdbUrl);
+    if (!tmdbRes.ok) throw new Error("Erro ao buscar dados do TMDB");
+    const tmdbData = await tmdbRes.json();
+
+    console.log(`✅ Dados carregados: ${tmdbData.title || tmdbData.name}`);
+
+    // 2. Buscar trailer em múltiplas fontes
+    let trailerKey = null;
+    let useBackdropAsFallback = false;
+
+    // 2.1. Tentar buscar trailer PT-BR
+    if (tmdbData.videos?.results && tmdbData.videos.results.length > 0) {
+      const trailerPT = tmdbData.videos.results.find(v => 
+        v.type === "Trailer" && v.site === "YouTube" && v.iso_639_1 === "pt"
+      );
+      const trailerEN = tmdbData.videos.results.find(v => 
+        v.type === "Trailer" && v.site === "YouTube" && v.iso_639_1 === "en"
+      );
+      const anyTrailer = tmdbData.videos.results.find(v => 
+        v.type === "Trailer" && v.site === "YouTube"
+      );
+      const anyVideo = tmdbData.videos.results.find(v => v.site === "YouTube");
+      
+      trailerKey = trailerPT?.key || trailerEN?.key || anyTrailer?.key || anyVideo?.key;
+    }
+
+    // 2.2. Se não encontrar no TMDB, tentar buscar no YouTube via API
+    if (!trailerKey) {
+      console.log(`⚠️ Trailer não encontrado no TMDB, buscando no YouTube...`);
+      try {
+        const searchQuery = encodeURIComponent(`${tmdbData.title || tmdbData.name} official trailer ${ano}`);
+        const youtubeSearchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${searchQuery}&type=video&maxResults=1&key=${process.env.YOUTUBE_API_KEY || process.env.TMDB_KEY}`;
+        const ytRes = await fetch(youtubeSearchUrl);
+        if (ytRes.ok) {
+          const ytData = await ytRes.json();
+          if (ytData.items && ytData.items.length > 0) {
+            trailerKey = ytData.items[0].id.videoId;
+            console.log(`✅ Trailer encontrado no YouTube: ${trailerKey}`);
+          }
+        }
+      } catch (err) {
+        console.log(`⚠️ Erro ao buscar no YouTube: ${err.message}`);
+      }
+    }
+
+    // 2.3. Se ainda não encontrar, usar backdrop como fallback (sem download de trailer)
+    if (!trailerKey) {
+      console.log(`⚠️ Nenhum trailer encontrado, usando backdrop estático como fallback`);
+      useBackdropAsFallback = true;
+    } else {
+      console.log(`🎥 Trailer: https://youtube.com/watch?v=${trailerKey}`);
+    }
+
+    // 3. Preparar dados
+    let titulo = (tmdbData.title || tmdbData.name || "Sem título").substring(0, 50);
+    
+    // Buscar logo oficial do TMDB
+    let logoOficialUrl = null;
+    try {
+      const imagesUrl = `https://api.themoviedb.org/3/${tmdbTipo}/${tmdbId}/images?api_key=${process.env.TMDB_KEY}`;
+      const imagesRes = await fetch(imagesUrl);
+      if (imagesRes.ok) {
+        const imagesData = await imagesRes.json();
+        const logoPT = imagesData.logos?.find(l => l.iso_639_1 === 'pt');
+        const logoEN = imagesData.logos?.find(l => l.iso_639_1 === 'en');
+        const anyLogo = imagesData.logos?.[0];
+        const logoPath = logoPT?.file_path || logoEN?.file_path || anyLogo?.file_path;
+        if (logoPath) {
+          logoOficialUrl = `https://image.tmdb.org/t/p/w500${logoPath}`;
+          console.log(`✅ Logo oficial encontrado`);
+        }
+      }
+    } catch (err) {
+      console.warn(`⚠️ Erro ao buscar logo oficial: ${err.message}`);
+    }
+    
+    const sinopse = (tmdbData.overview || "Sem sinopse disponível").substring(0, 200);
+    const genero = tmdbData.genres?.[0]?.name || "Geral";
+    const ano = (tmdbData.release_date || tmdbData.first_air_date || "").substring(0, 4);
+    const nota = tmdbData.vote_average?.toFixed(1) || "0.0";
+    const posterUrl = tmdbData.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}` : null;
+    const backdropUrl = tmdbData.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}` : null;
+    
+    // Se for série e tiver temporada, adicionar info
+    const infoTemporada = (tmdbTipo === 'tv' && temporada) ? `Temporada ${temporada}` : null;
+
+    console.log(`📝 ${titulo} | ⭐ ${nota} | 📅 ${ano} | 🎭 ${genero}`);
+
+    // 4. Buscar logo do usuário do Firestore
+    let userLogoUrl = null;
+    try {
+      const userDoc = await db.collection('usuarios').doc(req.uid).get();
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        userLogoUrl = userData.logoUrl || userData.logo || null;
+        console.log(`📸 Logo do usuário: ${userLogoUrl ? 'Encontrado' : 'Não encontrado'}`);
+      }
+    } catch (err) {
+      console.warn(`⚠️ Erro ao buscar logo do usuário: ${err.message}`);
+    }
+
+    // 5. Baixar overlay base
+    const overlayPath = path.join(__dirname, "public", "images", "videos", "videos.png");
+    if (!await fsPromises.access(overlayPath).then(() => true).catch(() => false)) {
+      throw new Error("Overlay não encontrado: public/images/videos/videos.png");
+    }
+
+    // 5. Baixar poster
+    let posterBuffer = null;
+    if (posterUrl) {
+      try {
+        const posterRes = await fetch(posterUrl);
+        posterBuffer = await posterRes.arrayBuffer();
+        console.log(`✅ Poster baixado: ${(posterBuffer.byteLength / 1024).toFixed(2)} KB`);
+      } catch (err) {
+        console.warn(`⚠️ Erro ao baixar poster: ${err.message}`);
+      }
+    }
+
+    // 6. Baixar backdrop
+    let backdropBuffer = null;
+    if (backdropUrl) {
+      try {
+        const backdropRes = await fetch(backdropUrl);
+        backdropBuffer = await backdropRes.arrayBuffer();
+        console.log(`✅ Backdrop baixado: ${(backdropBuffer.byteLength / 1024).toFixed(2)} KB`);
+      } catch (err) {
+        console.warn(`⚠️ Erro ao baixar backdrop: ${err.message}`);
+      }
+    }
+
+    // 7. Processar backdrop para formato vertical 1080x1920 - 15% transparente
+    const backdropProcessedPath = path.join(__dirname, `temp_backdrop_${Date.now()}.png`);
+    if (backdropBuffer) {
+      await sharp(Buffer.from(backdropBuffer))
+        .resize(1080, 1920, { fit: "cover", position: "center" })
+        .ensureAlpha()
+        .composite([{
+          input: Buffer.from(
+            `<svg width="1080" height="1920"><rect width="1080" height="1920" fill="rgba(0,0,0,0.85)"/></svg>`
+          ),
+          blend: 'over'
+        }])
+        .png()
+        .toFile(backdropProcessedPath);
+      tempFiles.push(backdropProcessedPath);
+      console.log(`✅ Backdrop processado: 640x1200`);
+    }
+
+    // 8. Criar frame com overlay + poster + textos (640x1200)
+    const framePath = path.join(__dirname, `temp_frame_${Date.now()}.png`);
+    
+    // Quebrar sinopse em linhas (máx 35 chars por linha, 5 linhas)
+    const breakText = (text, maxChars, maxLines) => {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        if ((currentLine + word).length <= maxChars) {
+          currentLine += (currentLine ? ' ' : '') + word;
+        } else {
+          if (lines.length < maxLines) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            break;
+          }
+        }
+      }
+      if (currentLine && lines.length < maxLines) lines.push(currentLine);
+      return lines;
+    };
+
+    // Função para escapar caracteres XML/SVG
+    const escapeXml = (text) => {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    };
+
+    const sinopseLines = breakText(sinopse, 50, 3);
+    const sinopseSVG = sinopseLines.map((line, idx) => 
+      `<text x="20" y="${1010 + (idx * 19)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
+    ).join('\n');
+
+    const tituloEscapado = escapeXml(titulo);
+    const generoEscapado = escapeXml(genero);
+
+    const svgOverlay = `
+      <svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400;600;800&amp;display=swap');
+            .titulo { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 68px; fill: white; text-shadow: 0 4px 20px rgba(0,0,0,0.9); }
+            .meta { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 22px; fill: white; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
+            .sinopse { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px; fill: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.9); letter-spacing: 0.3px; }
+          </style>
+        </defs>
+        
+        <!-- Título ou Logo Oficial -->
+        ${logoOficialUrl ? '' : `<text x="80" y="775" class="titulo" text-anchor="start">${escapeXml(tituloEscapado.substring(0, Math.ceil(tituloEscapado.length / 2)))}</text>
+        <text x="80" y="850" class="titulo" text-anchor="start">${escapeXml(tituloEscapado.substring(Math.ceil(tituloEscapado.length / 2)))}</text>`}
+        
+        <!-- Sinopse (mais larga e nítida, acima dos metadados) -->
+        ${sinopseSVG}
+        
+        <!-- Metadados bem brancos com caixas arredondadas sem fundo (levemente mais à esquerda: 120px) -->
+        <g transform="translate(120, 1728)">
+          <rect x="0" y="0" width="${(nota.toString().length + 3) * 15}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+          <text x="${((nota.toString().length + 3) * 15) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">⭐ ${nota}</text>
+        </g>
+        <g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20}, 1728)">
+          <rect x="0" y="0" width="${(ano.toString().length + 2) * 16}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+          <text x="${((ano.toString().length + 2) * 16) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${ano}</text>
+        </g>
+        <g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20}, 1728)">
+          <rect x="0" y="0" width="${(generoEscapado.length + 2) * 12}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+          <text x="${((generoEscapado.length + 2) * 12) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${generoEscapado}</text>
+        </g>
+        ${infoTemporada ? `<g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20 + (generoEscapado.length + 2) * 12 + 20}, 1728)">
+          <rect x="0" y="0" width="${(infoTemporada.length + 2) * 13}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+          <text x="${((infoTemporada.length + 2) * 13) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${escapeXml(infoTemporada)}</text>
+        </g>` : ''}
+      </svg>
+    `;
+
+    // Tamanhos fixos para 1080x1920
+    const posterWidth = 390;
+    const posterHeight = 580;
+    const logoFilmWidth = 500;
+    const logoFilmHeight = 185;
+    const logoClientSize = 305;
+    
+    // Compor frame: overlay base + poster + textos (SEMPRE 1080x1920)
+    const overlayBuffer = await fsPromises.readFile(overlayPath);
+    const compositeInputs = [];
+
+    // Adicionar logo oficial do TMDB
+    if (logoOficialUrl) {
+      try {
+        const logoRes = await fetch(logoOficialUrl);
+        const logoBuffer = await logoRes.arrayBuffer();
+        const logoResized = await sharp(Buffer.from(logoBuffer))
+          .resize(logoFilmWidth, logoFilmHeight, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer();
+        compositeInputs.push({ input: logoResized, left: 50, top: 790 });
+        console.log(`✅ Logo oficial do TMDB adicionado`);
+      } catch (err) {
+        console.warn(`⚠️ Erro ao adicionar logo oficial: ${err.message}`);
+      }
+    }
+    
+    // SEMPRE adicionar logo do cliente
+    if (userLogoUrl) {
+      try {
+        const logoRes = await fetch(userLogoUrl);
+        const logoBuffer = await logoRes.arrayBuffer();
+        const logoResized = await sharp(Buffer.from(logoBuffer))
+          .resize(logoClientSize, logoClientSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+          .png()
+          .toBuffer();
+        compositeInputs.push({ input: logoResized, left: 100, top: 1245 });
+        console.log(`✅ Logo do cliente adicionado acima da sinopse`);
+      } catch (err) {
+        console.warn(`⚠️ Erro ao adicionar logo do cliente: ${err.message}`);
+      }
+    }
+
+    // Adicionar poster (milimetricamente mais alto e mais à direita: 573 top, 585 left)
+    if (posterBuffer) {
+      const posterResized = await sharp(Buffer.from(posterBuffer))
+        .resize(posterWidth, posterHeight, { fit: "cover" })
+        .composite([{
+          input: Buffer.from(
+            `<svg><rect x="0" y="0" width="${posterWidth}" height="${posterHeight}" rx="12" ry="12" fill="white"/></svg>`
+          ),
+          blend: 'dest-in'
+        }])
+        .png()
+        .toBuffer();
+      compositeInputs.push({ input: posterResized, left: 590, top: 568 });
+    }
+
+    // Adicionar textos SVG
+    compositeInputs.push({ input: Buffer.from(svgOverlay), top: 0, left: 0 });
+
+    await sharp(overlayBuffer)
+      .resize(1080, 1920, { fit: "cover" })
+      .composite(compositeInputs)
+      .png()
+      .toFile(framePath);
+    
+    tempFiles.push(framePath);
+    console.log(`✅ Frame criado: 1080x1920 (modelo fixo)`);
+
+    // 9. Baixar trailer do YouTube (ou usar backdrop como fallback)
+    let trailerTempPath = null;
+    
+    if (!useBackdropAsFallback) {
+      trailerTempPath = path.join(__dirname, `temp_trailer_${Date.now()}.mp4`);
+      tempFiles.push(trailerTempPath);
+
+      try {
+        console.log(`📥 Baixando trailer: ${trailerKey}`);
+        await downloadTrailer(trailerKey, trailerTempPath);
+      } catch (error) {
+        console.error(`⚠️ Erro ao baixar trailer:`, error.message);
+        console.log(`🔄 Usando backdrop estático como fallback...`);
+        useBackdropAsFallback = true;
+        trailerTempPath = null;
+      }
+    }
+
+    // Se não houver trailer, usar backdrop processado como "trailer" estático
+    if (useBackdropAsFallback) {
+      trailerTempPath = backdropProcessedPath; // Usar o mesmo backdrop
+      console.log(`📸 Modo estático: usando backdrop como vídeo base`);
+    }
+
+    // 10. Gerar vídeo com FFmpeg
+    const videoOutputPath = path.join(__dirname, `video_${Date.now()}.mp4`);
+    tempFiles.push(videoOutputPath);
+
+    try {
+      console.log(`🎬 Iniciando geração de vídeo ${width}x${height}...`);
+      await generateVideoFFmpeg({
+        trailerPath: trailerTempPath,
+        backdropPath: backdropProcessedPath,
+        framePath: framePath,
+        outputPath: videoOutputPath,
+        duracao: duracao,
+        width: width,
+        height: height
+      });
+    } catch (error) {
+      console.error(`❌ Erro ao gerar vídeo:`, error);
+      return res.status(500).json({ 
+        error: "Erro ao processar vídeo",
+        details: error.message 
+      });
+    }
+
+    // 11. Retornar vídeo
+    const videoBuffer = await fsPromises.readFile(videoOutputPath);
+    const safeTitle = titulo.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    res.set("Content-Type", "video/mp4");
+    res.set("Content-Disposition", `attachment; filename="Video_${safeTitle}_${duracao}s.mp4"`);
+    res.send(videoBuffer);
+
+    // Limpar arquivos temporários IMEDIATAMENTE após envio
+    setTimeout(async () => {
+      for (const file of tempFiles) {
+        try {
+          await fsPromises.unlink(file);
+          console.log(`🗑️ Arquivo temporário removido: ${path.basename(file)}`);
+        } catch (err) {
+          console.error(`⚠️ Erro ao deletar ${path.basename(file)}:`, err.message);
+        }
+      }
+      console.log(`✅ Limpeza concluída: ${tempFiles.length} arquivos removidos`);
+    }, 2000);
+
+  } catch (error) {
+    console.error("❌ Erro ao gerar vídeo:", error);
+    
+    // Limpar arquivos temporários em caso de erro
+    for (const file of tempFiles) {
+      try {
+        await fsPromises.unlink(file);
+        console.log(`🗑️ Limpeza de erro: ${path.basename(file)} removido`);
+      } catch (err) {
+        // Ignorar erros de limpeza
+      }
+    }
+
+    res.status(500).json({
+      error: "Erro ao gerar vídeo",
+      message: error.message
+    });
+  }
 });
 
 async function gracefulShutdown(signal) {
@@ -1721,6 +2335,17 @@ async function gracefulShutdown(signal) {
   }
   process.exit(0);
 }
+
+// ============================================
+// 🚫 HANDLER 404 (DEVE VIR DEPOIS DE TODAS AS ROTAS)
+// ============================================
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Rota não encontrada",
+    path: req.path,
+    method: req.method
+  });
+});
 
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

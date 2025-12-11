@@ -1,0 +1,16 @@
+{
+  "typescript.validate.enable": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    "**/node_modules": false
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/*.code-search": true
+  },
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "js/ts.implicitProjectConfig.checkJs": false,
+  "problems.decorations.enabled": true,
+  "typescript.surveys.enabled": false
+}

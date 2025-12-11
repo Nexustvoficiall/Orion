@@ -153,6 +153,24 @@
     }
 
     /* Responsividade */
+    @media (max-width: 768px) {
+      body {
+        padding: 15px;
+      }
+      
+      .perfil-container {
+        max-width: 100%;
+        padding: 25px 20px;
+      }
+      
+      input[type="text"],
+      input[type="email"],
+      input[type="tel"],
+      input[type="file"] {
+        font-size: 16px; /* Evita zoom no iOS */
+      }
+    }
+    
     @media (max-width: 480px) {
       .perfil-container {
         padding: 20px 15px;
@@ -166,13 +184,19 @@
       input[type="email"],
       input[type="tel"],
       input[type="file"] {
-        font-size: 14px;
+        font-size: 16px;
         padding: 10px;
       }
 
       button {
         font-size: 14px;
         padding: 10px 0;
+        min-height: 44px;
+      }
+      
+      #user-logo {
+        width: 80px;
+        height: 80px;
       }
     }
   </style>

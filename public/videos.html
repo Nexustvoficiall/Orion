@@ -1,0 +1,2942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <!-- v3.0.0 - Video Editor with FFmpeg Integration -->
+  <title>Orion Creator — Vídeos de filmes/series</title>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --purple-1: #6b21a8;
+      --purple-2: #a855f7;
+      --accent: #c084fc;
+      --modal-width: 960px;
+      --card-width: 220px;
+      --btn-height: 44px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Poppins", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 10% 10%, #060018 0%, #0b0420 45%, #100624 100%);
+      color: #e9e7ff;
+      overflow-x: hidden;
+      line-height: 1.4;
+      width: 100vw;
+      max-width: 100%;
+    }
+
+    .galaxy-bg {
+      position: fixed;
+      inset: 0;
+      z-index: -6;
+      background: #0b0420;
+      filter: brightness(0.62);
+      opacity: 0.98;
+    }
+
+    .stars {
+      position: fixed;
+      width: 160%;
+      height: 160%;
+      top: -20%;
+      left: -30%;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 140s linear infinite;
+      z-index: -5;
+      opacity: 0.28;
+      mix-blend-mode: screen;
+    }
+
+    @keyframes moveStars {
+      from { transform: translate(0, 0); }
+      to { transform: translate(-1200px, 600px); }
+    }
+
+    .nebula {
+      position: fixed;
+      inset: 0;
+      z-index: -4;
+      opacity: 0.45;
+      filter: blur(6px) saturate(1.05);
+      mix-blend-mode: screen;
+      animation: nebulaMove 60s linear infinite;
+      background: #0b0420;
+    }
+
+    @keyframes nebulaMove {
+      0% { transform: translateX(0); }
+      50% { transform: translateX(-120px); }
+      100% { transform: translateX(0); }
+    }
+
+    header {
+      padding: 22px 12px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 160px;
+      filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.12));
+    }
+
+    h1.site-title {
+      margin: 10px 0 0;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-shadow: 0 2px 18px rgba(192, 132, 252, 0.08);
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 14px 12px;
+    }
+
+    .input-wrap {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      width: 420px;
+      max-width: 64vw;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    input[type="text"]::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    select.filtro-tipo {
+      background: linear-gradient(90deg, var(--purple-1), var(--purple-2));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 8px 26px rgba(104, 12, 168, 0.12);
+    }
+
+    #selectModelo,
+    #selectTemporada {
+      background: linear-gradient(135deg, rgba(30, 20, 50, 0.95), rgba(20, 10, 40, 0.95));
+      color: #e8e3ff;
+      font-weight: 600;
+      width: 100%;
+      font-size: 15px;
+      border-radius: 12px;
+      padding: 14px 16px;
+      border: 2px solid rgba(192, 132, 252, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    #selectModelo:hover,
+    #selectTemporada:hover {
+      border-color: rgba(192, 132, 252, 0.6);
+      box-shadow: 0 8px 24px rgba(107, 33, 168, 0.4);
+    }
+
+    #selectModelo:focus,
+    #selectTemporada:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.2),
+                  0 8px 24px rgba(107, 33, 168, 0.4);
+    }
+
+    #selectModelo option,
+    #selectTemporada option {
+      background-color: #1a0a30;
+      color: #e8e3ff;
+      padding: 12px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--purple-1), var(--purple-2), #9333ea);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 16px;
+      border: 2px solid rgba(192, 132, 252, 0.3);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 15px;
+      height: auto;
+      min-height: var(--btn-height);
+      box-shadow: 0 8px 32px rgba(107, 33, 168, 0.4),
+                  0 0 20px rgba(168, 85, 247, 0.2) inset;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 16px 48px rgba(107, 33, 168, 0.6),
+                  0 0 30px rgba(192, 132, 252, 0.4) inset;
+      border-color: rgba(192, 132, 252, 0.6);
+    }
+
+    .btn:hover::before {
+      opacity: 1;
+    }
+
+    .btn:active {
+      transform: translateY(-2px) scale(0.98);
+    }
+
+    .btn.active {
+      box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.6),
+                  0 8px 32px rgba(107, 33, 168, 0.5);
+      background: linear-gradient(135deg, #9333ea, var(--purple-2), var(--accent));
+      border-color: var(--accent);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      background: linear-gradient(135deg, #444, #333);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #888;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      background: linear-gradient(135deg, rgba(107, 33, 168, 0.2), rgba(168, 85, 247, 0.1));
+      border: 2px solid rgba(192, 132, 252, 0.3);
+      padding: 12px 20px;
+      border-radius: 16px;
+      color: #e8e3ff;
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-ghost:hover {
+      background: linear-gradient(135deg, rgba(107, 33, 168, 0.4), rgba(168, 85, 247, 0.3));
+      border-color: rgba(192, 132, 252, 0.5);
+      box-shadow: 0 8px 24px rgba(107, 33, 168, 0.3);
+    }
+
+    h2.section-title {
+      color: #c084fc;
+      margin: 22px 8px 8px;
+      font-weight: 700;
+      font-size: 24px;
+    }
+
+    .scroll-row {
+      display: flex;
+      overflow-x: auto;
+      gap: 16px;
+      padding: 18px 8px 22px;
+      scroll-behavior: smooth;
+      scroll-snap-type: x mandatory;
+    }
+
+    .scroll-row > * {
+      scroll-snap-align: start;
+    }
+
+    .scroll-row::-webkit-scrollbar {
+      height: 10px;
+    }
+
+    .scroll-row::-webkit-scrollbar-thumb {
+      background: linear-gradient(90deg, var(--purple-1), var(--purple-2));
+      border-radius: 10px;
+    }
+
+    .movie-card {
+      flex: 0 0 auto;
+      width: var(--card-width);
+      border-radius: 12px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
+      box-shadow: 0 10px 30px rgba(7, 0, 20, 0.5);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .movie-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 24px 60px rgba(40, 8, 90, 0.3);
+    }
+
+    .movie-card img {
+      width: 100%;
+      height: 320px;
+      object-fit: cover;
+      display: block;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .movie-info {
+      padding: 12px;
+      text-align: center;
+    }
+
+    .movie-info h3 {
+      margin: 6px 0;
+      color: var(--accent);
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .movie-info span {
+      font-size: 13px;
+      color: #cfcfe0;
+      opacity: 0.95;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 220;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal.open {
+      display: flex;
+      animation: fadeIn 0.28s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 900px;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 0;
+      padding: 0;
+      background: linear-gradient(135deg, rgba(20, 10, 40, 0.98), rgba(10, 5, 20, 0.98));
+      backdrop-filter: blur(30px) saturate(150%);
+      border: 2px solid rgba(192, 132, 252, 0.3);
+      box-shadow: 0 50px 150px rgba(107, 33, 168, 0.5), 
+                  0 0 100px rgba(168, 85, 247, 0.2) inset;
+      max-height: 92vh;
+    }
+
+    .modal-content.full-step {
+      grid-template-columns: 1fr;
+      max-width: 1200px;
+      max-height: 90vh;
+    }
+
+    @media (max-width: 768px) {
+      .modal-content {
+        grid-template-columns: 1fr;
+        max-width: 95vw;
+        border-radius: 16px;
+      }
+      
+      .modal-left {
+        display: none;
+      }
+      
+      .modal-content.full-step {
+        max-width: 95vw;
+      }
+    }
+
+    .modal-left {
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(107, 33, 168, 0.1), rgba(0, 0, 0, 0.5));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .modal-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.15), transparent 70%);
+      pointer-events: none;
+    }
+
+    .modal-content.full-step .modal-left {
+      display: none;
+    }
+
+    .modal-left img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.95;
+      filter: brightness(1.1) contrast(1.1);
+    }
+
+    .modal-right {
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 100%;
+      max-height: 92vh;
+      position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: linear-gradient(180deg, rgba(15, 5, 30, 0.5), rgba(5, 0, 15, 0.8));
+    }
+    
+    .modal-right::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .modal-right::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+    }
+    
+    .modal-right::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, var(--purple-1), var(--purple-2));
+      border-radius: 10px;
+    }
+    
+    .modal-right::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, var(--purple-2), var(--accent));
+    }
+
+    .modal-header {
+      margin-bottom: 10px;
+    }
+
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif;
+      background: linear-gradient(135deg, #c084fc, #a855f7, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-size: 36px;
+      letter-spacing: 1px;
+      line-height: 1.1;
+      text-shadow: 0 0 40px rgba(192, 132, 252, 0.4);
+      filter: drop-shadow(0 2px 8px rgba(168, 85, 247, 0.3));
+    }
+
+    .modal-synopsis {
+      color: #e8e3ff;
+      font-size: 14px;
+      line-height: 1.8;
+      margin-top: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+      padding-right: 8px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+
+    .close-btn {
+      position: absolute;
+      right: 20px;
+      top: 20px;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(107, 33, 168, 0.5));
+      border: 2px solid rgba(192, 132, 252, 0.4);
+      color: #fff;
+      font-size: 22px;
+      cursor: pointer;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(107, 33, 168, 0.4);
+    }
+
+    .close-btn:hover {
+      background: linear-gradient(135deg, rgba(192, 132, 252, 0.6), rgba(168, 85, 247, 0.7));
+      border-color: rgba(192, 132, 252, 0.8);
+      transform: scale(1.15) rotate(90deg);
+      box-shadow: 0 6px 25px rgba(168, 85, 247, 0.6);
+    }
+
+    /* SELETOR DE CORES - QUADRADINHOS */
+    .color-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+
+    .color-box {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: all 0.3s ease;
+      position: relative;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-box:hover {
+      transform: translateY(-4px) scale(1.1);
+      box-shadow: 0 8px 24px rgba(192, 132, 252, 0.4);
+    }
+
+    .color-box.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(192, 132, 252, 0.8);
+      transform: scale(1.15);
+    }
+
+    .color-box.selected::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    /* Cores específicas */
+    .color-roxo { background: linear-gradient(135deg, #8b5cf6, #6b21a8); }
+    .color-azul { background: linear-gradient(135deg, #3b82f6, #1e40af); }
+    .color-vermelho { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+    .color-verde { background: linear-gradient(135deg, #10b981, #047857); }
+    .color-amarelo { background: linear-gradient(135deg, #fbbf24, #d97706); }
+    .color-laranja { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .color-rosa { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .color-prata { background: linear-gradient(135deg, #94a3b8, #64748b); }
+    .color-dourado { background: linear-gradient(135deg, #fbbf24, #b45309); }
+
+    /* STEP 2 - GERAÇÃO */
+    .generation-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .result-left-panel {
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(107, 33, 168, 0.15), rgba(0, 0, 0, 0.6));
+    }
+    
+    .result-right-panel {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(15, 5, 30, 0.8), rgba(0, 0, 0, 0.9));
+      overflow: hidden;
+    }
+    
+    .result-right-panel img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    }
+
+    .loader {
+      width: 80px;
+      height: 80px;
+      border: 6px solid rgba(192, 132, 252, 0.2);
+      border-top-color: var(--accent);
+      border-right-color: var(--purple-2);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      position: relative;
+      box-shadow: 0 0 40px rgba(192, 132, 252, 0.5),
+                  inset 0 0 20px rgba(168, 85, 247, 0.3);
+    }
+    
+    .loader::before {
+      content: '';
+      position: absolute;
+      inset: -15px;
+      border: 2px solid transparent;
+      border-top-color: rgba(192, 132, 252, 0.4);
+      border-radius: 50%;
+      animation: spin 2s linear infinite reverse;
+    }
+    
+    .loader::after {
+      content: '';
+      position: absolute;
+      inset: 10px;
+      border: 3px solid transparent;
+      border-bottom-color: rgba(168, 85, 247, 0.6);
+      border-radius: 50%;
+      animation: spin 1.5s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .preview-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      width: 100%;
+    }
+
+    .preview-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 55vh;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      background: #000;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+      width: 100%;
+    }
+    
+    .btn-download {
+      background: linear-gradient(135deg, #10b981, #059669, #34d399);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 16px;
+      border: 2px solid rgba(52, 211, 153, 0.4);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+      box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4),
+                  0 0 20px rgba(52, 211, 153, 0.3) inset;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .btn-download::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .btn-download:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 16px 48px rgba(16, 185, 129, 0.6),
+                  0 0 30px rgba(52, 211, 153, 0.5) inset;
+      border-color: rgba(52, 211, 153, 0.8);
+    }
+    
+    .btn-download:hover::before {
+      opacity: 1;
+    }
+    
+    .btn-download:active {
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .fanart-badge {
+      display: none;
+    }
+
+    .model-description {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 5px;
+    }
+
+    .text-muted {
+      color: #bfbadf;
+    }
+
+    .center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .movie-card {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .movie-card {
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .movie-card.selected {
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 30px rgba(192, 132, 252, 0.6);
+      transform: scale(1.05);
+    }
+    
+    .movie-card.selected::after {
+      content: '✔';
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--accent);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(192, 132, 252, 0.5);
+      z-index: 10;
+    }
+    
+    .movie-card .card-action-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border: 1px solid rgba(192, 132, 252, 0.5);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 20;
+      opacity: 0;
+    }
+    
+    .movie-card:hover .card-action-btn {
+      opacity: 1;
+    }
+    
+    .movie-card .card-action-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: scale(1.05);
+    }
+    
+    .mass-progress-item {
+      padding: 12px;
+      margin: 8px 0;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border-left: 4px solid var(--purple-2);
+    }
+    
+    .mass-progress-item.success {
+      border-left-color: #10b981;
+    }
+    
+    .mass-progress-item.error {
+      border-left-color: #ef4444;
+    }
+
+    footer {
+      text-align:center;
+      margin:40px 0 80px;
+      color:#cfcfe0;
+    }
+    
+    /* ========================================
+       RESPONSIVIDADE MOBILE E TABLET
+       ======================================== */
+    
+    /* Touch optimization - melhor UX em dispositivos touch */
+    @media (hover: none) and (pointer: coarse) {
+      .btn,
+      .movie-card,
+      .color-option,
+      .close-btn {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+      
+      /* Áreas de toque maiores */
+      .btn {
+        min-height: 48px;
+      }
+      
+      .close-btn {
+        min-width: 44px;
+        min-height: 44px;
+      }
+      
+      .color-option {
+        min-width: 56px;
+        min-height: 56px;
+      }
+    }
+    
+    /* TABLET (768px - 1024px) */
+    @media (max-width: 1024px) {
+      .container {
+        padding: 0 20px;
+      }
+      
+      .search-row {
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      .search-row > div {
+        width: 100%;
+      }
+      
+      input[type="text"] {
+        width: 100%;
+        max-width: 100%;
+      }
+      
+      .modal-content {
+        max-width: 90vw;
+        grid-template-columns: 1fr;
+      }
+      
+      .modal-left {
+        max-height: 250px;
+        min-height: 200px;
+      }
+      
+      .modal-right {
+        max-height: 60vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* Scroll horizontal otimizado para tablet */
+      .scroll-row {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-padding: 0 20px;
+      }
+    }
+    
+    /* MOBILE (até 768px) */
+    @media (max-width: 768px) {
+      body {
+        font-size: 14px;
+        overflow-x: hidden;
+      }
+      
+      header {
+        padding: 15px 10px;
+      }
+      
+      .logo {
+        width: 120px;
+      }
+      
+      h1.site-title {
+        font-size: 22px;
+        margin-top: 8px;
+        line-height: 1.3;
+      }
+      
+      .container {
+        padding: 0 15px;
+        max-width: 100%;
+      }
+      
+      /* Barra de busca mobile */
+      .search-row {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+        margin: 10px 0;
+      }
+      
+      .search-row > div {
+        width: 100%;
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .input-wrap {
+        width: 100%;
+        flex-direction: column;
+      }
+      
+      input[type="text"] {
+        width: 100%;
+        max-width: 100%;
+        font-size: 16px; /* Evita zoom no iOS */
+      }
+      
+      #searchButton,
+      #clearFiltersButton,
+      #filterType {
+        width: 100%;
+        min-height: 48px;
+      }
+      
+      select.filtro-tipo,
+      #selectModelo,
+      #selectTemporada {
+        font-size: 16px; /* Evita zoom no iOS */
+      }
+      
+      /* Botões de massa */
+      #btnToggleMassMode {
+        width: 100%;
+        min-width: auto;
+      }
+      
+      #massGenerationBar {
+        padding: 12px;
+      }
+      
+      #massGenerationBar > div {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      #btnGenerateMass,
+      #btnClearSelection {
+        width: 100%;
+        min-width: auto;
+      }
+      
+      /* Cards de filme/série */
+      .scroll-row {
+        gap: 12px;
+        padding: 10px 5px 20px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+        scroll-padding-left: 15px;
+      }
+      
+      .scroll-row::-webkit-scrollbar {
+        height: 6px;
+      }
+      
+      .movie-card {
+        min-width: 140px;
+        max-width: 140px;
+        flex-shrink: 0;
+        scroll-snap-align: start;
+        touch-action: pan-x;
+      }
+      
+      .movie-card img {
+        height: 210px;
+        width: 100%;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      
+      .movie-card h3 {
+        font-size: 13px;
+        max-height: 38px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      
+      .movie-card:first-child {
+        margin-left: 10px;
+      }
+      
+      .movie-card:last-child {
+        margin-right: 10px;
+      }
+      
+      /* Modal responsivo */
+      .modal {
+        padding: 0 !important;
+        align-items: flex-start !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        background: rgba(0, 0, 0, 0.95) !important;
+      }
+      
+      .modal-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: none !important;
+        min-height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        position: relative !important;
+      }
+      
+      .modal-left {
+        display: none !important;
+      }
+      
+      .modal-right {
+        padding: 20px 15px 40px;
+        max-height: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .modal-header {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #0b0420 80%, transparent);
+        z-index: 10;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+      }
+      
+      .modal-title {
+        font-size: 20px;
+      }
+      
+      .modal-synopsis {
+        font-size: 13px;
+      }
+      
+      /* Modal de massa */
+      #massModalLeft {
+        display: none !important;
+      }
+      
+      #massModalRight {
+        padding: 20px 15px 40px;
+        max-height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      #massProgressList {
+        max-height: 50vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-right: 10px;
+      }
+      
+      #massDownloadSection {
+        position: sticky;
+        bottom: 0;
+        background: linear-gradient(0deg, #0b0420 70%, transparent);
+        padding-top: 20px;
+        z-index: 10;
+      }
+      
+      /* Botões */
+      .btn {
+        padding: 14px 20px;
+        font-size: 15px;
+        min-height: 48px;
+        touch-action: manipulation;
+      }
+      
+      .close-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 26px;
+        top: 10px;
+        right: 10px;
+        z-index: 100;
+        touch-action: manipulation;
+      }
+      
+      /* Grid de cores */
+      .color-option {
+        width: 56px;
+        height: 56px;
+        touch-action: manipulation;
+      }
+      
+      #massColorGrid,
+      .color-grid {
+        gap: 12px;
+        justify-content: center;
+      }
+      
+      /* Títulos de seção */
+      .section-title {
+        font-size: 20px;
+        padding: 0 10px;
+      }
+      
+      /* Footer */
+      footer {
+        margin: 30px 0 60px;
+        font-size: 13px;
+      }
+    }
+    
+    /* MOBILE PEQUENO (até 480px) */
+    @media (max-width: 480px) {
+      h1.site-title {
+        font-size: 18px;
+        padding: 0 10px;
+      }
+      
+      .logo {
+        width: 100px;
+      }
+      
+      .container {
+        padding: 0 10px;
+      }
+      
+      .movie-card {
+        min-width: 130px;
+      }
+      
+      .movie-card img {
+        height: 195px;
+      }
+      
+      .modal-right,
+      #massModalRight {
+        padding: 15px 10px 40px;
+      }
+      
+      .modal-title {
+        font-size: 18px;
+      }
+      
+      .modal-synopsis {
+        font-size: 12px;
+      }
+      
+      .btn {
+        padding: 12px 16px;
+        font-size: 14px;
+        min-height: 48px;
+      }
+      
+      .color-option {
+        width: 50px;
+        height: 50px;
+      }
+      
+      #massModeTip {
+        font-size: 12px;
+        padding: 10px;
+        margin: 15px 10px;
+      }
+      
+      #massGenerationBar {
+        margin: 15px 10px;
+        padding: 12px 10px;
+      }
+      
+      .section-title {
+        font-size: 18px;
+        margin: 18px 5px 5px;
+      }
+      
+      #massProgressList {
+        max-height: 40vh;
+      }
+    }
+    
+    /* LANDSCAPE MODE - Mobile deitado */
+    @media (max-height: 500px) and (orientation: landscape) {
+      .modal-content {
+        max-height: 100vh;
+        overflow-y: auto;
+      }
+      
+      .modal-right,
+      #massModalRight {
+        max-height: none;
+        padding: 15px;
+      }
+      
+      #massProgressList {
+        max-height: 30vh;
+      }
+      
+      .modal-header {
+        position: relative;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+      }
+    }
+    
+    /* Scroll suave para todos os elementos com overflow */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--purple-2) rgba(0, 0, 0, 0.3);
+    }
+    
+    *::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background: var(--purple-2);
+      border-radius: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+    
+    /* ========================================
+       MELHORIAS TOUCH E GESTOS MOBILE
+       ======================================== */
+    
+    /* Otimizar para touch */
+    button, .btn, .movie-card, .color-option, .close-btn {
+      -webkit-tap-highlight-color: rgba(168, 85, 247, 0.3);
+      touch-action: manipulation;
+    }
+    
+    /* Prevenir zoom em inputs mobile */
+    input, select, textarea {
+      font-size: 16px;
+      touch-action: manipulation;
+    }
+    
+    /* Scroll horizontal suave com snap */
+    .scroll-row {
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Área de toque maior para botões pequenos */
+    @media (max-width: 768px) {
+      .card-action-btn, .close-btn, .color-option {
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+    
+    /* ORIENTAÇÃO LANDSCAPE EM MOBILE */
+    @media (max-width: 768px) and (orientation: landscape) {
+      .modal {
+        align-items: flex-start;
+        padding: 5px;
+      }
+      
+      .modal-content {
+        max-height: 95vh;
+        overflow-y: auto;
+      }
+      
+      .modal-right {
+        max-height: 85vh;
+        padding: 15px;
+      }
+      
+      #massModalRight {
+        max-height: 85vh;
+      }
+      
+      #massProgressList {
+        max-height: 40vh;
+        overflow-y: auto;
+      }
+      
+      header {
+        padding: 10px;
+      }
+      
+      .logo {
+        width: 80px;
+      }
+      
+      h1.site-title {
+        font-size: 16px;
+      }
+    }
+    
+    /* TABLETS EM LANDSCAPE */
+    @media (min-width: 769px) and (max-width: 1024px) and (orientation: landscape) {
+      .modal-content {
+        grid-template-columns: 320px 1fr;
+        max-width: 95vw;
+      }
+      
+      .modal-left {
+        max-height: 80vh;
+      }
+      
+      .modal-right {
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+    }
+    
+    /* AJUSTES PARA TELAS MUITO PEQUENAS */
+    @media (max-width: 360px) {
+      .movie-card {
+        min-width: 130px;
+      }
+      
+      .movie-card img {
+        height: 195px;
+      }
+      
+      .btn {
+        padding: 10px 14px;
+        font-size: 12px;
+      }
+      
+      .modal-title {
+        font-size: 16px;
+      }
+      
+      .search-row {
+        padding: 12px;
+      }
+    }
+    
+    /* FIX PARA SAFARI iOS */
+    @supports (-webkit-touch-callout: none) {
+      body {
+        min-height: -webkit-fill-available;
+      }
+      
+      .modal {
+        height: -webkit-fill-available;
+      }
+    }
+    
+    /* PREVENIR BOUNCE SCROLL NO iOS */
+    html, body {
+      overscroll-behavior: none;
+    }
+    
+    /* GARANTIR QUE MODAIS SEJAM SCROLLÁVEIS EM QUALQUER DISPOSITIVO */
+    .modal-right, #massModalRight {
+      -webkit-overflow-scrolling: touch;
+      overflow-y: auto !important;
+      overscroll-behavior: contain;
+    }
+    
+    /* AJUSTE PARA TECLADO VIRTUAL MOBILE */
+    @media (max-height: 500px) {
+      .modal-content {
+        margin: 5px 0;
+      }
+      
+      .modal-right {
+        padding: 15px 12px;
+      }
+      
+      header {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="galaxy-bg" aria-hidden="true"></div>
+  <div class="stars" aria-hidden="true"></div>
+  <div class="nebula" aria-hidden="true"></div>
+
+  <header class="center" role="banner">
+    <div style="text-align:center">
+      <img src="/images/logo.png" alt="Logo Orion" class="logo" loading="lazy" />
+      <div class="container">
+        <h1 class="site-title">Orion Creator — Vídeos de Filmes/Séries</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" id="mainContent">
+    <div class="search-row" role="search" aria-label="Busca de títulos">
+      <div class="input-wrap">
+        <input id="searchInput" type="text" placeholder="Buscar título..." aria-label="Buscar filmes ou séries" />
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button id="searchButton" type="button" class="btn" aria-label="Buscar">🔎 Buscar</button>
+        <select id="filterType" aria-label="Tipo" class="filtro-tipo">
+          <option value="movie" selected>Filmes</option>
+          <option value="tv">Séries</option>
+        </select>
+        <button id="clearFiltersButton" type="button" class="btn btn-ghost" aria-label="Limpar filtros">Limpar</button>
+      </div>
+    </div>
+    
+    <!-- BOTÃO ATIVAR MODO DE SELEÇÃO EM MASSA -->
+    <div style="margin:20px auto; max-width:800px; text-align:center;">
+      <button id="btnToggleMassMode" type="button" class="btn" style="min-width:220px;">
+        🎬 Gerar Vídeos em Massa
+      </button>
+    </div>
+    
+    <!-- DICA DE SELEÇÃO (oculta inicialmente) -->
+    <div id="massModeTip" style="display:none; margin:20px auto; max-width:800px; padding:12px; background:rgba(168, 85, 247, 0.1); border-radius:12px; border:1px solid rgba(192, 132, 252, 0.2); text-align:center;">
+      <span style="color:#cfcfe0; font-size:14px;">
+        💡 <strong>Modo de Seleção Ativo:</strong> Clique nos filmes/séries para selecionar até 5 itens e gerar vídeos! Clique novamente para desmarcar.
+      </span>
+    </div>
+    
+    <!-- BOTÃO DE GERAÇÃO EM MASSA (oculto inicialmente) -->
+    <div id="massGenerationBar" style="display:none; margin:20px auto; max-width:800px; padding:16px; background:linear-gradient(135deg, rgba(107, 33, 168, 0.2), rgba(168, 85, 247, 0.1)); border-radius:16px; border:2px solid rgba(192, 132, 252, 0.3); text-align:center;">
+      <div style="display:flex; gap:15px; align-items:center; justify-content:center; flex-wrap:wrap;">
+        <span style="color:#e8e3ff; font-weight:600; font-size:15px;">
+          <span id="selectedCount">0</span> selecionados (máx: 5)
+        </span>
+        <button id="btnGenerateMass" type="button" class="btn" style="min-width:180px;">
+          🎬 Gerar Vídeos
+        </button>
+        <button id="btnClearSelection" type="button" class="btn btn-ghost">
+          ❌ Limpar Seleção
+        </button>
+      </div>
+    </div>
+
+    <section id="conteudo" aria-live="polite">
+      <div id="searchResults" class="scroll-row" style="display:none;"></div>
+
+      <h2 class="section-title">🚀 Lançamentos Recentes</h2>
+      <div class="scroll-row" id="lancamentosGrid" aria-label="Lançamentos"></div>
+
+      <h2 class="section-title">🌟 Filmes em Destaque</h2>
+      <div class="scroll-row" id="filmesPopularesGrid" aria-label="Filmes em destaque"></div>
+
+      <h2 class="section-title">📺 Séries em Destaque</h2>
+      <div class="scroll-row" id="seriesPopularesGrid" aria-label="Séries em destaque"></div>
+
+      <!-- Vídeos não são salvos - sem histórico -->
+    </section>
+
+  </main>
+
+  <!-- MODAL DE GERAÇÃO EM MASSA -->
+  <div id="massModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="massModalTitle" onclick="if(event.target.id==='massModal') closeMassModal()">
+    <div class="modal-content" role="document" id="massModalContent">
+      <button class="close-btn" id="closeMassModalBtn" aria-label="Fechar">&times;</button>
+
+      <div class="modal-left" id="massModalLeft" style="padding:20px; overflow-y:auto; background:linear-gradient(135deg, rgba(42, 31, 61, 0.5), rgba(107, 33, 168, 0.2));">
+        <!-- Grade de posters será inserida aqui via JS -->
+      </div>
+
+      <div class="modal-right" id="massModalRight" style="padding:30px; max-height:90vh; overflow-y:auto;">
+        
+        <!-- ETAPA 1: CONFIGURAÇÃO -->
+        <div id="massStep1">
+          <div class="modal-header" style="margin-bottom:30px;">
+            <div class="modal-title" id="massModalTitle" style="font-size:24px; font-weight:700; color:var(--accent); margin-bottom:8px;">🎬 Geração de Vídeos em Massa</div>
+            <div class="modal-synopsis" id="massModalSynopsis" style="color:#a0a0c0; font-size:14px;">
+              <span id="massSelectedInfo">0 itens selecionados</span>
+            </div>
+          </div>
+
+          <div class="step-1-controls" style="margin-top: 24px;">
+            <!-- Informação do Modelo Fixo -->
+            <div style="background:rgba(168, 85, 247, 0.1); border:1px solid rgba(192, 132, 252, 0.2); border-radius:12px; padding:16px; margin-bottom:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:8px;">🎬 Modelo de Vídeo:</label>
+              <p style="color:#a0a0c0; font-size:14px; margin:0; line-height:1.5;">✨ Orion Video Trailer - Todos os vídeos usarão o modelo único com banner automático</p>
+            </div>
+
+            <!-- Seleção de Duração -->
+            <div id="massDurationSelectorContainer" style="margin-top:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">⏱️ Duração dos Vídeos:</label>
+              <select id="massSelectDuration" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
+                <option value="15" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 15 segundos</option>
+                <option value="30" style="color:#e8e3ff; background:#2a1f3d;">📱 30 segundos</option>
+                <option value="60" style="color:#e8e3ff; background:#2a1f3d;">🎥 1 minuto</option>
+                <option value="90" style="color:#e8e3ff; background:#2a1f3d;">🎬 1 minuto e 30 segundos</option>
+              </select>
+            </div>
+
+            <!-- Botão Gerar -->
+            <button id="btnStartMassGeneration" class="btn" style="width:100%; margin-top:24px;">
+              🚀 Gerar Vídeos
+            </button>
+          </div>
+        </div>
+        
+        <!-- ETAPA 2: PROGRESSO -->
+        <div id="massStep2" style="display:none;">
+          <div class="modal-header">
+            <div class="modal-title">⏳ Gerando Vídeos...</div>
+          </div>
+          
+          <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px; margin:20px 0;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+              <span style="color:#e8e3ff; font-weight:600;">Progresso:</span>
+              <span id="massProgressText" style="color:var(--accent); font-weight:600;">0 / 0</span>
+            </div>
+            <div style="background:rgba(0,0,0,0.3); height:24px; border-radius:12px; overflow:hidden;">
+              <div id="massProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent), var(--purple-2)); transition:width 0.3s;"></div>
+            </div>
+          </div>
+          
+          <div id="massProgressList" style="max-height:350px; overflow-y:auto; padding-right:10px;"></div>
+          
+          <div id="massDownloadSection" style="display:none; margin-top:20px;">
+            <button class="btn" onclick="downloadAllAsZip()" style="width:100%; margin-bottom:10px;">
+              📦 Baixar Todos (ZIP)
+            </button>
+            <button class="btn btn-ghost" onclick="closeMassModal()" style="width:100%;">
+              Fechar
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DO BANNER -->
+  <div id="modalBanner" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Gerador de banners">
+    <div class="modal-content" role="document" id="modalContent" tabindex="-1">
+      <button class="close-btn" id="closeModalBtn" type="button" aria-label="Fechar modal">✕</button>
+
+      <div class="modal-left" id="modalLeft" aria-hidden="false">
+        <img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />
+      </div>
+
+      <div class="modal-right" id="modalRight">
+
+        <!-- STEP 1: CONFIGURAÇÃO -->
+        <div id="step1Container">
+          <div class="modal-header">
+            <div class="modal-title" id="modalTitle">Carregando...</div>
+            <div class="modal-synopsis" id="sinopseDetalhesBanner">...</div>
+          </div>
+
+          <div class="step-1-controls" style="margin-top: 24px;">
+            <!-- Informação do Modelo Fixo -->
+            <div style="background:rgba(168, 85, 247, 0.1); border:1px solid rgba(192, 132, 252, 0.2); border-radius:12px; padding:16px; margin-bottom:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:8px;">🎬 Modelo de Vídeo:</label>
+              <p style="color:#a0a0c0; font-size:14px; margin:0; line-height:1.5;">✨ Orion Video Trailer - Vídeo automático com banner, título, sinopse e trailer do filme/série</p>
+            </div>
+
+            <!-- Seleção de Temporada (Séries) -->
+            <div id="seasonSelectorContainer" style="display:none; margin-top:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">
+                📺 Escolha a Temporada:
+              </label>
+              <select id="selectTemporada" class="filtro-tipo"></select>
+            </div>
+
+            <!-- Seleção de Duração -->
+            <div id="durationSelectorContainer" style="margin-top:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">⏱️ Duração do Vídeo:</label>
+              <select id="selectDuration" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
+                <option value="15" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 15 segundos (Rápido)</option>
+                <option value="30" style="color:#e8e3ff; background:#2a1f3d;">📱 30 segundos (Stories)</option>
+                <option value="60" style="color:#e8e3ff; background:#2a1f3d;">🎥 1 minuto (Padrão)</option>
+                <option value="90" style="color:#e8e3ff; background:#2a1f3d;">🎬 1 minuto e 30 segundos (Completo)</option>
+              </select>
+              <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 Dica: Vídeos mais curtos são melhores para redes sociais</p>
+            </div>
+            
+            <!-- Seleção de Qualidade -->
+            <div id="qualitySelectorContainer" style="margin-top:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">🎞️ Qualidade do Vídeo:</label>
+              <select id="selectQuality" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
+                <option value="480" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 480p - SD (Rápido)</option>
+                <option value="720" style="color:#e8e3ff; background:#2a1f3d;">📱 720p - HD (Recomendado)</option>
+                <option value="1080" style="color:#e8e3ff; background:#2a1f3d;">🎬 1080p - Full HD (Alta qualidade)</option>
+              </select>
+              <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 Dica: 480p é mais rápido, 1080p tem melhor qualidade mas demora mais</p>
+            </div>
+
+            <!-- Botão Gerar -->
+            <div style="margin-top:30px; display:flex; gap:10px; justify-content:center;">
+              <button id="btnGenerate" type="button" class="btn" style="display:block;">🎬 Gerar Vídeo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: GERAÇÃO E RESULTADO -->
+        <div id="step2Container" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 Orion Creator — Feito com 💜 e Muita dedicação</p>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    let userToken = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        userToken = await user.getIdToken();
+        console.log("✅ Usuário autenticado:", user.uid);
+        // Vídeos não são salvos no histórico
+      } else {
+        console.warn("⚠️ Usuário não autenticado. Funcionalidades limitadas.");
+      }
+    });
+
+    const premiumBanners = {
+      ROXO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_roxo_vdnbwk.png",
+      AZUL: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_azul_h83cpu.png",
+      VERMELHO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_vermelho_bjb2u1.png",
+      VERDE: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988197/vertical_verde_i2nekv.png",
+      PRATA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_prata_xuvzoi.png",
+      AMARELO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_amarelo_urqjlu.png",
+      DOURADO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_dourado_asthju.png",
+      LARANJA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_lajanja_qtyj6n.png"
+    };
+
+    const exclusiveBanners = {
+      ROXO: "/images/modelo2/vertical_roxo.png",
+      VERMELHO: "/images/modelo2/vertical_vermelho.png",
+      AZUL: "/images/modelo2/vertical_azul.png",
+      VERDE: "/images/modelo2/vertical_verde.png",
+      AMARELO: "/images/modelo2/vertical_amarelo.png",
+      LARANJA: "/images/modelo2/vertical_laranja.png",
+      ROSA: "/images/modelo2/vertical_rosa.png",
+      PRATA: "/images/modelo2/vertical_prata.png",
+    };
+
+    const orionXBanners = {
+      PRETO: "/images/modelo3/preto.png",
+      ROXO: "/images/modelo3/roxo.png",
+      AZUL: "/images/modelo3/azul.png",
+      VERMELHO: "/images/modelo3/vermelho.png",
+      VERDE: "/images/modelo3/verde.png",
+      AMARELO: "/images/modelo3/amarelo.png",
+      LARANJA: "/images/modelo3/laranja.png",
+      ROSA: "/images/modelo3/rosa.png"
+    };
+
+    const models = {
+      ORION_PREMIUM: {
+        id: 'PADRAO',
+        label: 'Orion Rigel',
+        description: '⭐ Modelo clássico com 8 opções de cores vibrantes.',
+        colors: premiumBanners,
+        usesFanart: false
+      },
+      ORION_EXCLUSIVO: {
+        id: 'ORION_EXCLUSIVO',
+        label: 'Orion Betelgeuse',
+        description: '✨ Usa logos oficiais automaticamente quando disponíveis!',
+        colors: exclusiveBanners,
+        usesFanart: true
+      },
+      ORION_X: {
+        id: 'ORION_X',
+        label: 'Orion Bellatrix',
+        description: '🔥 Layout horizontal com logo TMDB oficial e 8 cores exclusivas!',
+        colors: orionXBanners,
+        usesFanart: true
+      }
+    };
+
+    console.log('🎬 Videos.html carregando...');
+    
+    const els = {
+      modal: document.getElementById('modalBanner'),
+      content: document.getElementById('modalContent'),
+      step1: document.getElementById('step1Container'),
+      step2: document.getElementById('step2Container'),
+      select: document.getElementById('selectModelo'),
+      title: document.getElementById('modalTitle'),
+      synopsis: document.getElementById('sinopseDetalhesBanner'),
+      poster: document.getElementById('posterDetalhesBanner'),
+      leftPanel: document.getElementById('modalLeft'),
+      modelDescription: document.getElementById('modelDescription'),
+      searchInput: document.getElementById('searchInput'),
+      searchButton: document.getElementById('searchButton'),
+      clearButton: document.getElementById('clearFiltersButton'),
+      filterType: document.getElementById('filterType'),
+      searchResults: document.getElementById('searchResults'),
+      lancamentosGrid: document.getElementById('lancamentosGrid'),
+      filmesPopularesGrid: document.getElementById('filmesPopularesGrid'),
+      seriesPopularesGrid: document.getElementById('seriesPopularesGrid')
+    };
+    
+    console.log('✅ Elementos carregados:', {
+      lancamentosGrid: !!els.lancamentosGrid,
+      filmesPopularesGrid: !!els.filmesPopularesGrid,
+      seriesPopularesGrid: !!els.seriesPopularesGrid,
+      searchButton: !!els.searchButton
+    });
+
+    let currentData = {
+      id: null,
+      title: '',
+      synopsis: '',
+      poster: '',
+      genre: '',
+      year: '',
+      duration: 0,
+      rating: 0,
+      type: 'movie',
+      tmdbId: null,
+      numberOfSeasons: 0,
+      selectedSeason: 1,
+      seasons: [],
+      originalTitle: '',
+      backdrop: null
+    };
+
+    let config = {
+      orientation: 'vertical',
+      modelId: null,
+      colorKey: null
+    };
+
+    let seasonListenerAttached = false;
+    
+    // Guardar HTML original do modalRight
+    const originalModalRightHTML = document.getElementById('modalRight').innerHTML;
+    
+    // Sistema de seleção em massa (vídeos)
+    let selectedItems = [];
+    const MAX_SELECTION = 5; // Máximo 5 vídeos por vez
+    let massModeActive = false;
+    
+    function toggleSelection(id, type, title, poster) {
+      // Se modo massa não está ativo, não permitir seleção
+      if (!massModeActive) {
+        return false;
+      }
+      
+      const index = selectedItems.findIndex(item => item.id === id && item.type === type);
+      
+      if (index > -1) {
+        selectedItems.splice(index, 1);
+      } else {
+        if (selectedItems.length >= MAX_SELECTION) {
+          alert(`Você pode selecionar no máximo ${MAX_SELECTION} itens!`);
+          return false;
+        }
+        selectedItems.push({ id, type, title, poster });
+      }
+      
+      updateSelectionUI();
+      return true;
+    }
+    
+    function updateSelectionUI() {
+      const bar = document.getElementById('massGenerationBar');
+      const count = document.getElementById('selectedCount');
+      
+      if (selectedItems.length > 0) {
+        bar.style.display = 'block';
+        count.textContent = selectedItems.length;
+      } else {
+        bar.style.display = 'none';
+      }
+      
+      // Atualizar visual dos cards
+      document.querySelectorAll('.movie-card').forEach(card => {
+        const itemId = card.dataset.itemId;
+        const itemType = card.dataset.itemType;
+        const isSelected = selectedItems.some(item => item.id == itemId && item.type === itemType);
+        
+        if (isSelected) {
+          card.classList.add('selected');
+        } else {
+          card.classList.remove('selected');
+        }
+      });
+    }
+    
+    function clearSelection() {
+      selectedItems = [];
+      massModeActive = false;
+      updateSelectionUI();
+      updateMassModeUI();
+    }
+
+    async function loadSeasonData(seriesId, seasonNumber) {
+      const loadingIndicator = document.getElementById('seasonLoadingIndicator');
+      try {
+        if (loadingIndicator) loadingIndicator.style.display = 'inline-block';
+        const res = await fetch(`/api/tmdb/detalhes/tv/${seriesId}/season/${seasonNumber}`);
+        if (!res.ok) return;
+        const seasonData = await res.json();
+
+        const ratingText = currentData.rating > 0 ? ` ⭐ ${currentData.rating.toFixed(1)}` : '';
+        currentData.title = seasonData.name ?
+          `${currentData.originalTitle} - ${seasonData.name}${ratingText}` :
+          `${currentData.originalTitle} - Temporada ${seasonNumber}${ratingText}`;
+
+        if (seasonData.overview && seasonData.overview.trim() !== '') currentData.synopsis = seasonData.overview;
+        if (seasonData.poster_path) currentData.poster = `https://image.tmdb.org/t/p/original${seasonData.poster_path}`;
+        if (seasonData.air_date) currentData.year = seasonData.air_date.substring(0, 4);
+
+        if (seasonData.episodes && seasonData.episodes.length > 0) {
+          const avgRuntime = seasonData.episodes.reduce((sum, ep) => sum + (ep.runtime || 0), 0) / seasonData.episodes.length;
+          if (avgRuntime > 0) currentData.duration = Math.round(avgRuntime);
+        }
+
+        els.title.innerText = currentData.title;
+        els.synopsis.innerText = currentData.synopsis;
+        els.poster.src = currentData.poster;
+      } catch (e) {
+        console.error("Erro ao carregar dados da temporada:", e);
+      } finally {
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+      }
+    }
+
+    function updateSeasonSelector() {
+      const seasonContainer = document.getElementById('seasonSelectorContainer');
+      const selectTemporada = document.getElementById('selectTemporada');
+
+      if (currentData.type === 'tv' && currentData.numberOfSeasons >= 1) {
+        seasonContainer.style.display = 'block';
+        selectTemporada.innerHTML = '';
+        for (let i = 1; i <= currentData.numberOfSeasons; i++) {
+          const option = document.createElement('option');
+          option.value = i;
+          option.textContent = `Temporada ${i}`;
+          if (i === currentData.selectedSeason) option.selected = true;
+          selectTemporada.appendChild(option);
+        }
+        if (!seasonListenerAttached) {
+          selectTemporada.addEventListener('change', async (e) => {
+            const newSeason = parseInt(e.target.value, 10);
+            currentData.selectedSeason = newSeason;
+            await loadSeasonData(currentData.id, newSeason);
+          });
+          seasonListenerAttached = true;
+        }
+      } else {
+        seasonContainer.style.display = 'none';
+      }
+    }
+
+    window.openModal = async (id, type) => {
+      // Reset COMPLETO da configuração
+      config = { orientation: 'vertical', modelId: null, colorKey: null };
+      seasonListenerAttached = false;
+      
+      // Restaurar HTML original do modalRight
+      const modalRight = document.getElementById('modalRight');
+      modalRight.innerHTML = originalModalRightHTML;
+      
+      // Atualizar referências dos elementos após restaurar HTML
+      els.step1 = document.getElementById('step1Container');
+      els.step2 = document.getElementById('step2Container');
+      els.select = document.getElementById('selectModelo');
+      els.title = document.getElementById('modalTitle');
+      els.synopsis = document.getElementById('sinopseDetalhesBanner');
+      els.modelDescription = document.getElementById('modelDescription');
+      
+      // Resetar TUDO para Step 1 com poster
+      els.step1.style.display = 'block';
+      els.step2.style.display = 'none';
+      els.step2.innerHTML = '';
+      els.leftPanel.style.display = 'flex';
+      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+      els.content.classList.remove('full-step');
+      
+      // Resetar elementos apenas se existirem
+      if (els.select) els.select.value = '';
+      if (els.modelDescription) els.modelDescription.innerHTML = '';
+      
+      const colorSelector = document.getElementById('colorSelectorContainer');
+      if (colorSelector) colorSelector.style.display = 'none';
+      
+      const btnGenerate = document.getElementById('btnGenerate');
+      if (btnGenerate) btnGenerate.style.display = 'block'; // Sempre visível para vídeos
+      
+      const seasonSelector = document.getElementById('seasonSelectorContainer');
+      if (seasonSelector) seasonSelector.style.display = 'none';
+
+      // Recriar listeners após restaurar HTML
+      setupModelListener();
+      setupGenerateListener();
+      
+      // Abrir modal
+      els.modal.classList.add('open');
+      els.modal.style.display = 'flex';
+      els.modal.setAttribute('aria-hidden', 'false');
+
+      // Loading inicial
+      els.title.innerText = "Carregando...";
+      els.synopsis.innerText = "";
+      document.getElementById('seasonSelectorContainer').style.display = 'none';
+      
+      // Atualizar referência do poster
+      els.poster = document.getElementById('posterDetalhesBanner');
+      els.poster.src = "/images/placeholder_poster.png";
+
+      try {
+        const res = await fetch(`/api/tmdb/detalhes/${type}/${id}`);
+        if (!res.ok) throw new Error('Erro ao carregar detalhes');
+        const item = await res.json();
+
+        currentData.id = id;
+        currentData.type = type;
+        currentData.tmdbId = id;
+        currentData.originalTitle = item.title || item.name || 'Sem título';
+        currentData.title = currentData.originalTitle;
+        currentData.synopsis = item.overview || "Sem sinopse disponível.";
+        currentData.year = (item.release_date || item.first_air_date || '').substring(0, 4);
+        currentData.genre = (item.genres && item.genres.length > 0) ? item.genres[0].name : 'Desconhecido';
+        currentData.rating = item.vote_average || 0;
+        currentData.duration = item.runtime || (item.episode_run_time && item.episode_run_time[0]) || 0;
+        currentData.poster = item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : '/images/placeholder_poster.png';
+        currentData.backdrop = item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null;
+
+        if (type === 'tv') {
+          currentData.numberOfSeasons = item.number_of_seasons || 1;
+          currentData.selectedSeason = 1;
+          currentData.seasons = item.seasons || [];
+          updateSeasonSelector();
+          await loadSeasonData(id, 1);
+        } else {
+          currentData.numberOfSeasons = 0;
+          currentData.selectedSeason = null;
+          updateSeasonSelector();
+        }
+
+        els.title.innerText = currentData.title;
+        els.synopsis.innerText = currentData.synopsis;
+        
+        // Atualizar poster no lado esquerdo
+        const posterImg = document.getElementById('posterDetalhesBanner');
+        if (posterImg) {
+          posterImg.src = currentData.poster;
+          posterImg.style.objectFit = 'cover';
+        }
+      } catch (e) {
+        console.error("Erro modal:", e);
+        els.title.innerText = "Erro ao carregar";
+      }
+    };
+
+    window.closeModal = () => {
+      els.modal.classList.remove('open');
+      els.modal.style.display = 'none';
+      els.modal.setAttribute('aria-hidden', 'true');
+      
+      // Reset completo
+      config = { orientation: 'vertical', modelId: null, colorKey: null };
+      seasonListenerAttached = false;
+      
+      // Restaurar HTML original do modalRight
+      const modalRight = document.getElementById('modalRight');
+      modalRight.innerHTML = originalModalRightHTML;
+      
+      // Resetar leftPanel
+      els.leftPanel.style.display = 'flex';
+      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+      els.poster = document.getElementById('posterDetalhesBanner');
+    };
+    
+    // Event listeners do botão fechar
+    const closeBtn = document.getElementById('closeModalBtn');
+    if (closeBtn) {
+      closeBtn.onclick = window.closeModal;
+      closeBtn.addEventListener('click', window.closeModal);
+    }
+    
+    // Fechar modal ao clicar fora dele
+    els.modal.addEventListener('click', (e) => {
+      if (e.target === els.modal) {
+        window.closeModal();
+      }
+    });
+
+    // Mapear cores para classes CSS
+    const colorMap = {
+      'ROXO': 'color-roxo',
+      'AZUL': 'color-azul',
+      'VERMELHO': 'color-vermelho',
+      'VERDE': 'color-verde',
+      'AMARELO': 'color-amarelo',
+      'LARANJA': 'color-laranja',
+      'ROSA': 'color-rosa',
+      'PRATA': 'color-prata',
+      'DOURADO': 'color-dourado'
+    };
+
+    // Função para setup do listener de modelo
+    function setupModelListener() {
+      const selectModelo = document.getElementById('selectModelo');
+      if (!selectModelo) return;
+      
+      selectModelo.addEventListener('change', () => {
+        const val = selectModelo.value;
+        if (!val) {
+          document.getElementById('modelDescription').innerHTML = '';
+          document.getElementById('colorSelectorContainer').style.display = 'none';
+          document.getElementById('btnGenerate').style.display = 'none';
+          return;
+        }
+
+        config.modelId = val;
+        config.colorKey = null;
+        config.orientation = 'vertical';
+
+        const modelDef = models[val];
+        if (modelDef) {
+          document.getElementById('modelDescription').innerHTML = modelDef.description;
+          renderColorSelector(modelDef);
+        }
+      });
+    }
+    
+    // Setup inicial
+    setupModelListener();
+    
+    // Listener de mudança de modelo (legado, mantido para compatibilidade)
+    if (els.select) {
+      els.select.addEventListener('change', () => {
+      const val = els.select.value;
+      if (!val) {
+        els.modelDescription.innerHTML = '';
+        document.getElementById('colorSelectorContainer').style.display = 'none';
+        document.getElementById('btnGenerate').style.display = 'none';
+        return;
+      }
+
+      config.modelId = val;
+      config.colorKey = null;
+      config.orientation = 'vertical'; // Sempre vertical
+
+      const modelDef = models[val];
+      if (modelDef) {
+        els.modelDescription.innerHTML = modelDef.description;
+        
+        // Renderizar seletor de cores
+        renderColorSelector(modelDef);
+      }
+    });
+    }
+
+    // Renderizar quadradinhos de cores
+    function renderColorSelector(modelDef) {
+      const container = document.getElementById('colorSelector');
+      const colorContainer = document.getElementById('colorSelectorContainer');
+      const btnGenerate = document.getElementById('btnGenerate');
+      
+      container.innerHTML = '';
+      colorContainer.style.display = 'block';
+      
+      const colors = Object.keys(modelDef.colors);
+      
+      colors.forEach(colorKey => {
+        const box = document.createElement('div');
+        box.className = `color-box ${colorMap[colorKey] || ''}`;
+        box.title = colorKey;
+        
+        box.onclick = () => {
+          // Remover seleção anterior
+          container.querySelectorAll('.color-box').forEach(b => b.classList.remove('selected'));
+          
+          // Selecionar nova cor
+          box.classList.add('selected');
+          config.colorKey = colorKey;
+          
+          // Mostrar botão gerar
+          if (btnGenerate) {
+            btnGenerate.style.display = 'inline-flex';
+          }
+        };
+        
+        container.appendChild(box);
+      });
+    }
+
+    // Função handler para gerar banner
+    async function handleGenerateBanner() {
+      // Para vídeos, não precisa de modelo/cor, só duração e qualidade
+      const selectDuration = document.getElementById('selectDuration');
+      const selectQuality = document.getElementById('selectQuality');
+      
+      if (!selectDuration) {
+        alert('Erro: Seletor de duração não encontrado!');
+        return;
+      }
+      
+      const duracao = parseInt(selectDuration.value);
+      const qualidade = selectQuality ? parseInt(selectQuality.value) : 480;
+      
+      if (!duracao || duracao <= 0) {
+        alert('Selecione a duração do vídeo!');
+        return;
+      }
+      
+      if (!userToken) {
+        alert('❌ Você precisa estar autenticado para gerar vídeos!');
+        return;
+      }
+      
+      // Ir para Step 2 - Manter layout 2 colunas
+      if (els.step1) els.step1.style.display = 'none';
+      if (els.step2) els.step2.style.display = 'none';
+      if (els.leftPanel) els.leftPanel.style.display = 'flex';
+      if (els.content) els.content.classList.remove('full-step');
+      
+      // Mostrar loading no painel esquerdo com barra de progresso
+      els.leftPanel.innerHTML = `
+        <div class="generation-container" style="width:100%; height:100%; position:relative; background: radial-gradient(circle at 50% 50%, rgba(107, 33, 168, 0.2), rgba(0, 0, 0, 0.8));">
+          <div style="position:absolute; inset:0; background: radial-gradient(circle at 30% 40%, rgba(192, 132, 252, 0.15), transparent 60%); pointer-events:none; animation: nebulaMove 8s ease-in-out infinite;"></div>
+          <div class="loader" style="position:relative; z-index:2;"></div>
+          <h3 style="color:var(--accent); font-size:24px; margin:0; text-align:center; position:relative; z-index:2; text-shadow: 0 0 20px rgba(192, 132, 252, 0.6);">🎬 Gerando seu vídeo...</h3>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | Qualidade: ${qualidade}p</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical ${qualidade === 1080 ? '1080x1920' : qualidade === 720 ? '720x1280' : '640x1200'}</p>
+          
+          <!-- Barra de Progresso -->
+          <div style="width:80%; max-width:400px; margin:30px auto 10px; background:rgba(255,255,255,0.1); border-radius:12px; overflow:hidden; height:28px; position:relative; z-index:2; border:1px solid rgba(192, 132, 252, 0.3);">
+            <div id="progressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #a855f7, #c084fc); transition:width 0.3s ease; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:white; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
+              <span id="progressText">0%</span>
+            </div>
+          </div>
+          
+          <p style="font-size:12px; color:#9ca3af; text-align:center; position:relative; z-index:2;">⏳ ${qualidade === 1080 ? 'Isso pode levar de 40 a 90 segundos...' : qualidade === 720 ? 'Isso pode levar de 30 a 60 segundos...' : 'Isso pode levar de 20 a 45 segundos...'}</p>
+        </div>
+      `;
+      
+      // Simular progresso gradual enquanto processa
+      let currentProgress = 0;
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+      
+      const progressInterval = setInterval(() => {
+        if (currentProgress < 95) {
+          // Progresso mais lento no início, acelerando depois
+          const increment = currentProgress < 30 ? 2 : currentProgress < 60 ? 3 : 1;
+          currentProgress = Math.min(currentProgress + increment, 95);
+          
+          if (progressBar) progressBar.style.width = currentProgress + '%';
+          if (progressText) progressText.textContent = currentProgress + '%';
+        }
+      }, 800);
+      
+      // Gerar vídeo
+      try {
+        const payload = {
+          tmdbId: currentData.tmdbId,
+          tmdbTipo: currentData.type,
+          duracao: duracao,
+          qualidade: qualidade
+        };
+        
+        if (currentData.type === 'tv' && currentData.selectedSeason) {
+          payload.temporada = currentData.selectedSeason;
+        }
+        
+        console.log('🌐 Fazendo requisição para: /api/gerar-video');
+        console.log('📦 Payload:', JSON.stringify(payload));
+        console.log('🔑 Token:', userToken ? 'Presente' : 'Ausente');
+        
+        const res = await fetch('/api/gerar-video', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        // Parar animação de progresso e completar
+        clearInterval(progressInterval);
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressText) progressText.textContent = '100%';
+        
+        console.log('📊 Status da resposta:', res.status, res.statusText);
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Erro ao gerar vídeo');
+        }
+        
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const safeTitle = (currentData.originalTitle || 'Video')
+          .replace(/[^a-zA-Z0-9]/g, '_')
+          .substring(0, 30);
+        const seasonSuffix = currentData.selectedSeason ? `_T${currentData.selectedSeason}` : '';
+        const fileName = `Video_${safeTitle}_${duracao}s_${qualidade}p${seasonSuffix}.mp4`;
+        
+        // Mostrar resultado - Controles no lado esquerdo
+        els.leftPanel.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:24px; align-items:center; justify-content:center; padding:40px; width:100%; height:100%;">
+            <div style="text-align:center;">
+              <h3 style="color:var(--accent); font-size:32px; margin:0 0 10px; text-shadow: 0 0 30px rgba(192, 132, 252, 0.6);">✨ Vídeo Pronto!</h3>
+              <p class="text-muted" style="font-size:14px; margin:0;">Duração: ${duracao}s | ${qualidade}p</p>
+              <p class="text-muted" style="font-size:14px; margin:0;">📱 ${qualidade === 1080 ? '1080x1920' : qualidade === 720 ? '720x1280' : '640x1200'} (Vertical)</p>
+              <p style="font-size:12px; color:#9ca3af; margin-top:8px;">🎬 Trailer + Overlay + Textos</p>
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:15px; width:100%; max-width:280px;">
+              <a href="${url}" download="${fileName}" class="btn-download">
+                <span style="font-size:20px;">⬇</span>
+                <span>Baixar Vídeo</span>
+              </a>
+              <button type="button" class="btn" id="btnNewVideo" style="width:100%;">
+                🔄 Gerar Outro
+              </button>
+              <button type="button" class="btn btn-ghost" id="btnCloseVideo" style="width:100%;">
+                ❌ Fechar
+              </button>
+            </div>
+          </div>
+        `;
+        
+        // Mostrar vídeo gerado no lado direito
+        const modalRight = document.getElementById('modalRight');
+        modalRight.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:20px; background: linear-gradient(180deg, rgba(15, 5, 30, 0.8), rgba(0, 0, 0, 0.9));">
+            <video src="${url}" controls autoplay loop style="width:100%; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);"></video>
+          </div>
+        `;
+        
+        document.getElementById('btnNewVideo').onclick = () => {
+          URL.revokeObjectURL(url);
+          // Fechar e resetar completamente
+          const savedId = currentData.id;
+          const savedType = currentData.type;
+          window.closeModal();
+          // Pequeno delay para garantir reset completo
+          setTimeout(() => window.openModal(savedId, savedType), 150);
+        };
+        
+        document.getElementById('btnCloseVideo').onclick = () => {
+          URL.revokeObjectURL(url);
+          window.closeModal();
+        };
+        
+      } catch (e) {
+        console.error('Erro ao gerar:', e);
+        
+        // Limpar intervalo de progresso
+        clearInterval(progressInterval);
+        
+        els.leftPanel.innerHTML = `
+          <div class="generation-container" style="width:100%; height:100%;">
+            <p style="color:#ff6666; font-size:24px; margin:0;">❌ Erro ao Gerar</p>
+            <p class="text-muted" style="text-align:center;">${e.message}</p>
+            <p class="text-muted" style="text-align:center; font-size:13px;">Tente novamente em alguns instantes</p>
+            <button type="button" class="btn" id="btnRetry" style="margin-top:20px;">🔄 Tentar Novamente</button>
+            <button type="button" class="btn btn-ghost" id="btnCloseError" style="margin-top:10px;">❌ Fechar</button>
+          </div>
+        `;
+        
+        document.getElementById('btnRetry').onclick = () => {
+          const savedId = currentData.id;
+          const savedType = currentData.type;
+          window.closeModal();
+          // Pequeno delay para garantir reset completo
+          setTimeout(() => window.openModal(savedId, savedType), 150);
+        };
+        
+        document.getElementById('btnCloseError').onclick = () => {
+          window.closeModal();
+        };
+      }
+    }
+    
+    // Função para setup do listener de gerar banner
+    function setupGenerateListener() {
+      const btnGenerate = document.getElementById('btnGenerate');
+      if (!btnGenerate) return;
+      
+      // Remover listener antigo se existir
+      btnGenerate.removeEventListener('click', handleGenerateBanner);
+      // Adicionar novo listener
+      btnGenerate.addEventListener('click', handleGenerateBanner);
+    }
+
+    // Funções de busca e inicialização
+
+    async function performSearch() {
+      const query = els.searchInput.value.trim();
+      const type = els.filterType.value;
+      if (query.length < 2) {
+        alert("Digite pelo menos 2 caracteres!");
+        return;
+      }
+      els.searchButton.disabled = true;
+      els.searchButton.innerHTML = '⏳ Buscando...';
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error('Erro');
+        const data = await res.json();
+        let resultados = data.results || [];
+        if (type === 'movie') resultados = resultados.filter(i => i.media_type === 'movie' || (!i.media_type && i.title));
+        else if (type === 'tv') resultados = resultados.filter(i => i.media_type === 'tv' || (!i.media_type && i.name));
+
+        document.querySelectorAll('.section-title').forEach(el => el.style.display = 'none');
+        ['lancamentosGrid', 'filmesPopularesGrid', 'seriesPopularesGrid'].forEach(id => {
+          const grid = document.getElementById(id);
+          if (grid) grid.style.display = 'none';
+        });
+
+        els.searchResults.style.display = 'flex';
+        renderGrid('searchResults', resultados);
+      } catch (e) {
+        alert("Erro ao buscar.");
+      } finally {
+        els.searchButton.disabled = false;
+        els.searchButton.innerHTML = '🔎 Buscar';
+      }
+    }
+
+    els.searchButton.onclick = performSearch;
+    els.searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') performSearch();
+    });
+    els.clearButton.onclick = () => location.reload();
+
+    async function init() {
+      try {
+        const res = await fetch('/api/tmdb');
+        if (!res.ok) throw new Error('Erro');
+        const data = await res.json();
+        renderGrid('lancamentosGrid', [...(data.filmesLancamentos || []), ...(data.seriesLancamentos || [])]);
+        renderGrid('filmesPopularesGrid', data.filmesPopulares || []);
+        renderGrid('seriesPopularesGrid', data.seriesPopulares || []);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    // loadUltimasCriacoes e renderBannersGrid removidas - vídeos não são salvos
+
+    function renderGrid(id, items) {
+      const container = document.getElementById(id);
+      if (!container) return;
+      container.innerHTML = '';
+      if (!items || items.length === 0) {
+        container.innerHTML = '<p class="text-muted" style="padding:20px;">Nada encontrado.</p>';
+        return;
+      }
+      items.slice(0, 20).forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'movie-card';
+        const tipo = item.media_type || (item.title ? 'movie' : 'tv');
+        const titulo = item.title || item.name || 'Sem título';
+        const ano = (item.release_date || item.first_air_date || '').substring(0, 4);
+        const posterUrl = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '/images/placeholder_poster.png';
+        
+        card.dataset.itemId = item.id;
+        card.dataset.itemType = tipo;
+        card.style.position = 'relative';
+        
+        card.innerHTML = `
+          <img src="${posterUrl}" loading="lazy">
+          <div class="movie-info">
+            <h3 title="${titulo}">${titulo}</h3>
+            <span>${ano}</span>
+          </div>
+          <button class="card-action-btn" data-item-id="${item.id}" data-item-type="${tipo}">
+            👁️ Ver
+          </button>`;
+        
+        // Click no card
+        card.onclick = (e) => {
+          // Se clicou no botão "Ver", abrir modal
+          if (e.target.classList.contains('card-action-btn') || e.target.closest('.card-action-btn')) {
+            e.stopPropagation();
+            window.openModal(item.id, tipo);
+            return;
+          }
+          // Se modo massa ativo, selecionar/desmarcar
+          if (massModeActive) {
+            toggleSelection(item.id, tipo, titulo, posterUrl);
+          } else {
+            // Modo normal: abrir modal
+            window.openModal(item.id, tipo);
+          }
+        };
+        
+        container.appendChild(card);
+      });
+      
+      updateSelectionUI();
+    }
+
+    console.log('🚀 Chamando init()...');
+    init();
+    setupGenerateListener();
+    console.log('✅ Inicialização completa!');
+
+    // ========== BOTÃO DE TESTE DA ROTA ==========
+    const btnTesteRotaDiv = document.createElement('button');
+    btnTesteRotaDiv.id = 'btnTesteRota';
+    btnTesteRotaDiv.textContent = '🧪 Testar Rota';
+    btnTesteRotaDiv.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;padding:10px 20px;background:#8A2BE2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+    document.body.appendChild(btnTesteRotaDiv);
+    
+    btnTesteRotaDiv.addEventListener('click', async () => {
+      console.log('🧪 Testando rota /api/test-video...');
+      try {
+        const res = await fetch('/api/test-video', {method: 'POST'});
+        const data = await res.json();
+        console.log('✅ Resposta da rota de teste:', data);
+        alert('✅ Rota de teste OK!\n' + JSON.stringify(data, null, 2));
+      } catch (err) {
+        console.error('❌ Erro na rota de teste:', err);
+        alert('❌ Erro: ' + err.message);
+      }
+    });
+    
+    // ========== SISTEMA DE GERAÇÃO EM MASSA ==========
+    
+    let massConfig = {
+      modelKey: null,  // ORION_PREMIUM ou ORION_EXCLUSIVO
+      modelId: null,   // PADRAO ou ORION_EXCLUSIVO
+      colorKey: null   // ROXO, AZUL, etc
+    };
+    
+    let generatedBanners = [];
+    
+    // Função para atualizar UI do modo massa
+    function updateMassModeUI() {
+      const btnToggle = document.getElementById('btnToggleMassMode');
+      const tip = document.getElementById('massModeTip');
+      const bar = document.getElementById('massGenerationBar');
+      
+      if (massModeActive) {
+        btnToggle.innerHTML = '❌ Cancelar Seleção em Massa';
+        btnToggle.classList.add('btn-ghost');
+        tip.style.display = 'block';
+      } else {
+        btnToggle.innerHTML = '🎨 Gerar Banners em Massa';
+        btnToggle.classList.remove('btn-ghost');
+        tip.style.display = 'none';
+        bar.style.display = 'none';
+      }
+    }
+    
+    // Event listener para ativar/desativar modo massa
+    document.getElementById('btnToggleMassMode').onclick = () => {
+      massModeActive = !massModeActive;
+      if (!massModeActive) {
+        // Ao desativar, limpar seleção
+        selectedItems = [];
+        updateSelectionUI();
+      }
+      updateMassModeUI();
+    };
+    
+    // Event listeners para geração em massa
+    document.getElementById('btnGenerateMass').onclick = () => {
+      if (selectedItems.length === 0) {
+        alert('Selecione pelo menos 1 item!');
+        return;
+      }
+      openMassModal();
+    };
+    
+    document.getElementById('btnClearSelection').onclick = () => {
+      if (confirm('Limpar seleção?')) {
+        clearSelection();
+      }
+    };
+    
+    document.getElementById('btnStartMassGeneration').onclick = () => {
+      startMassGeneration();
+    };
+    
+    document.getElementById('closeMassModalBtn').onclick = () => {
+      closeMassModal();
+    };
+    
+    // Remover seletor de modelo (não existe mais em vídeos)
+    const massSelectModelo = document.getElementById('massSelectModelo');
+    if (massSelectModelo) {
+      massSelectModelo.onchange = (e) => {
+        const modelKey = e.target.value;
+        const massColorContainer = document.getElementById('massColorSelectorContainer');
+        const massModelDesc = document.getElementById('massModelDescription');
+        const btnStart = document.getElementById('btnStartMassGeneration');
+        
+        if (!modelKey) {
+        massColorContainer.style.display = 'none';
+        massModelDesc.innerHTML = '';
+        btnStart.style.display = 'none';
+        return;
+      }
+      
+      // Armazenar tanto o ID quanto a key do modelo
+      massConfig.modelKey = modelKey;
+      massConfig.modelId = models[modelKey].id;
+      
+      console.log('🎨 Modelo selecionado:', modelKey, '-> ID:', massConfig.modelId);
+      
+      // Atualizar descrição do modelo
+      const model = models[modelKey];
+      massModelDesc.innerHTML = `<p style="color:#a0a0c0; font-size:14px; line-height:1.5;">${model.description}</p>`;
+      
+      renderMassColorSelector(modelKey);
+      };
+    }
+    
+    function renderMassColorSelector(modelKey) {
+      const model = models[modelKey];
+      const colorContainer = document.getElementById('massColorSelectorContainer');
+      const colorGrid = document.getElementById('massColorGrid');
+      const btnStart = document.getElementById('btnStartMassGeneration');
+      
+      colorContainer.style.display = 'block';
+      colorGrid.innerHTML = '';
+      btnStart.style.display = 'none';
+      
+      Object.keys(model.colors).forEach(colorKey => {
+        const box = document.createElement('div');
+        box.className = `color-box ${colorMap[colorKey]}`;
+        box.title = colorKey;
+        box.onclick = () => {
+          document.querySelectorAll('#massColorGrid .color-box').forEach(b => b.classList.remove('selected'));
+          box.classList.add('selected');
+          massConfig.colorKey = colorKey;
+          btnStart.style.display = 'block';
+        };
+        colorGrid.appendChild(box);
+      });
+    }
+    
+    function openMassModal() {
+      document.getElementById('massModal').style.display = 'flex';
+      document.getElementById('massStep1').style.display = 'block';
+      document.getElementById('massStep2').style.display = 'none';
+      document.getElementById('massSelectedInfo').textContent = `${selectedItems.length} ${selectedItems.length === 1 ? 'item selecionado' : 'itens selecionados'}`;
+      
+      // Para vídeos, duração padrão já está selecionada, botão sempre visível
+      const btnStart = document.getElementById('btnStartMassGeneration');
+      if (btnStart) btnStart.style.display = 'block';
+      
+      // Mostrar grade de posters dos itens selecionados no painel esquerdo
+      const leftPanel = document.getElementById('massModalLeft');
+      leftPanel.innerHTML = `
+        <div style="text-align:center; margin-bottom:25px;">
+          <div style="font-size:48px; margin-bottom:10px;">🎬</div>
+          <p style="color:#e8e3ff; font-weight:700; font-size:18px; margin-bottom:5px;">
+            ${selectedItems.length} ${selectedItems.length === 1 ? 'Item' : 'Itens'}
+          </p>
+          <p style="color:#a0a0c0; font-size:13px;">Selecionados para geração de vídeo</p>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+          ${selectedItems.map(item => `
+            <div style="position:relative; border-radius:12px; overflow:hidden; border:3px solid rgba(192, 132, 252, 0.6); box-shadow:0 8px 20px rgba(0,0,0,0.5); transition:all 0.3s; background:#000;">
+              <img src="${item.poster}" style="width:100%; height:200px; object-fit:cover; display:block;" alt="${item.title}">
+              <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.98) 50%, transparent); padding:12px 10px 10px; font-size:12px; color:#fff; font-weight:700; text-align:center; line-height:1.4;">
+                ${item.title.length > 30 ? item.title.substring(0, 30) + '...' : item.title}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      
+      generatedBanners = [];
+    }
+    
+    function closeMassModal() {
+      document.getElementById('massModal').style.display = 'none';
+      // Limpar seleção após fechar modal
+      selectedItems = [];
+      updateSelectionUI();
+    }
+    
+    async function startMassGeneration() {
+      console.log('🚀 Iniciando geração de vídeos em massa');
+      
+      // Para vídeos, só precisa da duração
+      const massSelectDuration = document.getElementById('massSelectDuration');
+      if (!massSelectDuration) {
+        alert('Erro: Seletor de duração não encontrado!');
+        return;
+      }
+      
+      const duracao = parseInt(massSelectDuration.value);
+      if (!duracao || duracao <= 0) {
+        alert('Selecione a duração dos vídeos!');
+        return;
+      }
+      
+      console.log('⏱️ Duração selecionada:', duracao, 'segundos');
+      
+      document.getElementById('massStep1').style.display = 'none';
+      document.getElementById('massStep2').style.display = 'block';
+      
+      // Atualizar painel esquerdo para mostrar progresso visual
+      const leftPanel = document.getElementById('massModalLeft');
+      leftPanel.innerHTML = `
+        <div style="text-align:center; margin-bottom:25px;">
+          <div style="font-size:48px; margin-bottom:10px;">⚡</div>
+          <p style="color:#e8e3ff; font-weight:700; font-size:18px;">
+            Gerando Vídeos...
+          </p>
+          <p style="color:#a0a0c0; font-size:13px; margin-top:5px;">Aguarde o processamento</p>
+        </div>
+        <div id="massLeftProgressGrid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+          ${selectedItems.map((item, idx) => `
+            <div id="mass-left-${idx}" style="position:relative; border-radius:12px; overflow:hidden; border:3px solid rgba(192, 132, 252, 0.4); box-shadow:0 8px 20px rgba(0,0,0,0.5); opacity:0.5; transition:all 0.3s; background:#000;">
+              <img src="${item.poster}" style="width:100%; height:200px; object-fit:cover; display:block;" alt="${item.title}">
+              <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.98) 50%, transparent); padding:12px 10px 10px; font-size:12px; color:#fff; font-weight:700; text-align:center; line-height:1.4;">
+                ${item.title.length > 30 ? item.title.substring(0, 30) + '...' : item.title}
+              </div>
+              <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:48px; filter:drop-shadow(0 4px 12px rgba(0,0,0,0.8));">⏳</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      
+      const progressText = document.getElementById('massProgressText');
+      const progressBar = document.getElementById('massProgressBar');
+      const progressList = document.getElementById('massProgressList');
+      const downloadSection = document.getElementById('massDownloadSection');
+      
+      progressText.textContent = `0 / ${selectedItems.length}`;
+      progressBar.style.width = '0%';
+      progressList.innerHTML = '';
+      downloadSection.style.display = 'none';
+      generatedBanners = [];
+      
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        const progressItem = document.createElement('div');
+        progressItem.className = 'mass-progress-item';
+        progressItem.id = `mass-progress-${i}`;
+        progressItem.innerHTML = `
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="font-size:24px;">⏳</div>
+            <div style="flex:1;">
+              <div style="font-weight:600; color:#e8e3ff;">${item.title}</div>
+              <div style="font-size:13px; color:#a0a0c0;">Gerando...</div>
+            </div>
+          </div>
+        `;
+        progressList.appendChild(progressItem);
+        
+        try {
+          // Gerar banner (a função já busca os dados do TMDB internamente)
+          const bannerBlob = await generateSingleBanner(item);
+          
+          if (!bannerBlob) {
+            throw new Error('Erro ao gerar banner');
+          }
+          
+          // Salvar blob e URL
+          const bannerUrl = URL.createObjectURL(bannerBlob);
+          console.log('💾 Salvando banner:', item.title, 'Blob size:', bannerBlob.size, 'URL:', bannerUrl);
+          generatedBanners.push({
+            title: item.title,
+            blob: bannerBlob,
+            url: bannerUrl
+          });
+          console.log('📊 Total de banners salvos:', generatedBanners.length);
+          
+          // Atualizar UI - sucesso
+          progressItem.className = 'mass-progress-item success';
+          progressItem.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="font-size:24px;">✅</div>
+              <div style="flex:1;">
+                <div style="font-weight:600; color:#10b981;">${item.title}</div>
+                <div style="font-size:13px; color:#a0a0c0;">Gerado com sucesso!</div>
+              </div>
+              <button class="btn download-single-btn" data-index="${i}" style="font-size:12px; padding:6px 12px;">
+                ⬇️ Baixar
+              </button>
+            </div>
+          `;
+          
+          // Adicionar event listener ao botão
+          const downloadBtn = progressItem.querySelector('.download-single-btn');
+          downloadBtn.addEventListener('click', () => downloadSingleBanner(i));
+          
+          // Atualizar poster no painel esquerdo
+          const leftPoster = document.getElementById(`mass-left-${i}`);
+          if (leftPoster) {
+            leftPoster.style.opacity = '1';
+            leftPoster.style.border = '3px solid #10b981';
+            leftPoster.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.5)';
+            const icon = leftPoster.querySelector('div[style*="font-size:48px"]');
+            if (icon) icon.textContent = '✅';
+          }
+          
+        } catch (error) {
+          console.error('Erro ao gerar banner:', error);
+          
+          // Atualizar UI - erro
+          progressItem.className = 'mass-progress-item error';
+          progressItem.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="font-size:24px;">❌</div>
+              <div style="flex:1;">
+                <div style="font-weight:600; color:#ef4444;">${item.title}</div>
+                <div style="font-size:13px; color:#a0a0c0;">Erro ao gerar</div>
+              </div>
+            </div>
+          `;
+          
+          // Atualizar poster no painel esquerdo
+          const leftPoster = document.getElementById(`mass-left-${i}`);
+          if (leftPoster) {
+            leftPoster.style.opacity = '1';
+            leftPoster.style.border = '3px solid #ef4444';
+            leftPoster.style.boxShadow = '0 8px 24px rgba(239, 68, 68, 0.5)';
+            const icon = leftPoster.querySelector('div[style*="font-size:48px"]');
+            if (icon) icon.textContent = '❌';
+          }
+        }
+        
+        // Atualizar progresso
+        const completed = i + 1;
+        progressText.textContent = `${completed} / ${selectedItems.length}`;
+        progressBar.style.width = `${(completed / selectedItems.length) * 100}%`;
+      }
+      
+      // Mostrar seção de download
+      if (generatedBanners.length > 0) {
+        downloadSection.style.display = 'block';
+      }
+    }
+    
+    async function fetchTMDBData(id, type) {
+      try {
+        // Usar endpoint correto do backend
+        const response = await fetch(`/api/tmdb/detalhes/${type}/${id}`);
+        if (!response.ok) throw new Error('Erro na API do TMDB');
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Erro ao buscar dados do TMDB:', error);
+        return null;
+      }
+    }
+    
+    async function generateSingleBanner(item) {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Usuário não autenticado');
+        
+        console.log('🎬 Gerando vídeo para:', item.title);
+        
+        // Para vídeos, precisamos apenas do tmdbId, tipo e duração
+        const massSelectDuration = document.getElementById('massSelectDuration');
+        const videoDuration = massSelectDuration ? parseInt(massSelectDuration.value) : 30;
+        
+        console.log('⏱️ Duração:', videoDuration, 'segundos');
+        
+        // Preparar payload para vídeo
+        const payload = {
+          tmdbId: item.id,
+          tmdbTipo: item.type,
+          duracao: videoDuration
+        };
+        
+        console.log('📋 Payload vídeo:', payload);
+        console.log('🌐 Chamando API: /api/gerar-video');
+        
+        const response = await fetch('/api/gerar-video', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Erro do servidor:', errorData);
+          throw new Error(errorData.error || `Erro ao gerar vídeo: ${response.status}`);
+        }
+        
+        console.log('✅ Vídeo gerado com sucesso!');
+        return await response.blob();
+        
+      } catch (error) {
+        console.error('❌ Erro ao gerar vídeo:', error);
+        return null;
+      }
+    }
+    
+    // Tornar funções globais para acesso via onclick
+    window.downloadSingleBanner = function(index) {
+      console.log('📥 Download single video:', index, generatedBanners[index]);
+      const video = generatedBanners[index];
+      if (!video) {
+        console.error('❌ Vídeo não encontrado no índice:', index);
+        return;
+      }
+      
+      const a = document.createElement('a');
+      a.href = video.url;
+      const massSelectDuration = document.getElementById('massSelectDuration');
+      const duracao = massSelectDuration ? parseInt(massSelectDuration.value) : 30;
+      a.download = `Video_${video.title.replace(/[^a-z0-9]/gi, '_')}_${duracao}s.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      console.log('✅ Download iniciado:', video.title);
+    };
+    
+    window.downloadAllAsZip = async function() {
+      console.log('📦 Iniciando download ZIP. Total de vídeos:', generatedBanners.length);
+      
+      if (generatedBanners.length === 0) {
+        alert('Nenhum vídeo gerado!');
+        return;
+      }
+      
+      // Verificar se JSZip está disponível
+      if (typeof JSZip === 'undefined') {
+        console.error('❌ JSZip não carregado!');
+        alert('Biblioteca JSZip não carregada. Baixe os vídeos individualmente.');
+        return;
+      }
+      
+      try {
+        const zip = new JSZip();
+        console.log('✅ JSZip inicializado');
+        
+        const massSelectDuration = document.getElementById('massSelectDuration');
+        const duracao = massSelectDuration ? parseInt(massSelectDuration.value) : 30;
+        
+        generatedBanners.forEach((video, index) => {
+          const filename = `Video_${video.title.replace(/[^a-z0-9]/gi, '_')}_${duracao}s.mp4`;
+          console.log(`📁 Adicionando ao ZIP [${index}]:`, filename, 'Blob size:', video.blob?.size);
+          zip.file(filename, video.blob);
+        });
+        
+        console.log('🔄 Gerando arquivo ZIP...');
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        console.log('✅ ZIP gerado! Tamanho:', zipBlob.size, 'bytes');
+        
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `banners_${Date.now()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        console.log('✅ Download do ZIP iniciado!');
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+        
+      } catch (error) {
+        console.error('❌ Erro ao criar ZIP:', error);
+        alert('Erro ao criar arquivo ZIP. Baixe os banners individualmente.');
+      }
+    };
+    
+  </script>
+  
+  <!-- JSZip para criar arquivos ZIP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</body>
+</html>
