@@ -1752,7 +1752,7 @@ async function downloadTrailer(trailerKey, outputPath) {
     // Detectar yt-dlp baseado no sistema operacional
     const ytdlpPath = process.platform === 'win32'
       ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-      : '/usr/local/bin/yt-dlp'; // Caminho para Linux/Render
+      : 'yt-dlp'; // Usar PATH do sistema no Linux
     
     console.log(`📹 Baixando trailer com yt-dlp (${process.platform}): ${ytdlpPath}`);
     
@@ -1912,15 +1912,22 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     try {
       const ytdlpPath = process.platform === 'win32' 
         ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-        : '/usr/local/bin/yt-dlp';
+        : 'yt-dlp';
       
       await execPromise(`${ytdlpPath} --version`);
       console.log('✅ yt-dlp disponível');
     } catch (err) {
       console.error('❌ yt-dlp não encontrado:', err.message);
-      return res.status(500).json({ 
-        error: 'yt-dlp não instalado no servidor. Reinstale as dependências.' 
-      });
+      // Tentar usar apenas 'yt-dlp' sem caminho completo
+      try {
+        await execPromise('yt-dlp --version');
+        console.log('✅ yt-dlp disponível (via PATH)');
+      } catch (err2) {
+        console.error('❌ yt-dlp não instalado');
+        return res.status(500).json({ 
+          error: 'yt-dlp não instalado no servidor. Reinstale as dependências.' 
+        });
+      }
     }
     
     try {
@@ -1987,8 +1994,28 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     let trailerKey = null;
     let useBackdropAsFallback = false;
 
-    // 2.1. Tentar buscar trailer PT-BR
-    if (tmdbData.videos?.results && tmdbData.videos.results.length > 0) {
+    // 2.1. Para séries, tentar buscar trailer da temporada específica
+    if (tmdbTipo === 'tv' && temporada) {
+      try {
+        const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${temporada}/videos?api_key=${process.env.TMDB_KEY}`;
+        const seasonRes = await fetch(seasonUrl);
+        if (seasonRes.ok) {
+          const seasonData = await seasonRes.json();
+          const trailerPT = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'pt');
+          const trailerEN = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'en');
+          const anyTrailer = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
+          trailerKey = trailerPT?.key || trailerEN?.key || anyTrailer?.key;
+          if (trailerKey) {
+            console.log(`✅ Trailer da temporada ${temporada} encontrado: ${trailerKey}`);
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ Erro ao buscar trailer da temporada: ${err.message}`);
+      }
+    }
+
+    // 2.2. Se não encontrou trailer da temporada, tentar buscar trailer geral
+    if (!trailerKey && tmdbData.videos?.results && tmdbData.videos.results.length > 0) {
       const trailerPT = tmdbData.videos.results.find(v => 
         v.type === "Trailer" && v.site === "YouTube" && v.iso_639_1 === "pt"
       );
@@ -2108,7 +2135,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
       }
     }
 
-    // 7. Processar backdrop para formato vertical 1080x1920 - 15% transparente
+    // 7. Processar backdrop para formato vertical 1080x1920 - 12% transparente
     const backdropProcessedPath = path.join(__dirname, `temp_backdrop_${Date.now()}.png`);
     if (backdropBuffer) {
       await sharp(Buffer.from(backdropBuffer))
@@ -2116,7 +2143,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         .ensureAlpha()
         .composite([{
           input: Buffer.from(
-            `<svg width="1080" height="1920"><rect width="1080" height="1920" fill="rgba(0,0,0,0.85)"/></svg>`
+            `<svg width="1080" height="1920"><rect width="1080" height="1920" fill="rgba(0,0,0,0.88)"/></svg>`
           ),
           blend: 'over'
         }])
@@ -2212,7 +2239,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const posterHeight = 580;
     const logoFilmWidth = 500;
     const logoFilmHeight = 185;
-    const logoClientSize = 305;
+    const logoClientSize = 340; // Aumentado de 305 para 340
     
     // Compor frame: overlay base + poster + textos (SEMPRE 1080x1920)
     const overlayBuffer = await fsPromises.readFile(overlayPath);
@@ -2243,7 +2270,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
           .resize(logoClientSize, logoClientSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .png()
           .toBuffer();
-        compositeInputs.push({ input: logoResized, left: 100, top: 1245 });
+        compositeInputs.push({ input: logoResized, left: 100, top: 1242 });
         console.log(`✅ Logo do cliente adicionado acima da sinopse`);
       } catch (err) {
         console.warn(`⚠️ Erro ao adicionar logo do cliente: ${err.message}`);
@@ -2262,7 +2289,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 610, top: 540 });
+      compositeInputs.push({ input: posterResized, left: 600, top: 640 });
     }
 
     // Adicionar textos SVG
