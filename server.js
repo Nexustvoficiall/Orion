@@ -1910,24 +1910,27 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const execPromise = promisify(exec);
     
     // Verificar yt-dlp
+    const ytdlpPath = process.platform === 'win32'
+      ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
+      : 'yt-dlp';
+    
     try {
-      const { stdout } = await execPromise('yt-dlp --version', { timeout: 5000 });
+      const { stdout } = await execPromise(`"${ytdlpPath}" --version`, { timeout: 5000 });
       console.log('✅ yt-dlp disponível:', stdout.trim());
     } catch (err) {
       console.error('❌ yt-dlp não encontrado:', err.message);
-      console.error('PATH:', process.env.PATH);
-      console.error('Tentando verificar instalação...');
+      console.error('Tentando PATH alternativo...');
       
+      // Fallback: tentar 'yt-dlp' genérico (para Render/Linux)
       try {
-        const { stdout: which } = await execPromise('which yt-dlp || where yt-dlp', { timeout: 3000 });
-        console.log('yt-dlp localizado em:', which);
-      } catch (e) {
-        console.error('yt-dlp não encontrado no PATH');
+        const { stdout } = await execPromise('yt-dlp --version', { timeout: 5000 });
+        console.log('✅ yt-dlp disponível via PATH:', stdout.trim());
+      } catch (err2) {
+        console.error('❌ yt-dlp não encontrado no PATH');
+        return res.status(500).json({ 
+          error: 'yt-dlp não instalado no servidor. Entre em contato com o suporte.' 
+        });
       }
-      
-      return res.status(500).json({ 
-        error: 'yt-dlp não instalado no servidor. Entre em contato com o suporte.' 
-      });
     }
     
     // Verificar FFmpeg
