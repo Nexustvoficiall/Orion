@@ -2084,7 +2084,25 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const genero = tmdbData.genres?.[0]?.name || "Geral";
     const ano = (tmdbData.release_date || tmdbData.first_air_date || "").substring(0, 4);
     const nota = tmdbData.vote_average?.toFixed(1) || "0.0";
-    const posterUrl = tmdbData.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}` : null;
+    
+    // Buscar poster da temporada se for série
+    let posterUrl = tmdbData.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}` : null;
+    if (tmdbTipo === 'tv' && temporada) {
+      try {
+        const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${temporada}?api_key=${process.env.TMDB_KEY}&language=pt-BR`;
+        const seasonRes = await fetch(seasonUrl);
+        if (seasonRes.ok) {
+          const seasonData = await seasonRes.json();
+          if (seasonData.poster_path) {
+            posterUrl = `https://image.tmdb.org/t/p/w500${seasonData.poster_path}`;
+            console.log(`✅ Poster da temporada ${temporada} encontrado`);
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ Erro ao buscar poster da temporada: ${err.message}`);
+      }
+    }
+    
     const backdropUrl = tmdbData.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}` : null;
     
     // Se for série e tiver temporada, adicionar info
@@ -2289,7 +2307,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 570, top: 870 });
+      compositeInputs.push({ input: posterResized, left: 570, top: 875 });
     }
 
     // Adicionar textos SVG
