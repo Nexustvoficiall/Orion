@@ -1,0 +1,30 @@
+# Ambiente
+.env
+*-firebase-adminsdk-*.json
+
+# Node modules
+node_modules/
+
+# Arquivos temporários de processamento
+temp_*
+*.temp.*
+*.part
+*.ytdl
+
+# Vídeos gerados
+video_*.mp4
+*.mp4
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
