@@ -2080,6 +2080,12 @@
     }
 
     window.openModal = async (id, type) => {
+      // Prevenir abertura se não for uma ação de usuário válida
+      if (!id || !type) {
+        console.warn('⚠️ openModal chamado sem id ou type válido');
+        return;
+      }
+      
       // Reset COMPLETO da configuração
       config = { orientation: 'vertical', modelId: null, colorKey: null };
       seasonListenerAttached = false;
@@ -2181,6 +2187,8 @@
     };
 
     window.closeModal = () => {
+      if (!els.modal) return;
+      
       els.modal.classList.remove('open');
       els.modal.style.display = 'none';
       els.modal.setAttribute('aria-hidden', 'true');
@@ -2191,12 +2199,19 @@
       
       // Restaurar HTML original do modalRight
       const modalRight = document.getElementById('modalRight');
-      modalRight.innerHTML = originalModalRightHTML;
+      if (modalRight) {
+        modalRight.innerHTML = originalModalRightHTML;
+      }
       
       // Resetar leftPanel
-      els.leftPanel.style.display = 'flex';
-      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
-      els.poster = document.getElementById('posterDetalhesBanner');
+      if (els.leftPanel) {
+        els.leftPanel.style.display = 'flex';
+        els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+        els.poster = document.getElementById('posterDetalhesBanner');
+      }
+      
+      // Limpar dados temporarios
+      currentData = null;
     };
     
     // Event listeners do botão fechar
@@ -3095,7 +3110,7 @@
 
     // Detectar card centralizado no carrossel mobile
     function updateCenteredCard() {
-      if (window.innerWidth > 480) return;
+      if (window.innerWidth > 768) return;
       
       const scrollRows = document.querySelectorAll('.scroll-row');
       scrollRows.forEach(scrollRow => {
@@ -3124,12 +3139,18 @@
         scrollRow.addEventListener('scroll', updateCenteredCard, { passive: true });
       });
       
-      // Atualizar inicialmente
-      setTimeout(updateCenteredCard, 100);
+      // Atualizar inicialmente sem delay
+      if (window.innerWidth <= 768) {
+        requestAnimationFrame(updateCenteredCard);
+      }
     });
 
-    // Atualizar ao redimensionar
-    window.addEventListener('resize', updateCenteredCard);
+    // Atualizar ao redimensionar com debounce
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateCenteredCard, 150);
+    });
     
   </script>
   
