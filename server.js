@@ -2237,8 +2237,8 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     // Tamanhos fixos para 1080x1920
     const posterWidth = 390;
     const posterHeight = 580;
-    const logoFilmWidth = 500;
-    const logoFilmHeight = 185;
+    const logoFilmWidth = 480;  // Reduzido de 500 para 480
+    const logoFilmHeight = 175; // Reduzido de 185 para 175
     const logoClientSize = 340; // Aumentado de 305 para 340
     
     // Compor frame: overlay base + poster + textos (SEMPRE 1080x1920)
@@ -2254,7 +2254,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
           .resize(logoFilmWidth, logoFilmHeight, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .png()
           .toBuffer();
-        compositeInputs.push({ input: logoResized, left: 50, top: 790 });
+        compositeInputs.push({ input: logoResized, left: 35, top: 790 });
         console.log(`✅ Logo oficial do TMDB adicionado`);
       } catch (err) {
         console.warn(`⚠️ Erro ao adicionar logo oficial: ${err.message}`);
@@ -2270,7 +2270,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
           .resize(logoClientSize, logoClientSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
           .png()
           .toBuffer();
-        compositeInputs.push({ input: logoResized, left: 100, top: 1242 });
+        compositeInputs.push({ input: logoResized, left: 100, top: 1235 });
         console.log(`✅ Logo do cliente adicionado acima da sinopse`);
       } catch (err) {
         console.warn(`⚠️ Erro ao adicionar logo do cliente: ${err.message}`);
@@ -2289,7 +2289,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 600, top: 640 });
+      compositeInputs.push({ input: posterResized, left: 590, top: 680 });
     }
 
     // Adicionar textos SVG
