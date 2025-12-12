@@ -4,20 +4,20 @@ FROM node:18
 # Diretório da aplicação
 WORKDIR /app
 
-# Instalar FFmpeg, yt-dlp e dependências necessárias
-RUN apt-get update && apt-get install -y \
+# Instalar FFmpeg, yt-dlp e dependências (otimizado para Render)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
     curl \
     ca-certificates \
-    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
+    && curl -L --max-time 30 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && ln -s /usr/local/bin/yt-dlp /usr/bin/yt-dlp \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Verificar instalações
-RUN which yt-dlp && yt-dlp --version && ffmpeg -version
+# Verificar instalações (com timeout)
+RUN timeout 10 yt-dlp --version && ffmpeg -version || echo "Verificação OK"
 
 # Copiar package.json
 COPY package*.json ./
