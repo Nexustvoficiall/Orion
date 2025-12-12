@@ -1749,20 +1749,31 @@ app.use((err, req, res, next) => {
 // Função para baixar trailer do YouTube
 async function downloadTrailer(trailerKey, outputPath) {
   return new Promise((resolve, reject) => {
-    // Caminho completo do yt-dlp.exe no Windows
+    // Detectar yt-dlp baseado no sistema operacional
     const ytdlpPath = process.platform === 'win32'
       ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-      : 'yt-dlp';
+      : '/usr/local/bin/yt-dlp'; // Caminho para Linux/Render
+    
+    console.log(`📹 Baixando trailer com yt-dlp (${process.platform}): ${ytdlpPath}`);
     
     const ytdlp = spawn(ytdlpPath, [
       '-f', 'best[height<=480]', // Baixar 480p para geração mais rápida
       '--no-playlist',
       '--no-warnings',
+      '--socket-timeout', '30',
+      '--retries', '3',
       '-o', outputPath,
       `https://youtube.com/watch?v=${trailerKey}`
     ]);
 
+    // Timeout de 60 segundos para download
+    const timeout = setTimeout(() => {
+      ytdlp.kill();
+      reject(new Error('Timeout ao baixar trailer'));
+    }, 60000);
+
     ytdlp.on('close', (code) => {
+      clearTimeout(timeout);
       if (code === 0) {
         console.log(`✅ Trailer baixado: ${outputPath}`);
         resolve();
@@ -1772,6 +1783,8 @@ async function downloadTrailer(trailerKey, outputPath) {
     });
 
     ytdlp.on('error', (err) => {
+      clearTimeout(timeout);
+      console.error(`❌ Erro yt-dlp: ${err.message}`);
       reject(new Error(`Erro ao executar yt-dlp: ${err.message}`));
     });
   });
@@ -1891,6 +1904,35 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
   let tempFiles = [];
 
   try {
+    // Verificar se FFmpeg e yt-dlp estão disponíveis
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execPromise = promisify(exec);
+    
+    try {
+      const ytdlpPath = process.platform === 'win32' 
+        ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
+        : '/usr/local/bin/yt-dlp';
+      
+      await execPromise(`${ytdlpPath} --version`);
+      console.log('✅ yt-dlp disponível');
+    } catch (err) {
+      console.error('❌ yt-dlp não encontrado:', err.message);
+      return res.status(500).json({ 
+        error: 'yt-dlp não instalado no servidor. Reinstale as dependências.' 
+      });
+    }
+    
+    try {
+      await execPromise('ffmpeg -version');
+      console.log('✅ FFmpeg disponível');
+    } catch (err) {
+      console.error('❌ FFmpeg não encontrado:', err.message);
+      return res.status(500).json({ 
+        error: 'FFmpeg não instalado no servidor. Reinstale as dependências.' 
+      });
+    }
+
     const {
       tmdbId,
       tmdbTipo,
