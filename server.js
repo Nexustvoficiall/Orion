@@ -2289,7 +2289,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 590, top: 680 });
+      compositeInputs.push({ input: posterResized, left: 575, top: 850 });
     }
 
     // Adicionar textos SVG
