@@ -2235,8 +2235,8 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     `;
 
     // Tamanhos fixos para 1080x1920
-    const posterWidth = 390;
-    const posterHeight = 580;
+    const posterWidth = 380;  // Reduzido de 390 para 380
+    const posterHeight = 550; // Reduzido de 555 para 550
     const logoFilmWidth = 480;  // Reduzido de 500 para 480
     const logoFilmHeight = 175; // Reduzido de 185 para 175
     const logoClientSize = 340; // Aumentado de 305 para 340
@@ -2289,7 +2289,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 575, top: 850 });
+      compositeInputs.push({ input: posterResized, left: 570, top: 870 });
     }
 
     // Adicionar textos SVG
