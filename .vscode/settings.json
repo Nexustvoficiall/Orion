@@ -12,5 +12,7 @@
   "typescript.disableAutomaticTypeAcquisition": false,
   "js/ts.implicitProjectConfig.checkJs": false,
   "problems.decorations.enabled": true,
-  "typescript.surveys.enabled": false
+  "typescript.surveys.enabled": false,
+  "problems.showCurrentInStatus": true,
+  "typescript.updateImportsOnFileMove.enabled": "never"
 }
