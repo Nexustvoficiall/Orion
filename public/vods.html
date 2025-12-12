@@ -92,11 +92,43 @@
     header {
       padding: 22px 12px;
       text-align: center;
+      position: relative;
     }
 
     .logo {
       width: 160px;
-      filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.12));
+      position: relative;
+      filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.5));
+      animation: logoGlow 3s ease-in-out infinite;
+    }
+
+    .logo::before {
+      content: '';
+      position: absolute;
+      top: -20px;
+      left: -20px;
+      right: -20px;
+      bottom: -20px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+      filter: blur(15px);
+      animation: purpleFog 4s ease-in-out infinite;
+      z-index: -1;
+    }
+
+    @keyframes logoGlow {
+      0%, 100% { filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.5)); }
+      50% { filter: drop-shadow(0 12px 40px rgba(192, 132, 252, 0.8)); }
+    }
+
+    @keyframes purpleFog {
+      0%, 100% { 
+        transform: scale(1);
+        opacity: 0.6;
+      }
+      50% { 
+        transform: scale(1.15);
+        opacity: 0.9;
+      }
     }
 
     h1.site-title {
@@ -309,12 +341,34 @@
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
       box-shadow: 0 10px 30px rgba(7, 0, 20, 0.5);
       cursor: pointer;
-      transition: transform 0.2s;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .movie-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0) 0%, rgba(192, 132, 252, 0.1) 100%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .movie-card:hover::before {
+      opacity: 1;
     }
 
     .movie-card:hover {
-      transform: translateY(-8px) scale(1.02);
-      box-shadow: 0 24px 60px rgba(40, 8, 90, 0.3);
+      transform: translateY(-12px) scale(1.05);
+      box-shadow: 
+        0 24px 60px rgba(40, 8, 90, 0.5),
+        0 0 40px rgba(168, 85, 247, 0.3),
+        inset 0 0 0 1px rgba(192, 132, 252, 0.2);
     }
 
     .movie-card img {
@@ -323,6 +377,11 @@
       object-fit: cover;
       display: block;
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+      transition: transform 0.4s ease;
+    }
+
+    .movie-card:hover img {
+      transform: scale(1.08);
     }
 
     .movie-info {

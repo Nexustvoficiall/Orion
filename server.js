@@ -2163,7 +2163,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
 
     const sinopseLines = breakText(sinopse, 50, 3);
     const sinopseSVG = sinopseLines.map((line, idx) => 
-      `<text x="120" y="${1620 + (idx * 28)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
+      `<text x="40" y="${1620 + (idx * 28)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
     ).join('\n');
 
     const tituloEscapado = escapeXml(titulo);
@@ -2187,20 +2187,20 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         <!-- Sinopse (mais larga e nítida, acima dos metadados) -->
         ${sinopseSVG}
         
-        <!-- Metadados bem brancos com caixas arredondadas sem fundo (levemente mais à esquerda: 120px) -->
-        <g transform="translate(120, 1728)">
+        <!-- Metadados bem brancos com caixas arredondadas sem fundo (mais à esquerda: 40px) -->
+        <g transform="translate(40, 1728)">
           <rect x="0" y="0" width="${(nota.toString().length + 3) * 15}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
           <text x="${((nota.toString().length + 3) * 15) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">⭐ ${nota}</text>
         </g>
-        <g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20}, 1728)">
+        <g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20}, 1728)">
           <rect x="0" y="0" width="${(ano.toString().length + 2) * 16}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
           <text x="${((ano.toString().length + 2) * 16) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${ano}</text>
         </g>
-        <g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20}, 1728)">
+        <g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20}, 1728)">
           <rect x="0" y="0" width="${(generoEscapado.length + 2) * 12}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
           <text x="${((generoEscapado.length + 2) * 12) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${generoEscapado}</text>
         </g>
-        ${infoTemporada ? `<g transform="translate(${120 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20 + (generoEscapado.length + 2) * 12 + 20}, 1728)">
+        ${infoTemporada ? `<g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20 + (generoEscapado.length + 2) * 12 + 20}, 1728)">
           <rect x="0" y="0" width="${(infoTemporada.length + 2) * 13}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
           <text x="${((infoTemporada.length + 2) * 13) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${escapeXml(infoTemporada)}</text>
         </g>` : ''}
@@ -2262,7 +2262,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 80, top: 920 });
+      compositeInputs.push({ input: posterResized, left: 610, top: 540 });
     }
 
     // Adicionar textos SVG
