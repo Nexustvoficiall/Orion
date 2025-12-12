@@ -1909,34 +1909,35 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const { promisify } = await import('util');
     const execPromise = promisify(exec);
     
+    // Verificar yt-dlp
     try {
-      const ytdlpPath = process.platform === 'win32' 
-        ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-        : 'yt-dlp';
-      
-      await execPromise(`${ytdlpPath} --version`);
-      console.log('✅ yt-dlp disponível');
+      const { stdout } = await execPromise('yt-dlp --version', { timeout: 5000 });
+      console.log('✅ yt-dlp disponível:', stdout.trim());
     } catch (err) {
       console.error('❌ yt-dlp não encontrado:', err.message);
-      // Tentar usar apenas 'yt-dlp' sem caminho completo
+      console.error('PATH:', process.env.PATH);
+      console.error('Tentando verificar instalação...');
+      
       try {
-        await execPromise('yt-dlp --version');
-        console.log('✅ yt-dlp disponível (via PATH)');
-      } catch (err2) {
-        console.error('❌ yt-dlp não instalado');
-        return res.status(500).json({ 
-          error: 'yt-dlp não instalado no servidor. Reinstale as dependências.' 
-        });
+        const { stdout: which } = await execPromise('which yt-dlp || where yt-dlp', { timeout: 3000 });
+        console.log('yt-dlp localizado em:', which);
+      } catch (e) {
+        console.error('yt-dlp não encontrado no PATH');
       }
+      
+      return res.status(500).json({ 
+        error: 'yt-dlp não instalado no servidor. Entre em contato com o suporte.' 
+      });
     }
     
+    // Verificar FFmpeg
     try {
-      await execPromise('ffmpeg -version');
+      const { stdout } = await execPromise('ffmpeg -version', { timeout: 5000 });
       console.log('✅ FFmpeg disponível');
     } catch (err) {
       console.error('❌ FFmpeg não encontrado:', err.message);
       return res.status(500).json({ 
-        error: 'FFmpeg não instalado no servidor. Reinstale as dependências.' 
+        error: 'FFmpeg não instalado no servidor. Entre em contato com o suporte.' 
       });
     }
 

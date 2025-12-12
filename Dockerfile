@@ -8,15 +8,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
-    python3-pip \
     curl \
+    ca-certificates \
     && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
+    && ln -s /usr/local/bin/yt-dlp /usr/bin/yt-dlp \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Verificar instalações
-RUN ffmpeg -version && yt-dlp --version
+RUN which yt-dlp && yt-dlp --version && ffmpeg -version
 
 # Copiar package.json
 COPY package*.json ./
