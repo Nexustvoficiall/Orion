@@ -2163,7 +2163,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
 
     const sinopseLines = breakText(sinopse, 50, 3);
     const sinopseSVG = sinopseLines.map((line, idx) => 
-      `<text x="20" y="${1010 + (idx * 19)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
+      `<text x="120" y="${1620 + (idx * 28)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
     ).join('\n');
 
     const tituloEscapado = escapeXml(titulo);
@@ -2262,7 +2262,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
         }])
         .png()
         .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 590, top: 568 });
+      compositeInputs.push({ input: posterResized, left: 80, top: 920 });
     }
 
     // Adicionar textos SVG
