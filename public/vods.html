@@ -992,70 +992,91 @@
       }
       
       /* Cards de filme/série - CORRIGIDO PARA MOBILE */
+      /* Carrossel centralizado no mobile */
       .scroll-row {
-        gap: 12px;
-        padding: 10px 5px 20px;
-        overflow-x: auto;
+        display: flex;
+        overflow-x: scroll;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
-        scroll-padding-left: 15px;
+        scroll-padding: 0 calc(50vw - 110px);
+        padding: 20px 0 30px;
+        gap: 15px;
       }
       
       .scroll-row::-webkit-scrollbar {
-        height: 6px;
+        display: none;
       }
       
       .movie-card {
-        min-width: 140px;
-        max-width: 140px;
+        min-width: 220px;
+        max-width: 220px;
         flex-shrink: 0;
-        scroll-snap-align: start;
+        scroll-snap-align: center;
         touch-action: pan-x;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity: 0.5;
+        transform: scale(0.88);
+      }
+      
+      .movie-card.centered {
+        opacity: 1;
+        transform: scale(1.02);
+        box-shadow: 0 12px 40px rgba(168, 85, 247, 0.5);
       }
       
       .movie-card img {
-        height: 210px;
+        height: 330px;
         width: 100%;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: 14px;
       }
       
       .movie-card:first-child {
-        margin-left: 10px;
+        margin-left: calc(50vw - 110px);
       }
       
       .movie-card:last-child {
-        margin-right: 10px;
+        margin-right: calc(50vw - 110px);
       }
       
       .movie-card h3 {
-        font-size: 13px;
+        font-size: 14px;
         line-height: 1.3;
         max-height: 2.6em;
+        font-weight: 600;
       }
       
-      /* Modal responsivo - TOTALMENTE REFORMULADO */
+      /* Modal mobile otimizado */
       .modal {
         padding: 0 !important;
-        align-items: flex-start !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-        background: rgba(0, 0, 0, 0.95) !important;
+        align-items: flex-end !important;
+        overflow: hidden !important;
+        background: rgba(0, 0, 0, 0.85) !important;
+        backdrop-filter: blur(10px) !important;
       }
       
       .modal-content {
         max-width: 100% !important;
         width: 100% !important;
-        max-height: none !important;
-        min-height: 100vh !important;
+        max-height: 92vh !important;
         margin: 0 !important;
-        border-radius: 0 !important;
+        border-radius: 24px 24px 0 0 !important;
         display: flex !important;
         flex-direction: column !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        overflow: hidden !important;
         position: relative !important;
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5) !important;
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+      
+      @keyframes slideUp {
+        from {
+          transform: translateY(100%);
+        }
+        to {
+          transform: translateY(0);
+        }
       }
       
       .modal-left {
@@ -2985,6 +3006,44 @@
         alert('Erro ao criar arquivo ZIP. Baixe os banners individualmente.');
       }
     };
+
+    // Detectar card centralizado no carrossel mobile
+    function updateCenteredCard() {
+      if (window.innerWidth > 480) return;
+      
+      const scrollRows = document.querySelectorAll('.scroll-row');
+      scrollRows.forEach(scrollRow => {
+        const cards = scrollRow.querySelectorAll('.movie-card');
+        const scrollLeft = scrollRow.scrollLeft;
+        const containerCenter = scrollLeft + window.innerWidth / 2;
+        
+        cards.forEach(card => {
+          const cardLeft = card.offsetLeft;
+          const cardCenter = cardLeft + card.offsetWidth / 2;
+          const distance = Math.abs(containerCenter - cardCenter);
+          
+          if (distance < 100) {
+            card.classList.add('centered');
+          } else {
+            card.classList.remove('centered');
+          }
+        });
+      });
+    }
+
+    // Adicionar listeners para detectar scroll
+    document.addEventListener('DOMContentLoaded', () => {
+      const scrollRows = document.querySelectorAll('.scroll-row');
+      scrollRows.forEach(scrollRow => {
+        scrollRow.addEventListener('scroll', updateCenteredCard, { passive: true });
+      });
+      
+      // Atualizar inicialmente
+      setTimeout(updateCenteredCard, 100);
+    });
+
+    // Atualizar ao redimensionar
+    window.addEventListener('resize', updateCenteredCard);
     
   </script>
   
