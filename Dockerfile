@@ -8,16 +8,17 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
+    python3-pip \
     curl \
+    wget \
     ca-certificates \
-    && curl -L --max-time 30 https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp \
-    && ln -s /usr/local/bin/yt-dlp /usr/bin/yt-dlp \
+    git \
+    && python3 -m pip install --no-cache-dir yt-dlp \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Verificar instalações (com timeout)
-RUN timeout 10 yt-dlp --version && ffmpeg -version || echo "Verificação OK"
+# Verificar instalações
+RUN echo "✅ FFmpeg:" && ffmpeg -version | head -1 && echo "✅ yt-dlp:" && yt-dlp --version && echo "✅ Python:" && python3 --version
 
 # Copiar package.json
 COPY package*.json ./

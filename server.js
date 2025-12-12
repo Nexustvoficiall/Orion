@@ -1749,10 +1749,12 @@ app.use((err, req, res, next) => {
 // Função para baixar trailer do YouTube
 async function downloadTrailer(trailerKey, outputPath) {
   return new Promise((resolve, reject) => {
-    // Detectar yt-dlp baseado no sistema operacional
-    const ytdlpPath = process.platform === 'win32'
-      ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-      : 'yt-dlp'; // Usar PATH do sistema no Linux
+    // Detectar yt-dlp com fallbacks
+    let ytdlpPath = 'yt-dlp';
+    
+    if (process.platform === 'win32') {
+      ytdlpPath = 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe';
+    }
     
     console.log(`📹 Baixando trailer com yt-dlp (${process.platform}): ${ytdlpPath}`);
     
@@ -1909,26 +1911,44 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const { promisify } = await import('util');
     const execPromise = promisify(exec);
     
-    // Verificar yt-dlp
+    // Verificar yt-dlp com múltiplas tentativas
     const ytdlpPath = process.platform === 'win32'
       ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
       : 'yt-dlp';
     
-    try {
-      const { stdout } = await execPromise(`"${ytdlpPath}" --version`, { timeout: 5000 });
-      console.log('✅ yt-dlp disponível:', stdout.trim());
-    } catch (err) {
-      console.error('❌ yt-dlp não encontrado:', err.message);
-      console.error('Tentando PATH alternativo...');
-      
-      // Fallback: tentar 'yt-dlp' genérico (para Render/Linux)
+    let ytdlpFound = false;
+    let ytdlpVersion = '';
+    
+    // Tentar caminhos em ordem de preferência
+    const pathsToTry = process.platform === 'win32'
+      ? [ytdlpPath, 'yt-dlp']
+      : ['yt-dlp', '/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp'];
+    
+    for (const path of pathsToTry) {
       try {
-        const { stdout } = await execPromise('yt-dlp --version', { timeout: 5000 });
-        console.log('✅ yt-dlp disponível via PATH:', stdout.trim());
-      } catch (err2) {
-        console.error('❌ yt-dlp não encontrado no PATH');
+        const { stdout } = await execPromise(`"${path}" --version`, { timeout: 5000 });
+        ytdlpVersion = stdout.trim();
+        ytdlpFound = true;
+        console.log(`✅ yt-dlp encontrado em: ${path} | Versão: ${ytdlpVersion}`);
+        break;
+      } catch (err) {
+        console.error(`⚠️ yt-dlp não encontrado em: ${path}`);
+      }
+    }
+    
+    if (!ytdlpFound) {
+      console.error('❌ yt-dlp não encontrado em nenhum caminho');
+      console.error('🔍 Tentando python3 -m yt-dlp...');
+      
+      try {
+        const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
+        ytdlpVersion = stdout.trim();
+        ytdlpFound = true;
+        console.log(`✅ yt-dlp disponível via python3: ${ytdlpVersion}`);
+      } catch (err3) {
+        console.error('❌ yt-dlp não instalado no servidor');
         return res.status(500).json({ 
-          error: 'yt-dlp não instalado no servidor. Entre em contato com o suporte.' 
+          error: 'yt-dlp não instalado no servidor. Reconstruindo...' 
         });
       }
     }
