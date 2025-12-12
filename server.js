@@ -1747,18 +1747,11 @@ app.use((err, req, res, next) => {
 // ============================================
 
 // Função para baixar trailer do YouTube
-async function downloadTrailer(trailerKey, outputPath) {
+async function downloadTrailer(trailerKey, outputPath, ytdlpCommand = 'yt-dlp') {
   return new Promise((resolve, reject) => {
-    // Detectar yt-dlp com fallbacks
-    let ytdlpPath = 'yt-dlp';
+    console.log(`📹 Baixando trailer com: ${ytdlpCommand}`);
     
-    if (process.platform === 'win32') {
-      ytdlpPath = 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe';
-    }
-    
-    console.log(`📹 Baixando trailer com yt-dlp (${process.platform}): ${ytdlpPath}`);
-    
-    const ytdlp = spawn(ytdlpPath, [
+    const ytdlp = spawn(ytdlpCommand, [
       '-f', 'best[height<=480]', // Baixar 480p para geração mais rápida
       '--no-playlist',
       '--no-warnings',
@@ -1911,44 +1904,46 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
     const { promisify } = await import('util');
     const execPromise = promisify(exec);
     
-    // Verificar yt-dlp com múltiplas tentativas
-    const ytdlpPath = process.platform === 'win32'
-      ? 'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe'
-      : 'yt-dlp';
-    
+    // Verificar yt-dlp com múltiplas tentativas (prioridade para python3 -m yt_dlp no Render)
     let ytdlpFound = false;
     let ytdlpVersion = '';
+    let ytdlpCommand = 'yt-dlp'; // comando padrão
     
-    // Tentar caminhos em ordem de preferência
-    const pathsToTry = process.platform === 'win32'
-      ? [ytdlpPath, 'yt-dlp']
-      : ['yt-dlp', '/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp'];
-    
-    for (const path of pathsToTry) {
-      try {
-        const { stdout } = await execPromise(`"${path}" --version`, { timeout: 5000 });
-        ytdlpVersion = stdout.trim();
-        ytdlpFound = true;
-        console.log(`✅ yt-dlp encontrado em: ${path} | Versão: ${ytdlpVersion}`);
-        break;
-      } catch (err) {
-        console.error(`⚠️ yt-dlp não encontrado em: ${path}`);
-      }
-    }
-    
-    if (!ytdlpFound) {
-      console.error('❌ yt-dlp não encontrado em nenhum caminho');
-      console.error('🔍 Tentando python3 -m yt-dlp...');
+    // No Render, python3 -m yt_dlp é mais confiável
+    try {
+      const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
+      ytdlpVersion = stdout.trim();
+      ytdlpFound = true;
+      ytdlpCommand = 'python3 -m yt_dlp';
+      console.log(`✅ yt-dlp disponível via python3: ${ytdlpVersion}`);
+    } catch (err) {
+      console.warn('⚠️ python3 -m yt_dlp não funcionou, tentando binário direto...');
       
-      try {
-        const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
-        ytdlpVersion = stdout.trim();
-        ytdlpFound = true;
-        console.log(`✅ yt-dlp disponível via python3: ${ytdlpVersion}`);
-      } catch (err3) {
+      // Fallback para caminhos diretos
+      const pathsToTry = process.platform === 'win32'
+        ? [
+            'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe',
+            'yt-dlp'
+          ]
+        : ['yt-dlp', '/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp'];
+      
+      for (const path of pathsToTry) {
+        try {
+          const { stdout } = await execPromise(`"${path}" --version`, { timeout: 5000 });
+          ytdlpVersion = stdout.trim();
+          ytdlpFound = true;
+          ytdlpCommand = path;
+          console.log(`✅ yt-dlp encontrado em: ${path} | Versão: ${ytdlpVersion}`);
+          break;
+        } catch (pathErr) {
+          console.error(`⚠️ Não encontrado em: ${path}`);
+        }
+      }
+      
+      if (!ytdlpFound) {
         console.error('❌ yt-dlp não instalado no servidor');
         return res.status(500).json({ 
-          error: 'yt-dlp não instalado no servidor. Reconstruindo...' 
+          error: 'yt-dlp não instalado no servidor. Contate o administrador.' 
         });
       }
     }
@@ -2355,7 +2350,7 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
 
       try {
         console.log(`📥 Baixando trailer: ${trailerKey}`);
-        await downloadTrailer(trailerKey, trailerTempPath);
+        await downloadTrailer(trailerKey, trailerTempPath, ytdlpCommand);
       } catch (error) {
         console.error(`⚠️ Erro ao baixar trailer:`, error.message);
         console.log(`🔄 Usando backdrop estático como fallback...`);

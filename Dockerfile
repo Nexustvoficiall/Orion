@@ -13,12 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
     git \
+    && python3 -m pip install --upgrade pip \
     && python3 -m pip install --no-cache-dir yt-dlp \
+    && ln -sf /usr/local/bin/yt-dlp /usr/bin/yt-dlp 2>/dev/null || true \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Verificar instalações
-RUN echo "✅ FFmpeg:" && ffmpeg -version | head -1 && echo "✅ yt-dlp:" && yt-dlp --version && echo "✅ Python:" && python3 --version
+RUN echo "✅ FFmpeg:" && ffmpeg -version | head -1 && echo "✅ Python:" && python3 --version && echo "✅ yt-dlp via python:" && python3 -m yt_dlp --version
 
 # Copiar package.json
 COPY package*.json ./
