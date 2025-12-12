@@ -1694,15 +1694,33 @@
               <p style="color:#a0a0c0; font-size:14px; margin:0; line-height:1.5;">✨ Orion Video Trailer - Todos os vídeos usarão o modelo único com banner automático</p>
             </div>
 
-            <!-- Seleção de Duração -->
-            <div id="massDurationSelectorContainer" style="margin-top:20px;">
-              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">⏱️ Duração dos Vídeos:</label>
-              <select id="massSelectDuration" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
-                <option value="15" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 15 segundos</option>
-                <option value="30" style="color:#e8e3ff; background:#2a1f3d;">📱 30 segundos</option>
-                <option value="60" style="color:#e8e3ff; background:#2a1f3d;">🎥 1 minuto</option>
-                <option value="90" style="color:#e8e3ff; background:#2a1f3d;">🎬 1 minuto e 30 segundos</option>
-              </select>
+            <!-- Configurações Globais -->
+            <div style="margin-bottom:24px; padding:16px; background:rgba(255,255,255,0.03); border-radius:8px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">⚙️ Configurações Globais:</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <label style="color:#a0a0c0; font-size:13px; margin-bottom:4px; display:block;">Duração:</label>
+                  <select id="massGlobalDuration" class="filtro-tipo" style="width:100%; background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:8px; border-radius:6px; font-size:13px;">
+                    <option value="15" selected>⚡ 15s</option>
+                    <option value="30">📱 30s</option>
+                    <option value="60">🎥 60s</option>
+                    <option value="90">🎬 90s</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="color:#a0a0c0; font-size:13px; margin-bottom:4px; display:block;">Qualidade:</label>
+                  <select id="massGlobalQuality" class="filtro-tipo" style="width:100%; background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:8px; border-radius:6px; font-size:13px;">
+                    <option value="480" selected>480p</option>
+                    <option value="720">720p HD</option>
+                    <option value="1080">1080p Full HD</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lista de Itens Selecionados -->
+            <div id="massItemsList" style="max-height:400px; overflow-y:auto; margin-bottom:20px;">
+              <!-- Itens serão inseridos via JavaScript -->
             </div>
 
             <!-- Botão Gerar -->
@@ -2787,9 +2805,8 @@
       document.getElementById('massStep2').style.display = 'none';
       document.getElementById('massSelectedInfo').textContent = `${selectedItems.length} ${selectedItems.length === 1 ? 'item selecionado' : 'itens selecionados'}`;
       
-      // Para vídeos, duração padrão já está selecionada, botão sempre visível
-      const btnStart = document.getElementById('btnStartMassGeneration');
-      if (btnStart) btnStart.style.display = 'block';
+      // Renderizar lista de itens com configurações individuais
+      renderMassItemsList();
       
       // Mostrar grade de posters dos itens selecionados no painel esquerdo
       const leftPanel = document.getElementById('massModalLeft');
@@ -2816,6 +2833,58 @@
       generatedBanners = [];
     }
     
+    async function renderMassItemsList() {
+      const container = document.getElementById('massItemsList');
+      if (!container) return;
+      
+      container.innerHTML = '';
+      
+      for (let i = 0; i < selectedItems.length; i++) {
+        const item = selectedItems[i];
+        const itemDiv = document.createElement('div');
+        itemDiv.style.cssText = 'background:rgba(255,255,255,0.03); border-radius:8px; padding:12px; margin-bottom:12px; border:1px solid rgba(192,132,252,0.2);';
+        
+        let seasonControl = '';
+        
+        // Se for série, buscar número de temporadas
+        if (item.type === 'tv') {
+          try {
+            const res = await fetch(`/api/tmdb/detalhes/${item.type}/${item.id}`);
+            const data = await res.json();
+            const totalSeasons = data.number_of_seasons || 1;
+            
+            const seasonOptions = Array.from({length: totalSeasons}, (_, idx) => {
+              const seasonNum = idx + 1;
+              return `<option value="${seasonNum}">Temp ${seasonNum}</option>`;
+            }).join('');
+            
+            seasonControl = `
+              <div style="margin-top:8px;">
+                <label style="color:#a0a0c0; font-size:12px; margin-bottom:4px; display:block;">Temporada:</label>
+                <select class="item-season-select" data-index="${i}" style="width:100%; background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192,132,252,0.3); padding:6px; border-radius:4px; font-size:12px;">
+                  ${seasonOptions}
+                </select>
+              </div>
+            `;
+          } catch (err) {
+            console.error('Erro ao buscar temporadas:', err);
+          }
+        }
+        
+        itemDiv.innerHTML = `
+          <div style="display:flex; gap:12px; align-items:start;">
+            <img src="${item.poster}" style="width:60px; height:90px; object-fit:cover; border-radius:6px;" alt="${item.title}">
+            <div style="flex:1;">
+              <div style="font-weight:600; color:#e8e3ff; font-size:14px; margin-bottom:8px;">${item.type === 'tv' ? '📺' : '🎬'} ${item.title}</div>
+              ${seasonControl}
+            </div>
+          </div>
+        `;
+        
+        container.appendChild(itemDiv);
+      }
+    }
+    
     function closeMassModal() {
       document.getElementById('massModal').style.display = 'none';
       // Limpar seleção após fechar modal
@@ -2826,20 +2895,25 @@
     async function startMassGeneration() {
       console.log('🚀 Iniciando geração de vídeos em massa');
       
-      // Para vídeos, só precisa da duração
-      const massSelectDuration = document.getElementById('massSelectDuration');
-      if (!massSelectDuration) {
-        alert('Erro: Seletor de duração não encontrado!');
+      // Pegar configurações globais
+      const globalDuration = parseInt(document.getElementById('massGlobalDuration').value);
+      const globalQuality = parseInt(document.getElementById('massGlobalQuality').value);
+      
+      if (!globalDuration || !globalQuality) {
+        alert('Selecione duração e qualidade!');
         return;
       }
       
-      const duracao = parseInt(massSelectDuration.value);
-      if (!duracao || duracao <= 0) {
-        alert('Selecione a duração dos vídeos!');
-        return;
-      }
+      // Coletar configurações individuais das séries
+      const seasonSelects = document.querySelectorAll('.item-season-select');
+      seasonSelects.forEach(select => {
+        const index = parseInt(select.dataset.index);
+        const seasonNumber = parseInt(select.value);
+        selectedItems[index].temporada = seasonNumber;
+      });
       
-      console.log('⏱️ Duração selecionada:', duracao, 'segundos');
+      console.log('⏱️ Duração:', globalDuration, 's | Qualidade:', globalQuality, 'p');
+      console.log('📋 Itens:', selectedItems);
       
       document.getElementById('massStep1').style.display = 'none';
       document.getElementById('massStep2').style.display = 'block';
@@ -2895,8 +2969,8 @@
         progressList.appendChild(progressItem);
         
         try {
-          // Gerar banner (a função já busca os dados do TMDB internamente)
-          const bannerBlob = await generateSingleBanner(item);
+          // Gerar banner (agora passando configurações)
+          const bannerBlob = await generateSingleBanner(item, globalDuration, globalQuality);
           
           if (!bannerBlob) {
             throw new Error('Erro ao gerar banner');
@@ -2992,25 +3066,27 @@
       }
     }
     
-    async function generateSingleBanner(item) {
+    async function generateSingleBanner(item, duration, quality) {
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) throw new Error('Usuário não autenticado');
         
         console.log('🎬 Gerando vídeo para:', item.title);
-        
-        // Para vídeos, precisamos apenas do tmdbId, tipo e duração
-        const massSelectDuration = document.getElementById('massSelectDuration');
-        const videoDuration = massSelectDuration ? parseInt(massSelectDuration.value) : 30;
-        
-        console.log('⏱️ Duração:', videoDuration, 'segundos');
+        console.log('⏱️ Duração:', duration, 's | Qualidade:', quality, 'p');
         
         // Preparar payload para vídeo
         const payload = {
           tmdbId: item.id,
           tmdbTipo: item.type,
-          duracao: videoDuration
+          duracao: duration,
+          qualidade: quality
         };
+        
+        // Adicionar temporada se for série
+        if (item.type === 'tv' && item.temporada) {
+          payload.temporada = item.temporada;
+          console.log('📺 Temporada:', item.temporada);
+        }
         
         console.log('📋 Payload vídeo:', payload);
         console.log('🌐 Chamando API: /api/gerar-video');
