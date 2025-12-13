@@ -152,10 +152,11 @@ async function abrirDetalhesBanner(id, tipo) {
     currentAno = ''; // Reset
     currentDuracao = ''; // Reset
 
-    // garante visibilidade
+    // garante visibilidade (abre modal somente por ação do usuário)
     posterContainer.style.display = "flex";
     modal.style.display = "flex";
     modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add('modal-open');
 
     // busca detalhes
     const res = await fetch(`/api/tmdb/detalhes/${tipo}/${id}?nocache=${Date.now()}`);
@@ -288,6 +289,7 @@ function fecharModalBanner() {
   currentGenero = ''; // Reset (Adicionado)
   currentAno = ''; // Reset (Adicionado)
   currentDuracao = ''; // Reset (Adicionado)
+  document.body.classList.remove('modal-open');
 }
 
 // -------------------------
@@ -367,4 +369,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeBtn = document.querySelector(".close-btn");
   if (closeBtn) closeBtn.addEventListener("click", fecharModalBanner);
   carregarVods();
+  // Fechar ao clicar fora do conteúdo (backdrop)
+  const modal = document.getElementById("modalBanner");
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        fecharModalBanner();
+      }
+    });
+  }
+  // Garantir estado inicial fechado
+  if (modal) {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+  }
 });

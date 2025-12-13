@@ -1941,10 +1941,20 @@ app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
       }
       
       if (!ytdlpFound) {
-        console.error('❌ yt-dlp não instalado no servidor');
-        return res.status(500).json({ 
-          error: 'yt-dlp não instalado no servidor. Contate o administrador.' 
-        });
+        console.warn('⚠️ yt-dlp não encontrado. Tentando instalar via python3 -m pip install yt-dlp ...');
+        try {
+          await execPromise('python3 -m pip install --no-cache-dir -q yt-dlp', { timeout: 20000 });
+          const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
+          ytdlpVersion = stdout.trim();
+          ytdlpFound = true;
+          ytdlpCommand = 'python3 -m yt_dlp';
+          console.log(`✅ yt-dlp instalado on-the-fly: ${ytdlpVersion}`);
+        } catch (installErr) {
+          console.error('❌ yt-dlp não instalado no servidor e instalação automática falhou:', installErr.message);
+          return res.status(500).json({ 
+            error: 'yt-dlp não instalado no servidor. Contate o administrador.' 
+          });
+        }
       }
     }
     

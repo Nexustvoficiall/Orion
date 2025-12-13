@@ -418,6 +418,13 @@
       backdrop-filter: blur(5px);
     }
 
+    /* Evita scroll do body quando modal estiver aberto */
+    body.modal-open {
+      overflow: hidden;
+      height: 100vh;
+      touch-action: none;
+    }
+
     .modal.open {
       display: flex;
       animation: fadeIn 0.28s ease both;
@@ -457,6 +464,7 @@
         grid-template-columns: 1fr;
         max-width: 95vw;
         border-radius: 16px;
+        max-height: 92vh;
       }
       
       .modal-left {
@@ -465,6 +473,12 @@
       
       .modal-content.full-step {
         max-width: 95vw;
+      }
+      /* Área direita rola dentro do modal no mobile */
+      .modal-right {
+        max-height: calc(92vh - 20px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
     }
 
@@ -1768,7 +1782,7 @@
       <button class="close-btn" id="closeModalBtn" type="button" aria-label="Fechar modal">✕</button>
 
       <div class="modal-left" id="modalLeft" aria-hidden="false">
-        <img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />
+        <img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />
       </div>
 
       <div class="modal-right" id="modalRight">
@@ -2125,7 +2139,7 @@
       els.step2.style.display = 'none';
       els.step2.innerHTML = '';
       els.leftPanel.style.display = 'flex';
-      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />`;
       els.content.classList.remove('full-step');
       
       // Resetar elementos apenas se existirem
@@ -2149,6 +2163,7 @@
       els.modal.classList.add('open');
       els.modal.style.display = 'flex';
       els.modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
 
       // Loading inicial
       els.title.innerText = "Carregando...";
@@ -2157,7 +2172,7 @@
       
       // Atualizar referência do poster
       els.poster = document.getElementById('posterDetalhesBanner');
-      els.poster.src = "/images/placeholder_poster.png";
+      els.poster.src = "/images/placeholder_poster.svg";
 
       try {
         const res = await fetch(`/api/tmdb/detalhes/${type}/${id}`);
@@ -2174,7 +2189,7 @@
         currentData.genre = (item.genres && item.genres.length > 0) ? item.genres[0].name : 'Desconhecido';
         currentData.rating = item.vote_average || 0;
         currentData.duration = item.runtime || (item.episode_run_time && item.episode_run_time[0]) || 0;
-        currentData.poster = item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : '/images/placeholder_poster.png';
+        currentData.poster = item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : '/images/placeholder_poster.svg';
         currentData.backdrop = item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null;
 
         if (type === 'tv') {
@@ -2210,6 +2225,7 @@
       els.modal.classList.remove('open');
       els.modal.style.display = 'none';
       els.modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
       
       // Reset completo
       config = { orientation: 'vertical', modelId: null, colorKey: null };
@@ -2224,7 +2240,7 @@
       // Resetar leftPanel
       if (els.leftPanel) {
         els.leftPanel.style.display = 'flex';
-        els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+        els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />`;
         els.poster = document.getElementById('posterDetalhesBanner');
       }
       
@@ -2240,11 +2256,17 @@
     }
     
     // Fechar modal ao clicar fora dele
-    els.modal.addEventListener('click', (e) => {
-      if (e.target === els.modal) {
-        window.closeModal();
-      }
-    });
+    if (els.modal) {
+      els.modal.addEventListener('click', (e) => {
+        if (e.target === els.modal) {
+          window.closeModal();
+        }
+      });
+      // Estado inicial fechado
+      els.modal.style.display = 'none';
+      els.modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+    }
 
     // Mapear cores para classes CSS
     const colorMap = {
@@ -2619,7 +2641,7 @@
         const tipo = item.media_type || (item.title ? 'movie' : 'tv');
         const titulo = item.title || item.name || 'Sem título';
         const ano = (item.release_date || item.first_air_date || '').substring(0, 4);
-        const posterUrl = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '/images/placeholder_poster.png';
+        const posterUrl = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '/images/placeholder_poster.svg';
         
         card.dataset.itemId = item.id;
         card.dataset.itemType = tipo;

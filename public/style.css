@@ -158,6 +158,47 @@ p {
 }
 
 /* =========================
+   MOBILE FIRST AJUSTES GERAIS
+========================= */
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+    align-items: stretch;
+  }
+
+  .container {
+    max-width: 100%;
+    padding: 0 4px;
+    align-items: stretch;
+  }
+
+  .logo {
+    width: 160px;
+    max-width: 50%;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  p {
+    font-size: 1rem;
+  }
+
+  button,
+  .option-btn {
+    width: 100%;
+    max-width: 100%;
+    font-size: 1rem;
+  }
+
+  #banner-output img {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* =========================
    BOTÕES
 ========================= */
 button, .option-btn {
