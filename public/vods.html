@@ -92,43 +92,11 @@
     header {
       padding: 22px 12px;
       text-align: center;
-      position: relative;
     }
 
     .logo {
       width: 160px;
-      position: relative;
-      filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.5));
-      animation: logoGlow 3s ease-in-out infinite;
-    }
-
-    .logo::before {
-      content: '';
-      position: absolute;
-      top: -20px;
-      left: -20px;
-      right: -20px;
-      bottom: -20px;
-      background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
-      filter: blur(15px);
-      animation: purpleFog 4s ease-in-out infinite;
-      z-index: -1;
-    }
-
-    @keyframes logoGlow {
-      0%, 100% { filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.5)); }
-      50% { filter: drop-shadow(0 12px 40px rgba(192, 132, 252, 0.8)); }
-    }
-
-    @keyframes purpleFog {
-      0%, 100% { 
-        transform: scale(1);
-        opacity: 0.6;
-      }
-      50% { 
-        transform: scale(1.15);
-        opacity: 0.9;
-      }
+      filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.12));
     }
 
     h1.site-title {
@@ -341,34 +309,12 @@
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
       box-shadow: 0 10px 30px rgba(7, 0, 20, 0.5);
       cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-    }
-
-    .movie-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0) 0%, rgba(192, 132, 252, 0.1) 100%);
-      opacity: 0;
-      transition: opacity 0.4s ease;
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    .movie-card:hover::before {
-      opacity: 1;
+      transition: transform 0.2s;
     }
 
     .movie-card:hover {
-      transform: translateY(-12px) scale(1.05);
-      box-shadow: 
-        0 24px 60px rgba(40, 8, 90, 0.5),
-        0 0 40px rgba(168, 85, 247, 0.3),
-        inset 0 0 0 1px rgba(192, 132, 252, 0.2);
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 24px 60px rgba(40, 8, 90, 0.3);
     }
 
     .movie-card img {
@@ -377,11 +323,6 @@
       object-fit: cover;
       display: block;
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-      transition: transform 0.4s ease;
-    }
-
-    .movie-card:hover img {
-      transform: scale(1.08);
     }
 
     .movie-info {
@@ -414,13 +355,6 @@
       justify-content: center;
       padding: 18px;
       backdrop-filter: blur(5px);
-    }
-
-    /* Evita scroll do body quando modal estiver aberto */
-    body.modal-open {
-      overflow: hidden;
-      height: 100vh;
-      touch-action: none;
     }
 
     .modal.open {
@@ -462,7 +396,6 @@
         grid-template-columns: 1fr;
         max-width: 95vw;
         border-radius: 16px;
-        max-height: 92vh;
       }
       
       .modal-left {
@@ -471,12 +404,6 @@
       
       .modal-content.full-step {
         max-width: 95vw;
-      }
-      /* Área direita rola dentro do modal no mobile */
-      .modal-right {
-        max-height: calc(92vh - 20px);
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
       }
     }
 
@@ -1064,190 +991,86 @@
         min-width: auto;
       }
       
-      /* Carrossel vertical estilo moderno */
+      /* Cards de filme/série */
       .scroll-row {
-        display: flex;
-        overflow-x: scroll;
+        gap: 12px;
+        padding: 10px 5px 20px;
+        overflow-x: auto;
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: x mandatory;
-        scroll-padding: 0 calc(50vw - 140px);
-        padding: 25px 0 35px;
-        gap: 20px;
+        scroll-padding-left: 15px;
       }
       
       .scroll-row::-webkit-scrollbar {
-        display: none;
+        height: 6px;
       }
       
       .movie-card {
-        min-width: 280px;
-        max-width: 280px;
+        min-width: 160px;
         flex-shrink: 0;
-        scroll-snap-align: center;
+        scroll-snap-align: start;
         touch-action: pan-x;
-        transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        opacity: 0.4;
-        transform: scale(0.85) translateY(20px);
-        position: relative;
-      }
-      
-      .movie-card.centered {
-        opacity: 1;
-        transform: scale(1.05) translateY(0);
-        box-shadow: 
-          0 20px 60px rgba(168, 85, 247, 0.6),
-          0 0 80px rgba(168, 85, 247, 0.3),
-          inset 0 0 0 2px rgba(168, 85, 247, 0.4);
-        z-index: 10;
-      }
-      
-      .movie-card.centered::after {
-        content: '';
-        position: absolute;
-        top: -4px;
-        left: -4px;
-        right: -4px;
-        bottom: -4px;
-        background: linear-gradient(135deg, 
-          rgba(168, 85, 247, 0.8),
-          rgba(147, 51, 234, 0.6),
-          rgba(168, 85, 247, 0.4)
-        );
-        border-radius: 18px;
-        z-index: -1;
-        filter: blur(15px);
-        opacity: 0.8;
       }
       
       .movie-card img {
-        height: 420px;
-        width: 100%;
-        object-fit: cover;
-        border-radius: 16px;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-      }
-      
-      .movie-card.centered img {
-        border-color: rgba(168, 85, 247, 0.6);
+        height: 240px;
       }
       
       .movie-card:first-child {
-        margin-left: calc(50vw - 140px);
+        margin-left: 10px;
       }
       
       .movie-card:last-child {
-        margin-right: calc(50vw - 140px);
+        margin-right: 10px;
       }
       
-      .movie-card h3 {
-        font-size: 15px;
-        line-height: 1.3;
-        max-height: 2.6em;
-        font-weight: 700;
-        margin-top: 12px;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-      }
-      
-      .movie-card.centered h3 {
-        color: #a855f7;
-      }
-      
-      /* Modal mobile tela cheia otimizado */
+      /* Modal responsivo */
       .modal {
-        padding: 0 !important;
-        align-items: flex-end !important;
-        overflow: hidden !important;
-        background: rgba(0, 0, 0, 0.95) !important;
-        backdrop-filter: blur(12px) !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 99999 !important;
-        display: flex !important;
+        padding: 0;
+        align-items: flex-start;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       
       .modal-content {
-        max-width: 100% !important;
-        width: 100% !important;
-        max-height: 100vh !important;
-        height: 100vh !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-        position: relative !important;
-        box-shadow: none !important;
-        animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        background: linear-gradient(180deg, #0b0420 0%, #060018 100%) !important;
-      }
-      
-      @keyframes slideUp {
-        from {
-          transform: translateY(100%);
-        }
-        to {
-          transform: translateY(0);
-        }
+        max-width: 100%;
+        width: 100%;
+        max-height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        border-radius: 0;
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       
       .modal-left {
-        display: none !important;
+        display: none;
       }
       
       .modal-right {
-        padding: 25px 20px 40px !important;
-        height: 100% !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        -webkit-overflow-scrolling: touch !important;
-        overscroll-behavior: contain !important;
-        position: relative !important;
+        padding: 20px 15px 40px;
+        max-height: none;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       
       .modal-header {
-        position: sticky !important;
-        top: -25px !important;
-        background: linear-gradient(180deg, #0b0420 95%, transparent) !important;
-        z-index: 1000 !important;
-        padding: 25px 0 20px !important;
-        margin: -25px 0 20px !important;
-        border-bottom: 1px solid rgba(168, 85, 247, 0.2) !important;
+        position: sticky;
+        top: 0;
+        background: linear-gradient(180deg, #0b0420 80%, transparent);
+        z-index: 10;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
       }
       
       .modal-title {
-        font-size: 22px !important;
-        line-height: 1.2 !important;
+        font-size: 20px;
       }
       
       .modal-synopsis {
-        font-size: 14px !important;
-        line-height: 1.5 !important;
-      }
-      
-      /* Botões do modal mobile */
-      .modal-right button,
-      .modal-right .btn {
-        width: 100% !important;
-        padding: 14px 20px !important;
-        font-size: 16px !important;
-        margin-bottom: 12px !important;
-        touch-action: manipulation !important;
-      }
-      
-      /* Campos do modal mobile */
-      .modal-right input,
-      .modal-right select {
-        width: 100% !important;
-        padding: 12px !important;
-        font-size: 16px !important;
-        margin-bottom: 12px !important;
+        font-size: 13px;
       }
       
       /* Modal de massa */
@@ -1748,7 +1571,7 @@
       <button class="close-btn" id="closeModalBtn" type="button" aria-label="Fechar modal">✕</button>
 
       <div class="modal-left" id="modalLeft" aria-hidden="false">
-        <img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />
+        <img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />
       </div>
 
       <div class="modal-right" id="modalRight">
@@ -2058,12 +1881,6 @@
     }
 
     window.openModal = async (id, type) => {
-      // Prevenir abertura se não for uma ação de usuário válida
-      if (!id || !type) {
-        console.warn('⚠️ openModal chamado sem id ou type válido');
-        return;
-      }
-      
       // Reset COMPLETO da configuração
       config = { orientation: 'vertical', modelId: null, colorKey: null };
       seasonListenerAttached = false;
@@ -2085,7 +1902,7 @@
       els.step2.style.display = 'none';
       els.step2.innerHTML = '';
       els.leftPanel.style.display = 'flex';
-      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />`;
+      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
       els.content.classList.remove('full-step');
       els.select.value = '';
       els.modelDescription.innerHTML = '';
@@ -2109,7 +1926,7 @@
       
       // Atualizar referência do poster
       els.poster = document.getElementById('posterDetalhesBanner');
-      els.poster.src = "/images/placeholder_poster.svg";
+      els.poster.src = "/images/placeholder_poster.png";
 
       try {
         const res = await fetch(`/api/tmdb/detalhes/${type}/${id}`);
@@ -2126,7 +1943,7 @@
         currentData.genre = (item.genres && item.genres.length > 0) ? item.genres[0].name : 'Desconhecido';
         currentData.rating = item.vote_average || 0;
         currentData.duration = item.runtime || (item.episode_run_time && item.episode_run_time[0]) || 0;
-        currentData.poster = item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : '/images/placeholder_poster.svg';
+        currentData.poster = item.poster_path ? `https://image.tmdb.org/t/p/original${item.poster_path}` : '/images/placeholder_poster.png';
         currentData.backdrop = item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null;
 
         if (type === 'tv') {
@@ -2157,8 +1974,6 @@
     };
 
     window.closeModal = () => {
-      if (!els.modal) return;
-      
       els.modal.classList.remove('open');
       els.modal.style.display = 'none';
       els.modal.setAttribute('aria-hidden', 'true');
@@ -2169,34 +1984,15 @@
       
       // Restaurar HTML original do modalRight
       const modalRight = document.getElementById('modalRight');
-      if (modalRight) {
-        modalRight.innerHTML = originalModalRightHTML;
-      }
+      modalRight.innerHTML = originalModalRightHTML;
       
       // Resetar leftPanel
-      if (els.leftPanel) {
-        els.leftPanel.style.display = 'flex';
-        els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.svg" alt="Poster do item" loading="lazy" />`;
-        els.poster = document.getElementById('posterDetalhesBanner');
-      }
-      
-      // Limpar dados temporarios
-      currentData = null;
+      els.leftPanel.style.display = 'flex';
+      els.leftPanel.innerHTML = `<img id="posterDetalhesBanner" src="/images/placeholder_poster.png" alt="Poster do item" loading="lazy" />`;
+      els.poster = document.getElementById('posterDetalhesBanner');
     };
     
-    // Event listeners do botão fechar
-    const closeBtn = document.getElementById('closeModalBtn');
-    if (closeBtn) {
-      closeBtn.onclick = window.closeModal;
-      closeBtn.addEventListener('click', window.closeModal);
-    }
-    
-    // Fechar modal ao clicar fora dele
-    els.modal.addEventListener('click', (e) => {
-      if (e.target === els.modal) {
-        window.closeModal();
-      }
-    });
+    document.getElementById('closeModalBtn').onclick = window.closeModal;
 
     // Mapear cores para classes CSS
     const colorMap = {
@@ -2361,6 +2157,27 @@
           payload.temporada = currentData.selectedSeason;
         }
         
+        // Bloqueia envio se posterUrl não for do TMDB
+        // Permite apenas posterUrl do TMDB ou Fanart.tv
+        const isPosterTMDB = payload.posterUrl && payload.posterUrl.startsWith('https://image.tmdb.org/t/p/');
+        const isPosterFanart = payload.posterUrl && payload.posterUrl.startsWith('https://assets.fanart.tv/');
+        if (!isPosterTMDB && !isPosterFanart) {
+          els.leftPanel.innerHTML = `
+            <div class="generation-container" style="width:100%; height:100%;">
+              <p style="color:#ff6666; font-size:24px; margin:0;">❌ Não é possível gerar banner</p>
+              <p class="text-muted" style="text-align:center;">Selecione um item válido do TMDB ou Fanart.tv para gerar o banner.</p>
+              <button type="button" class="btn" id="btnRetry" style="margin-top:20px;">🔄 Tentar Novamente</button>
+            </div>
+          `;
+          document.getElementById('btnRetry').onclick = () => {
+            const savedId = currentData.id;
+            const savedType = currentData.type;
+            window.closeModal();
+            setTimeout(() => window.openModal(savedId, savedType), 150);
+          };
+          return;
+        }
+
         const res = await fetch('/api/gerar-banner', {
           method: 'POST',
           headers: {
@@ -2629,7 +2446,7 @@
         const tipo = item.media_type || (item.title ? 'movie' : 'tv');
         const titulo = item.title || item.name || 'Sem título';
         const ano = (item.release_date || item.first_air_date || '').substring(0, 4);
-        const posterUrl = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '/images/placeholder_poster.svg';
+        const posterUrl = item.poster_path ? 'https://image.tmdb.org/t/p/w500' + item.poster_path : '/images/placeholder_poster.png';
         
         card.dataset.itemId = item.id;
         card.dataset.itemType = tipo;
@@ -3008,7 +2825,7 @@
         
         // Montar posterUrl corretamente
         let posterUrl = item.poster;
-        if (!posterUrl || posterUrl === '/images/placeholder_poster.svg') {
+        if (!posterUrl || posterUrl === '/images/placeholder_poster.png') {
           // Tentar pegar do tmdbData
           if (tmdbData.poster_path) {
             posterUrl = `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`;
@@ -3164,50 +2981,6 @@
         alert('Erro ao criar arquivo ZIP. Baixe os banners individualmente.');
       }
     };
-
-    // Detectar card centralizado no carrossel mobile
-    function updateCenteredCard() {
-      if (window.innerWidth > 768) return;
-      
-      const scrollRows = document.querySelectorAll('.scroll-row');
-      scrollRows.forEach(scrollRow => {
-        const cards = scrollRow.querySelectorAll('.movie-card');
-        const scrollLeft = scrollRow.scrollLeft;
-        const containerCenter = scrollLeft + window.innerWidth / 2;
-        
-        cards.forEach(card => {
-          const cardLeft = card.offsetLeft;
-          const cardCenter = cardLeft + card.offsetWidth / 2;
-          const distance = Math.abs(containerCenter - cardCenter);
-          
-          if (distance < 100) {
-            card.classList.add('centered');
-          } else {
-            card.classList.remove('centered');
-          }
-        });
-      });
-    }
-
-    // Adicionar listeners para detectar scroll
-    document.addEventListener('DOMContentLoaded', () => {
-      const scrollRows = document.querySelectorAll('.scroll-row');
-      scrollRows.forEach(scrollRow => {
-        scrollRow.addEventListener('scroll', updateCenteredCard, { passive: true });
-      });
-      
-      // Atualizar inicialmente sem delay
-      if (window.innerWidth <= 768) {
-        requestAnimationFrame(updateCenteredCard);
-      }
-    });
-
-    // Atualizar ao redimensionar com debounce
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateCenteredCard, 150);
-    });
     
   </script>
   

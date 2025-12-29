@@ -411,11 +411,12 @@
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.85);
-      z-index: 220;
+      z-index: 9999;
       align-items: center;
       justify-content: center;
       padding: 18px;
       backdrop-filter: blur(5px);
+      overflow: hidden;
     }
 
     /* Evita scroll do body quando modal estiver aberto */
@@ -423,6 +424,8 @@
       overflow: hidden;
       height: 100vh;
       touch-action: none;
+      position: fixed;
+      width: 100%;
     }
 
     .modal.open {
@@ -1715,8 +1718,7 @@
                 <div>
                   <label style="color:#a0a0c0; font-size:13px; margin-bottom:4px; display:block;">Duração:</label>
                   <select id="massGlobalDuration" class="filtro-tipo" style="width:100%; background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:8px; border-radius:6px; font-size:13px;">
-                    <option value="15" selected>⚡ 15s</option>
-                    <option value="30">📱 30s</option>
+                    <option value="30" selected>📱 30s</option>
                     <option value="60">🎥 60s</option>
                     <option value="90">🎬 90s</option>
                   </select>
@@ -1724,8 +1726,7 @@
                 <div>
                   <label style="color:#a0a0c0; font-size:13px; margin-bottom:4px; display:block;">Qualidade:</label>
                   <select id="massGlobalQuality" class="filtro-tipo" style="width:100%; background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:8px; border-radius:6px; font-size:13px;">
-                    <option value="480" selected>480p</option>
-                    <option value="720">720p HD</option>
+                    <option value="720" selected>720p HD</option>
                     <option value="1080">1080p Full HD</option>
                   </select>
                 </div>
@@ -1751,9 +1752,13 @@
           </div>
           
           <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px; margin:20px 0;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
               <span style="color:#e8e3ff; font-weight:600;">Progresso:</span>
               <span id="massProgressText" style="color:var(--accent); font-weight:600;">0 / 0</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+              <span style="color:#9f9aa8; font-size:14px;">⏱️ Tempo decorrido:</span>
+              <span id="videoTimer" style="color:#fff; font-weight:600; font-size:14px;">0s</span>
             </div>
             <div style="background:rgba(0,0,0,0.3); height:24px; border-radius:12px; overflow:hidden;">
               <div id="massProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--accent), var(--purple-2)); transition:width 0.3s;"></div>
@@ -1813,8 +1818,7 @@
             <div id="durationSelectorContainer" style="margin-top:20px;">
               <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">⏱️ Duração do Vídeo:</label>
               <select id="selectDuration" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
-                <option value="15" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 15 segundos (Rápido)</option>
-                <option value="30" style="color:#e8e3ff; background:#2a1f3d;">📱 30 segundos (Stories)</option>
+                <option value="30" selected style="color:#e8e3ff; background:#2a1f3d;">📱 30 segundos (Stories)</option>
                 <option value="60" style="color:#e8e3ff; background:#2a1f3d;">🎥 1 minuto (Padrão)</option>
                 <option value="90" style="color:#e8e3ff; background:#2a1f3d;">🎬 1 minuto e 30 segundos (Completo)</option>
               </select>
@@ -1825,11 +1829,10 @@
             <div id="qualitySelectorContainer" style="margin-top:20px;">
               <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">🎞️ Qualidade do Vídeo:</label>
               <select id="selectQuality" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
-                <option value="480" selected style="color:#e8e3ff; background:#2a1f3d;">⚡ 480p - SD (Rápido)</option>
-                <option value="720" style="color:#e8e3ff; background:#2a1f3d;">📱 720p - HD (Recomendado)</option>
+                <option value="720" selected style="color:#e8e3ff; background:#2a1f3d;">📱 720p - HD (Recomendado)</option>
                 <option value="1080" style="color:#e8e3ff; background:#2a1f3d;">🎬 1080p - Full HD (Alta qualidade)</option>
               </select>
-              <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 Dica: 480p é mais rápido, 1080p tem melhor qualidade mas demora mais</p>
+              <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 720p é rápido, 1080p tem melhor qualidade</p>
             </div>
 
             <!-- Botão Gerar -->
@@ -1849,9 +1852,72 @@
     <p>© 2025 Orion Creator — Feito com 💜 e Muita dedicação</p>
   </footer>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  <!-- MENU FIXO INFERIOR MOBILE -->
+  <nav id="mobileTabBar">
+    <button class="tab-btn" onclick="window.location.href='vods.html'">
+      <span>🎬</span>
+      <span class="tab-label">Banners</span>
+    </button>
+    <button class="tab-btn" onclick="window.location.href='videos.html'">
+      <span>📹</span>
+      <span class="tab-label">Vídeos</span>
+    </button>
+    <button class="tab-btn" onclick="window.location.href='dashboard.html'">
+      <span>📊</span>
+      <span class="tab-label">Dashboard</span>
+    </button>
+    <button class="tab-btn" onclick="window.location.href='perfil.html'">
+      <span>👤</span>
+      <span class="tab-label">Perfil</span>
+    </button>
+  </nav>
+
+  <style>
+    @media (max-width: 768px) {
+      #mobileTabBar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+        background: #1a132b;
+        display: flex;
+        border-top: 1px solid #2a1f3d;
+        height: 60px;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.12);
+      }
+      .tab-btn {
+        flex: 1;
+        background: none;
+        border: none;
+        color: #e8e3ff;
+        font-size: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 2px;
+        height: 100%;
+        transition: background 0.2s;
+      }
+      .tab-btn:active, .tab-btn:focus {
+        background: #2a1f3d;
+        color: #c084fc;
+      }
+      .tab-label {
+        font-size: 0.85rem;
+        margin-top: 2px;
+        letter-spacing: 0.01em;
+      }
+      body {
+        padding-bottom: 70px !important;
+      }
+    }
+  </style>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
@@ -2244,8 +2310,24 @@
         els.poster = document.getElementById('posterDetalhesBanner');
       }
       
-      // Limpar dados temporarios
-      currentData = null;
+      // Limpar dados temporários corretamente
+      currentData = {
+        id: null,
+        title: '',
+        synopsis: '',
+        poster: '',
+        genre: '',
+        year: '',
+        duration: 0,
+        rating: 0,
+        type: 'movie',
+        tmdbId: null,
+        numberOfSeasons: 0,
+        selectedSeason: 1,
+        seasons: [],
+        originalTitle: '',
+        backdrop: null
+      };
     };
     
     // Event listeners do botão fechar
@@ -2381,7 +2463,7 @@
       }
       
       const duracao = parseInt(selectDuration.value);
-      const qualidade = selectQuality ? parseInt(selectQuality.value) : 480;
+      const qualidade = selectQuality ? parseInt(selectQuality.value) : 720;
       
       if (!duracao || duracao <= 0) {
         alert('Selecione a duração do vídeo!');
@@ -2406,18 +2488,40 @@
           <div class="loader" style="position:relative; z-index:2;"></div>
           <h3 style="color:var(--accent); font-size:24px; margin:0; text-align:center; position:relative; z-index:2; text-shadow: 0 0 20px rgba(192, 132, 252, 0.6);">🎬 Gerando seu vídeo...</h3>
           <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | Qualidade: ${qualidade}p</p>
-          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical ${qualidade === 1080 ? '1080x1920' : qualidade === 720 ? '720x1280' : '640x1200'}</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical ${qualidade === 1080 ? '1080x1920' : '720x1280'}</p>
           
-          <!-- Barra de Progresso -->
-          <div style="width:80%; max-width:400px; margin:30px auto 10px; background:rgba(255,255,255,0.1); border-radius:12px; overflow:hidden; height:28px; position:relative; z-index:2; border:1px solid rgba(192, 132, 252, 0.3);">
-            <div id="progressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #a855f7, #c084fc); transition:width 0.3s ease; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:white; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">
-              <span id="progressText">0%</span>
-            </div>
+          <!-- Cronômetro em Tempo Real -->
+          <div style="text-align:center; margin:20px 0;">
+            <span style="color:#9f9aa8; font-size:16px;">⏱️ Tempo decorrido:</span>
+            <span id="singleVideoTimer" style="color:#fff; font-weight:600; font-size:18px; margin-left:8px;">0s</span>
           </div>
           
-          <p style="font-size:12px; color:#9ca3af; text-align:center; position:relative; z-index:2;">⏳ ${qualidade === 1080 ? 'Isso pode levar de 40 a 90 segundos...' : qualidade === 720 ? 'Isso pode levar de 30 a 60 segundos...' : 'Isso pode levar de 20 a 45 segundos...'}</p>
+          <!-- Barra de Progresso -->
+          <div style="width:80%; max-width:400px; margin:30px auto 10px; background:rgba(255,255,255,0.1); border-radius:12px; overflow:visible; height:28px; position:relative; z-index:2; border:1px solid rgba(192, 132, 252, 0.3);">
+            <div id="progressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #a855f7, #c084fc); transition:width 0.3s; position:relative;">
+              <span id="progressText" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#fff; font-weight:700; font-size:13px; text-shadow:0 1px 3px rgba(0,0,0,0.5);">0%</span>
+            </div>
+          </div>
         </div>
       `;
+      
+      // Aguardar DOM estar pronto antes de iniciar cronômetro
+      setTimeout(() => {
+        // Iniciar cronômetro em tempo real
+        const videoStartTime = Date.now();
+        const timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - videoStartTime) / 1000);
+          const mins = Math.floor(elapsed / 60);
+          const secs = elapsed % 60;
+          const timerEl = document.getElementById('singleVideoTimer');
+          if (timerEl) {
+            timerEl.textContent = mins > 0 ? `${mins}min ${secs}s` : `${secs}s`;
+          }
+        }, 1000);
+        
+        // Salvar timerInterval para limpar depois
+        window.currentTimerInterval = timerInterval;
+      }, 100);
       
       // Simular progresso gradual enquanto processa
       let currentProgress = 0;
@@ -2463,6 +2567,7 @@
         
         // Parar animação de progresso e completar
         clearInterval(progressInterval);
+        if (window.currentTimerInterval) clearInterval(window.currentTimerInterval);
         if (progressBar) progressBar.style.width = '100%';
         if (progressText) progressText.textContent = '100%';
         
@@ -2521,7 +2626,7 @@
           const savedType = currentData.type;
           window.closeModal();
           // Pequeno delay para garantir reset completo
-          setTimeout(() => window.openModal(savedId, savedType), 150);
+          setTimeout(() => window.openModal(savedId, savedType), 150); // Removido para evitar abertura automática do modal
         };
         
         document.getElementById('btnCloseVideo').onclick = () => {
@@ -2550,7 +2655,7 @@
           const savedType = currentData.type;
           window.closeModal();
           // Pequeno delay para garantir reset completo
-          setTimeout(() => window.openModal(savedId, savedType), 150);
+          setTimeout(() => window.openModal(savedId, savedType), 150); // Removido para evitar abertura automática do modal
         };
         
         document.getElementById('btnCloseError').onclick = () => {
@@ -2967,6 +3072,10 @@
       const progressBar = document.getElementById('massProgressBar');
       const progressList = document.getElementById('massProgressList');
       const downloadSection = document.getElementById('massDownloadSection');
+      const timerEl = document.getElementById('videoTimer');
+      
+      // Resetar timer
+      if (timerEl) timerEl.textContent = '0s';
       
       progressText.textContent = `0 / ${selectedItems.length}`;
       progressBar.style.width = '0%';
@@ -3089,9 +3198,22 @@
     }
     
     async function generateSingleBanner(item, duration, quality) {
+      let timerInterval; // Declarar no início do escopo
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) throw new Error('Usuário não autenticado');
+        
+        // Iniciar cronômetro
+        const videoStartTime = Date.now();
+        timerInterval = setInterval(() => {
+          const elapsed = Math.floor((Date.now() - videoStartTime) / 1000);
+          const mins = Math.floor(elapsed / 60);
+          const secs = elapsed % 60;
+          const timerEl = document.getElementById('videoTimer');
+          if (timerEl) {
+            timerEl.textContent = mins > 0 ? `${mins}min ${secs}s` : `${secs}s`;
+          }
+        }, 1000);
         
         console.log('🎬 Gerando vídeo para:', item.title);
         console.log('⏱️ Duração:', duration, 's | Qualidade:', quality, 'p');
@@ -3123,15 +3245,19 @@
         });
         
         if (!response.ok) {
+          clearInterval(timerInterval); // Parar cronômetro em caso de erro
           const errorData = await response.json().catch(() => ({}));
           console.error('❌ Erro do servidor:', errorData);
           throw new Error(errorData.error || `Erro ao gerar vídeo: ${response.status}`);
         }
         
-        console.log('✅ Vídeo gerado com sucesso!');
+        clearInterval(timerInterval); // Parar cronômetro
+        const totalTime = Math.floor((Date.now() - videoStartTime) / 1000);
+        console.log(`✅ Vídeo gerado com sucesso! Tempo: ${totalTime}s`);
         return await response.blob();
         
       } catch (error) {
+        if (timerInterval) clearInterval(timerInterval);
         console.error('❌ Erro ao gerar vídeo:', error);
         return null;
       }

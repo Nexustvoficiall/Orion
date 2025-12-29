@@ -1,5 +1,5 @@
-// server.js (Orion Creator API 2.8.x - DEBUG MODE)
-// VERSÃO COM AJUSTES DE POSIÇÃO AGRESSIVOS + LOGS PARA DIAGNÓSTICO
+// server.js (Orion Creator API 2.8.22 - VIDEO GENERATION WITH PROGRESS)
+// VERSÃO: MELHORIAS RIGEL, BELTEGUESE, BELLATRIX + GERAÇÃO DE VÍDEOS + SOCKET.IO PROGRESS
 
 import express from "express";
 import fetch from "node-fetch";
@@ -12,14 +12,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { promises as fsPromises } from "fs";
-import ffmpeg from "fluent-ffmpeg";
-import { Readable } from "stream";
 import { spawn } from "child_process";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import validator from "validator";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 import {
   buscarTMDB,
@@ -77,6 +77,9 @@ const PORT = process.env.PORT || 3000;
 const fanartService = new FanartService(process.env.FANART_API_KEY);
 console.log("✅ Fanart.tv Service inicializado");
 
+// Map para gerenciar conexões SSE de progresso
+const progressConnections = new Map();
+
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
@@ -84,18 +87,7 @@ app.use(helmet({
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Desabilitar cache para arquivos estáticos (FORCE NO-CACHE)
-app.use(express.static(path.join(__dirname, "public"), {
-  etag: false,
-  lastModified: false,
-  setHeaders: (res, path) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.setHeader('Surrogate-Control', 'no-store');
-  }
-}));
+app.use(express.static(path.join(__dirname, "public")));
 
 const tmdbLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -119,6 +111,12 @@ const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 20,
   message: { error: "Limite de uploads atingido. Tente novamente depois." }
+});
+
+const videoLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: "Limite de geração de vídeos atingido. Tente novamente em 1 hora." }
 });
 
 const verificarAuth = async (req, res, next) => {
@@ -201,11 +199,7 @@ const upload = multer({
   }
 });
 
-// Multer para processar FormData sem arquivos
-const formDataParser = multer();
-
 const COLORS = {
-  PRETO: { hex: "#000000", gradient: ["#1a1a1a", "#000000"] },
   ROXO: { hex: "#8A2BE2", gradient: ["#4B0082", "#000000"] },
   AZUL: { hex: "#007bff", gradient: ["#001f3f", "#000000"] },
   VERDE: { hex: "#28a745", gradient: ["#0f3e18", "#000000"] },
@@ -226,17 +220,6 @@ const PREMIUM_OVERLAYS = {
   AMARELO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_amarelo_urqjlu.png",
   DOURADO: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988194/vertical_dourado_asthju.png",
   LARANJA: "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1763988195/vertical_lajanja_qtyj6n.png"
-};
-
-const ORION_X_OVERLAYS = {
-  PRETO: "preto.png",
-  ROXO: "roxo.png",
-  AZUL: "azul.png",
-  VERMELHO: "vermelho.png",
-  VERDE: "verde.png",
-  AMARELO: "amarelo.png",
-  LARANJA: "laranja.png",
-  ROSA: "rosa.png"
 };
 
 const PREMIUM_LOCAL_DIR = "public/images/vods";
@@ -329,7 +312,7 @@ function wrapText(text, maxChars) {
     }
   }
   if (current) lines.push(current);
-  return lines.slice(0, 8);
+  return lines.slice(0, 10);
 }
 
 function formatTime(minutes) {
@@ -346,6 +329,39 @@ function safeXml(str) {
     .replace(/</g, "&lt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+async function spawnProcess(command, args) {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args);
+    let stdout = '';
+    let stderr = '';
+    
+    process.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    process.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    process.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const error = new Error(`${command} falhou (código ${code})`);
+        error.stderr = stderr;
+        error.stdout = stdout;
+        reject(error);
+      }
+    });
+    
+    process.on('error', (err) => {
+      const error = new Error(`Falha ao executar ${command}: ${err.message}`);
+      error.originalError = err;
+      reject(error);
+    });
+  });
 }
 
 app.get("/", async (req, res) => {
@@ -376,8 +392,9 @@ code{background:#000;padding:2px 5px;border-radius:4px;color:#8A2BE2}
 <div class="endpoint"><span class="method get">GET</span><code>/api/tmdb/detalhes/:tipo/:id</code> - Detalhes (movie|tv)</div>
 <div class="endpoint"><span class="method get">GET</span><code>/api/tmdb/detalhes/tv/:id/season/:num</code> - Temporada</div>
 <div class="endpoint"><span class="method post">POST</span><code>/api/gerar-banner</code> - Gerar banner (auth)</div>
+<div class="endpoint"><span class="method post">POST</span><code>/api/gerar-video</code> - Gerar vídeo promocional (auth)</div>
 <div class="endpoint"><span class="method post">POST</span><code>/api/upload</code> - Upload (auth)</div>
-<p>Versão: 2.8.0 (Premium + Exclusive Ajustado)</p>
+<p>Versão: 2.8.21 (Video Generation Feature)</p>
 </body>
 </html>
   `);
@@ -524,9 +541,30 @@ app.post("/api/upload", verificarAuth, uploadLimiter, upload.single("file"), (re
   }
 });
 
-// =====================================================================
-// /api/gerar-banner
-// =====================================================================
+app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
+  try {
+    const dias = parseInt(req.query.dias, 10) || 3;
+    const limiteMs = dias * 24 * 60 * 60 * 1000;
+    const agora = Date.now();
+    const bannersRef = db.collection("banners");
+    const query = bannersRef
+      .where("uid", "==", req.uid)
+      .orderBy("criadoEm", "desc");
+    const snap = await query.get();
+    const banners = [];
+    snap.forEach(doc => {
+      const data = doc.data();
+      if (data.criadoEm && (agora - data.criadoEm.toMillis ? data.criadoEm.toMillis() : data.criadoEm) <= limiteMs) {
+        banners.push({ id: doc.id, ...data });
+      }
+    });
+    res.json({ banners });
+  } catch (err) {
+    console.error("❌ Erro ao buscar últimas criações:", err.message);
+    res.status(500).json({ error: "Erro ao buscar últimas criações" });
+  }
+});
+
 app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => {
   try {
     const {
@@ -546,14 +584,9 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       temporada
     } = req.body || {};
 
-    // LOG COMPLETO PARA DIAGNÓSTICO
-    console.log('📥 req.body recebido:', JSON.stringify(req.body, null, 2));
-    console.log(`➡️ posterUrl="${posterUrl}", modeloTipo="${modeloTipo}", tipo="${tipo}"`);
+    console.log(`➡️ REQUISIÇÃO RECEBIDA: modeloTipo="${modeloTipo}", tipo="${tipo}"`);
 
-    if (!posterUrl) {
-      console.error('❌ posterUrl está vazio ou undefined!');
-      return res.status(400).json({ error: "posterUrl obrigatório" });
-    }
+    if (!posterUrl) return res.status(400).json({ error: "posterUrl obrigatório" });
     if (!validarURL(posterUrl)) return res.status(400).json({ error: "posterUrl inválida" });
     if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
     if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
@@ -570,24 +603,19 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
     }
     const corConfig = COLORS[corKey];
 
+    const isOrionX = modeloTipo === "ORION_X";
+    const width = isOrionX ? 1080 : (tipoNorm === "horizontal" ? 1920 : 1080);
+    const height = isOrionX ? 1540 : (tipoNorm === "horizontal" ? 1080 : 1920);
     const isPremium = modeloTipo === "ORION_PREMIUM" || modeloTipo === "PADRAO";
     const isExclusive = modeloTipo === "ORION_EXCLUSIVO";
-    const isOrionX = modeloTipo === "ORION_X";
-    
-    // Dimensões específicas por modelo
-    let width, height;
-    if (isOrionX) {
-      width = 1080;
-      height = 1540;
-    } else {
-      width = tipoNorm === "horizontal" ? 1920 : 1080;
-      height = tipoNorm === "horizontal" ? 1080 : 1920;
-    }
     const isOrionExclusivoVertical = isExclusive && tipoNorm === "vertical";
+    
+    const isRigel = modeloTipo === "PADRAO";
+    const isBelteguese = modeloTipo === "ORION_EXCLUSIVO";
+    const isBellatrix = modeloTipo === "ORION_X";
 
-    console.log(`📊 Gerando banner: tipo=${tipoNorm}, modelo=${modeloTipo}, cor=${corKey}, ExclusivoVertical=${isOrionExclusivoVertical}, OrionX=${isOrionX}`);
+    console.log(`📊 Gerando banner: tipo=${tipoNorm}, modelo=${modeloTipo}, cor=${corKey}, isRigel=${isRigel}, isBelteguese=${isBelteguese}, isBellatrix=${isBellatrix}`);
 
-    // --- Ajuste ano/nota para temporada ---
     let anoFinal = ano;
     let notaFinal = nota;
     if (tmdbTipo === "tv" && tmdbId && temporada) {
@@ -609,138 +637,92 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       }
     }
 
-    // --- Logo / título limpo ---
     let logoFanartBuffer = null;
     let fanartTitle = null;
-    
-    // ==================== ORION X: LOGO TMDB ====================
-    if (tmdbId && isOrionX) {
-      console.log("🔥 Orion X: Buscando logo TMDB...");
-      try {
-        const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
-          include_image_language: "pt-BR,pt-br,pt,en,null"
-        });
-        const imgsResp = await fetchWithTimeout(imgsUrl);
-        if (imgsResp.ok) {
-          const imgsData = await imgsResp.json();
-          const logos = imgsData.logos || [];
-          const pickByLang = (langs) =>
-            logos.find(l => langs.includes(l.iso_639_1 || "null"));
-          const chosenLogo =
-            pickByLang(["pt-BR", "pt-br"]) ||
-            pickByLang(["pt"]) ||
-            pickByLang(["en"]) ||
-            logos[0];
-          if (chosenLogo && chosenLogo.file_path) {
-            const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
-            if (validarURL(logoUrl)) {
-              logoFanartBuffer = await fetchBuffer(logoUrl, true);
-              console.log("✅ Orion X: Logo TMDB carregada!");
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("⚠️ Orion X: Logo TMDB não obtida:", err.message);
-      }
-
-      // Fallback para Fanart se não achou no TMDB
-      if (!logoFanartBuffer) {
+    if (tmdbId) {
+      if (isOrionX || isExclusive) {
         try {
-          let logoUrl = null;
-          if (tmdbTipo === "movie") {
-            logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
-            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
-          } else if (tmdbTipo === "tv") {
-            const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
-            if (tvdbId) {
-              logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
-              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
+          const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
+            include_image_language: "pt-BR,pt-br,pt,en,null"
+          });
+          const imgsResp = await fetchWithTimeout(imgsUrl);
+          if (imgsResp.ok) {
+            const imgsData = await imgsResp.json();
+            const logos = imgsData.logos || [];
+            const pickByLang = (langs) =>
+              logos.find(l => langs.includes(l.iso_639_1 || "null"));
+            const chosenLogo =
+              pickByLang(["pt-BR", "pt-br"]) ||
+              pickByLang(["pt"]) ||
+              pickByLang(["en"]) ||
+              logos[0];
+            if (chosenLogo && chosenLogo.file_path) {
+              const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+              if (validarURL(logoUrl)) {
+                logoFanartBuffer = await fetchBuffer(logoUrl, true);
+              }
             }
-          }
-          if (logoUrl && validarURL(logoUrl)) {
-            logoFanartBuffer = await fetchBuffer(logoUrl, true);
-            console.log("✅ Orion X: Logo Fanart carregada!");
           }
         } catch (err) {
-          console.warn("⚠️ Orion X: Logo Fanart não obtida:", err.message);
+          console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
+        }
+
+        if (!logoFanartBuffer) {
+          try {
+            let logoUrl = null;
+            if (tmdbTipo === "movie") {
+              logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
+              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
+            } else if (tmdbTipo === "tv") {
+              const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
+              if (tvdbId) {
+                logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
+                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
+              }
+            }
+            if (logoUrl && validarURL(logoUrl)) {
+              logoFanartBuffer = await fetchBuffer(logoUrl, true);
+              try {
+                fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
+              } catch {}
+            }
+          } catch (err) {
+            console.warn("⚠️ Logo Fanart não obtida:", err.message);
+          }
         }
       }
     }
 
-    // ==================== EXCLUSIVE: LOGO TMDB/FANART ====================
-    if (tmdbId && isExclusive) {
-      // 1) Tentar logo do TMDB (priorizando PT-BR)
-      try {
-        const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
-          include_image_language: "pt-BR,pt-br,pt,en,null"
-        });
-        const imgsResp = await fetchWithTimeout(imgsUrl);
-        if (imgsResp.ok) {
-          const imgsData = await imgsResp.json();
-          const logos = imgsData.logos || [];
-          const pickByLang = (langs) =>
-            logos.find(l => langs.includes(l.iso_639_1 || "null"));
-          const chosenLogo =
-            pickByLang(["pt-BR", "pt-br"]) ||
-            pickByLang(["pt"]) ||
-            pickByLang(["en"]) ||
-            logos[0];
-          if (chosenLogo && chosenLogo.file_path) {
-            const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
-            if (validarURL(logoUrl)) {
-              logoFanartBuffer = await fetchBuffer(logoUrl, true);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
-      }
-
-      // 2) Se não achou logo válida no TMDB, tentar Fanart (também priorizando PT-BR)
-      if (!logoFanartBuffer) {
-        try {
-          let logoUrl = null;
-          if (tmdbTipo === "movie") {
-            logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
-            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
-            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
-            if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
-          } else if (tmdbTipo === "tv") {
-            const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
-            if (tvdbId) {
-              logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
-              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
-              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
-              if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
-            }
-          }
-          if (logoUrl && validarURL(logoUrl)) {
-            logoFanartBuffer = await fetchBuffer(logoUrl, true);
-            try {
-              fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
-            } catch {}
-          }
-        } catch (err) {
-          console.warn("⚠️ Logo Fanart não obtida:", err.message);
-        }
-      }
-    }
-
-    // --- Backdrop ---
     async function obterBackdrop() {
-      if (backdropUrl && validarURL(backdropUrl)) return backdropUrl;
-      if (!tmdbId) return null;
+      if (!tmdbId) {
+        if (backdropUrl && validarURL(backdropUrl)) return backdropUrl;
+        return null;
+      }
+
       try {
         const imgUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, { include_image_language: "null" });
         const r = await fetchWithTimeout(imgUrl);
         if (r.ok) {
           const json = await r.json();
-          const first = json.backdrops?.[0]?.file_path;
-          if (first) return `https://image.tmdb.org/t/p/original${first}`;
+          const backdrops = json.backdrops || [];
+          
+          if (backdrops.length > 0) {
+            const randomIndex = Math.floor(Math.random() * Math.min(backdrops.length, 10));
+            const chosenBackdrop = backdrops[randomIndex];
+            if (chosenBackdrop?.file_path) {
+              return `https://image.tmdb.org/t/p/original${chosenBackdrop.file_path}`;
+            }
+          }
         }
-      } catch {
-        return null;
+      } catch (err) {
+        console.warn("⚠️ Erro ao buscar backdrops:", err.message);
       }
+
+      if (backdropUrl && validarURL(backdropUrl)) return backdropUrl;
       return null;
     }
 
@@ -762,7 +744,6 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       }).png().toBuffer();
     }
 
-    // Premium: aplica blur/sombra no backdrop
     if (isPremium) {
       backgroundBuffer = await sharp(backgroundBuffer)
         .blur(5)
@@ -770,24 +751,59 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
         .toBuffer();
     }
 
-    // Orion X (Bellatrix): aplica blur leve e escurecimento no background
-    if (isOrionX) {
-      backgroundBuffer = await sharp(backgroundBuffer)
-        .blur(6)
-        .modulate({ brightness: 0.65 })
-        .toBuffer();
+    if (isOrionX && backgroundBuffer) {
+      try {
+        const blurred = await sharp(backgroundBuffer).blur(4).toBuffer();
+        const darkBase = await sharp({
+          create: { width, height, channels: 4, background: { r: 2, g: 2, b: 5, alpha: 1 } }
+        }).png().toBuffer();
+        const backdropWithDark = await sharp(darkBase)
+          .composite([{ input: blurred, blend: 'over', opacity: 0.35 }])
+          .png()
+          .toBuffer();
+        
+        const blackOverlay = await sharp({
+          create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.4 } }
+        }).png().toBuffer();
+        
+        backgroundBuffer = await sharp(backdropWithDark)
+          .composite([{ input: blackOverlay, blend: 'over' }])
+          .png()
+          .toBuffer();
+        
+        console.log('🌑 BELLATRIX: Backdrop escurecido com overlay de sombra preta adicional');
+      } catch (err) {
+        console.warn('⚠️ Falha ao aplicar blur/transparência no backdrop ORION_X:', err.message);
+      }
     }
 
-    // --- Overlay de cor ---
     let overlayColorBuffer = null;
 
-    if (isPremium) {
+    if (modeloTipo === "ORION_X") {
+      const corLower = corKey.toLowerCase();
+      const modelo3Dir = path.join(__dirname, "public", "images", "modelo3");
+      const localPath = path.join(modelo3Dir, `${corLower}.png`);
+      if (await fileExists(localPath)) {
+        try {
+          console.log(`🎨 Overlay ORION_X local (${localPath})...`);
+          const localBuf = await fsPromises.readFile(localPath);
+          overlayColorBuffer = await sharp(localBuf)
+            .resize(width, height, { fit: "cover" })
+            .png()
+            .toBuffer();
+        } catch (err) {
+          console.warn(`⚠️ Erro overlay ORION_X local:`, err.message);
+        }
+      } else {
+        console.warn(`⚠️ Overlay ORION_X não encontrado: ${localPath}`);
+      }
+    } else if (isPremium) {
       let overlayOk = false;
       const premiumUrl = PREMIUM_OVERLAYS[corKey];
       if (premiumUrl && validarURL(premiumUrl)) {
         try {
           console.log(`🎨 Overlay Premium Cloudinary (${corKey})...`);
-        const premiumBuffer = await fetchBuffer(premiumUrl, true);
+          const premiumBuffer = await fetchBuffer(premiumUrl, true);
           overlayColorBuffer = await sharp(premiumBuffer)
             .resize(width, height, { fit: "cover" })
             .png()
@@ -824,31 +840,6 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       }
     }
 
-    // Orion X: overlay da pasta modelo3 (VERIFICAR PRIMEIRO)
-    if (isOrionX && !overlayColorBuffer) {
-      const overlayFilename = ORION_X_OVERLAYS[corKey] || ORION_X_OVERLAYS.PRETO;
-      const modelo3Dir = path.join(__dirname, "public", "images", "modelo3");
-      const overlayPath = path.join(modelo3Dir, overlayFilename);
-      
-      console.log(`🔍 Orion X: Tentando carregar overlay - Cor: ${corKey}, Arquivo: ${overlayFilename}, Path: ${overlayPath}`);
-      
-      if (await fileExists(overlayPath)) {
-        try {
-          console.log(`🎨 Overlay Orion X local (${corKey} - ${overlayFilename})...`);
-          const localBuf = await fsPromises.readFile(overlayPath);
-          overlayColorBuffer = await sharp(localBuf)
-            .resize(width, height)
-            .png()
-            .toBuffer();
-          console.log(`✅ Overlay Orion X carregado com sucesso!`);
-        } catch (err) {
-          console.warn("⚠️ Erro overlay Orion X local:", err.message);
-        }
-      } else {
-        console.warn(`❌ Arquivo overlay Orion X não encontrado: ${overlayPath}`);
-      }
-    }
-
     if (isExclusive && !overlayColorBuffer) {
       const corLower = corKey.toLowerCase();
       const modelo2Dir = path.join(__dirname, "public", "images", "modelo2");
@@ -873,14 +864,11 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       }
     }
 
-    // --- Poster (Exclusive tenta poster FANART limpo, depois TMDB limpo;
-    //             Premium usa sempre TMDB, preferindo poster limpo/sem título em PT) ---
     let effectivePosterUrl = posterUrl;
     if (tmdbId) {
       const endpointBase = tmdbTipo === "tv" ? `/tv/${tmdbId}/images` : `/movie/${tmdbId}/images`;
       const urlImgs = buildTMDBUrl(endpointBase, { include_image_language: "pt-BR,pt-br,pt,en,null" });
 
-      // Função auxiliar para escolher poster limpo/sem título, priorizando sempre PT-BR primeiro.
       const escolherPosterTMDB = async () => {
         const r = await fetchWithTimeout(urlImgs);
         if (!r.ok) return null;
@@ -890,16 +878,13 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 
         const byLang = (langs) =>
           posters.filter(p => langs.includes(p.iso_639_1 || "null"));
-        // Priorizar idiomas PT-BR > PT > EN > qualquer.
         let candidatos = byLang(["pt-BR", "pt-br"]);
         if (!candidatos.length) candidatos = byLang(["pt"]);
         if (!candidatos.length) candidatos = byLang(["en"]);
         if (!candidatos.length) candidatos = posters;
 
-        const preferClean =
-          candidatos.find(p => /clean|no[-_ ]?text/i.test(p.file_path || "")) ||
-          candidatos.find(p => /keyart|artwork/i.test(p.file_path || "")) ||
-          candidatos[0];
+        const randomIndex = Math.floor(Math.random() * Math.min(candidatos.length, 5));
+        const preferClean = candidatos[randomIndex];
 
         return preferClean && preferClean.file_path
           ? `https://image.tmdb.org/t/p/original${preferClean.file_path}`
@@ -908,12 +893,10 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 
       if (isExclusive) {
         try {
-          // 1) Primeiro tenta poster do TMDB em PT-BR/PT
           const tmdbPoster = await escolherPosterTMDB();
           if (tmdbPoster && validarURL(tmdbPoster)) {
             effectivePosterUrl = tmdbPoster;
           } else {
-            // 2) Se não houver poster adequado no TMDB, tenta Fanart (priorizando PT-BR)
             let fanartPosterUrl = null;
             if (tmdbTipo === "movie") {
               fanartPosterUrl = await fanartService.getMoviePoster(tmdbId, "pt-BR");
@@ -950,273 +933,267 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 
     const posterOriginal = await fetchBuffer(effectivePosterUrl);
     let pW, pH, pLeft, pTop, posterResized;
+    let titleY, synopseStartY, metaY;
 
-// ========= AJUSTE EXCLUSIVO VERTICAL (CORRIGIDO + deslocamentos) =========
-let titleY, synopseStartY, metaY;  // Definir variáveis no início
+    const wrapLimit = tipoNorm === "horizontal" ? 45 : 55;
+    const maxLines = isOrionExclusivoVertical ? 7 : 6;
+    let linhas = wrapText(sinopse || "", wrapLimit).slice(0, maxLines);
 
-// Definir linhas ANTES de usar
-let wrapLimit, maxLines;
-if (isOrionX) {
-  wrapLimit = 32;  // Limite maior para sinopse mais longa
-  maxLines = 12;     // Máximo 12 linhas - tem espaço para mais conteúdo
-} else if (isOrionExclusivoVertical) {
-  wrapLimit = 55;
-  maxLines = 7;
-} else {
-  wrapLimit = tipoNorm === "horizontal" ? 45 : 55;
-  maxLines = 6;
-}
-const linhas = wrapText(sinopse || "", wrapLimit).slice(0, maxLines);
+    let synopFontSize, lineHeight;
+    if (tipoNorm === "horizontal") {
+      if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 62; }
+      else if (linhas.length <= 3) { synopFontSize = 44; lineHeight = 58; }
+      else if (linhas.length <= 4) { synopFontSize = 40; lineHeight = 54; }
+      else { synopFontSize = 36; lineHeight = 48; }
+    } else {
+      if (linhas.length <= 2) { synopFontSize = 38; lineHeight = 52; }
+      else if (linhas.length <= 4) { synopFontSize = 36; lineHeight = 48; }
+      else { synopFontSize = 34; lineHeight = 46; }
+    }
 
-// Fontes sinopse: negrito com leve sombra
-let synopFontSize, lineHeight;
-if (isOrionX) {
-  // ORION X (1080x1540): sinopses pequenas ficam maiores, grandes se ajustam
-  if (linhas.length <= 2) { synopFontSize = 38; lineHeight = 48; }  // Bem maior para sinopses curtas
-  else if (linhas.length <= 3) { synopFontSize = 34; lineHeight = 44; }
-  else if (linhas.length <= 5) { synopFontSize = 30; lineHeight = 40; }
-  else if (linhas.length <= 7) { synopFontSize = 28; lineHeight = 38; }
-  else if (linhas.length <= 9) { synopFontSize = 26; lineHeight = 36; }
-  else { synopFontSize = 24; lineHeight = 34; }  // Menor para sinopses muito longas
-} else if (tipoNorm === "horizontal") {
-  if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 62; }
-  else if (linhas.length <= 3) { synopFontSize = 44; lineHeight = 58; }
-  else if (linhas.length <= 4) { synopFontSize = 40; lineHeight = 54; }
-  else { synopFontSize = 36; lineHeight = 48; }
-} else {
-  // ORION_EXCLUSIVO vertical (Betelgeuse): sinopses pequenas maiores, grandes se ajustam
-  if (isOrionExclusivoVertical) {
-    if (linhas.length <= 2) { synopFontSize = 46; lineHeight = 60; }  // Bem maior para sinopses curtas
-    else if (linhas.length <= 3) { synopFontSize = 42; lineHeight = 56; }
-    else if (linhas.length <= 4) { synopFontSize = 38; lineHeight = 52; }
-    else if (linhas.length <= 5) { synopFontSize = 36; lineHeight = 50; }
-    // 6–7 linhas: fonte menor para não quebrar o layout
-    else { synopFontSize = 34; lineHeight = 48; }
-  } else {
-    if (linhas.length <= 2) { synopFontSize = 42; lineHeight = 58; }
-    else if (linhas.length <= 3) { synopFontSize = 40; lineHeight = 56; }
-    else if (linhas.length <= 4) { synopFontSize = 38; lineHeight = 52; }
-    else if (linhas.length <= 5) { synopFontSize = 34; lineHeight = 48; }
-    else { synopFontSize = 30; lineHeight = 44; }
-  }
-}
+    if (isOrionX) {
+      pW = 460; 
+      pH = 680;
+      pLeft = 90; 
+      pTop = Math.round((height - pH) / 2) - 5; 
 
-let titleFontSize;
-if (isOrionX) {
-  // Título para ORION_X (formato 1080x1540)
-  titleFontSize =
-    titulo.length <= 22 ? 90 :
-    titulo.length <= 36 ? 75 :
-    65;
-} else if (isOrionExclusivoVertical) {
-  // Título maior para ORION_EXCLUSIVO
-  titleFontSize =
-    titulo.length <= 22 ? 125 :
-    titulo.length <= 36 ? 105 :
-    88;
-} else {
-  titleFontSize =
-    titulo.length <= 22 ? (tipoNorm === "horizontal" ? 55 : 50) :
-    titulo.length <= 36 ? (tipoNorm === "horizontal" ? 48 : 40) :
-    (tipoNorm === "horizontal" ? 40 : 34);
-}
+      const posterBase = await sharp(posterOriginal)
+        .resize(pW, pH, { fit: "cover", position: "center" })
+        .png()
+        .toBuffer();
+      const radius = 50;
+      const roundedCorner = Buffer.from(`
+        <svg width="${pW}" height="${pH}">
+          <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}"/>
+        </svg>
+      `);
+      posterResized = await sharp(posterBase)
+        .composite([{ input: roundedCorner, blend: "dest-in" }])
+        .png()
+        .toBuffer();
 
-const notaFmt = notaFinal ? parseFloat(notaFinal).toFixed(1) : "N/A";
-const durFmt = formatTime(duracao) || duracao || "";
+      let logoFanartLayer = null;
+      let renderFallbackTitle = false;
+      let titleLinesX = [];
 
-// Meta sem o ícone de estrela (a estrela dourada é desenhada via SVG)
-let metaString = `${notaFmt} | ${anoFinal || ""} | ${genero || ""} | ${durFmt}`;
-let metaStringLine2 = "";
+      if (logoFanartBuffer) {
+        try {
+          const logoProcessed = await sharp(logoFanartBuffer)
+            .resize(900, 300, { fit: "inside" })
+            .png()
+            .toBuffer();
+          const { width: lw, height: lh } = await sharp(logoProcessed).metadata();
+          const logoX = Math.round((width - lw) / 2);
+          const logoY = 80;
+          logoFanartLayer = { input: logoProcessed, top: logoY, left: logoX };
+        } catch (err) {
+          console.warn("Logo Fanart layer erro:", err.message);
+          renderFallbackTitle = true;
+        }
+      } else {
+        renderFallbackTitle = true;
+      }
 
-// Quebrar linha apenas se o texto for muito longo (mais de 35 caracteres) ou for série
-if (metaString.length > 35 || (tmdbTipo === "tv" && temporada)) {
-  if (tmdbTipo === "tv" && temporada) {
-    metaString = `Temporada ${temporada} - ${notaFmt}`;
-    metaStringLine2 = `${anoFinal || ""} | ${genero || ""}`;
-  } else {
-    metaString = `${notaFmt} | ${anoFinal || ""} | ${genero || ""}`;
-    metaStringLine2 = durFmt || "";
-  }
-}
+      if (renderFallbackTitle) {
+        const titleWrapLimit = 15;
+        titleLinesX = wrapText(titulo || "TÍTULO", titleWrapLimit).slice(0, 3);
+      }
 
-// Cor dos metadados: branco para Exclusive e Orion X
-const metaColor = (isExclusive || isOrionX) ? "#ffffff" : corConfig.hex;
-// Metadados ajustados por modelo
-const metaFontSize = isOrionX ? 24 : (isOrionExclusivoVertical ? 34 : (tipoNorm === "horizontal" ? 26 : 29));
+      const sinopseAreaX = pLeft + pW + 60; 
+      const wrapLimitX = 26; 
+      const maxLinesX = 12;
+      let linhasX = wrapText(sinopse || "", wrapLimitX).slice(0, maxLinesX);
+      
+      const synopFontSizeX = 32;
+      const lineHeightX = 46;
+      
+      const sinopseTotalH = linhasX.length * lineHeightX;
+      const sinopseStartYX = pTop + ((pH - sinopseTotalH) / 2) - 40;
 
-if (isOrionX) {
-  // ========= LAYOUT ORION X (1080x1540) =========
-  // Logo centralizada no topo, poster menor à esquerda, texto à direita
-  
-  // Poster maior à esquerda (42% da largura)
-  pW = Math.round(width * 0.42);
-  pH = Math.round(pW * 1.5);
-  pLeft = 83;  // Ajustado para direita
-  pTop = 420;   // Mais descido ainda para encaixar na moldura
+      const svgContent = `
+        <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+              <feOffset dx="2" dy="2" result="offsetblur"/>
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.5"/>
+              </feComponentTransfer>
+              <feMerge> 
+                <feMergeNode/>
+                <feMergeNode in="SourceGraphic"/> 
+              </feMerge>
+            </filter>
+          </defs>
+          <style>
+            .synop {
+              fill: #fff;
+              font-family: 'Segoe UI', Arial, sans-serif;
+              font-weight: 700;
+              font-size: ${synopFontSizeX}px;
+              letter-spacing: 0.5px;
+              filter: url(#softShadow);
+            }
+            .fallback-title {
+              fill: #fff;
+              font-family: 'Arial Black', Arial, sans-serif;
+              font-weight: 900;
+              font-size: 80px;
+              text-anchor: middle;
+              filter: drop-shadow(0px 0px 20px #000);
+              text-transform: uppercase;
+            }
+          </style>
+          
+          ${renderFallbackTitle ? titleLinesX.map((line, i) => `
+            <text x="${width / 2}" y="${150 + (i * 90)}" class="fallback-title">${safeXml(line)}</text>
+          `).join("") : ""}
 
-  // Criar poster com bordas arredondadas
-  const posterBase = await sharp(posterOriginal)
-    .resize(pW, pH, { fit: "cover", position: "center" })
-    .png()
-    .toBuffer();
+          ${linhasX.map((line, i) => `
+            <text x="${sinopseAreaX}" y="${sinopseStartYX + i * lineHeightX}" text-anchor="start" class="synop">${safeXml(line)}</text>
+          `).join("")}
+        </svg>
+      `;
+      const svgBuffer = Buffer.from(svgContent);
 
-  const radius = 25;  // Raio das bordas arredondadas
-  
-  // Criar máscara com bordas arredondadas
-  const roundedCorner = Buffer.from(`
-    <svg width="${pW}" height="${pH}">
-      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}" fill="white"/>
-    </svg>
-  `);
+      const layers = [];
+      
+      let userLogoLayer = null;
+      let secondaryLogoLayer = null;
+      
+      try {
+        const userDoc = await db.collection("usuarios").doc(req.uid).get();
+        const userLogo = userDoc.exists ? userDoc.data().logo : null;
+        
+        if (userLogo && validarURL(userLogo)) {
+          let lb = await fetchBuffer(userLogo, false);
 
-  // Aplicar bordas arredondadas
-  const posterRounded = await sharp(posterBase)
-    .composite([{ input: roundedCorner, blend: "dest-in" }])
-    .png()
-    .toBuffer();
-  
-  // Criar sombra SVG como overlay separado (mesmo tamanho do poster)
-  const shadowOverlay = Buffer.from(`
-    <svg width="${pW}" height="${pH}">
-      <defs>
-        <filter id="dropshadow" height="130%">
-          <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
-          <feOffset dx="3" dy="5" result="offsetblur"/>
-          <feComponentTransfer>
-            <feFuncA type="linear" slope="0.5"/>
-          </feComponentTransfer>
-          <feMerge>
-            <feMergeNode/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}" fill="rgba(0,0,0,0)" filter="url(#dropshadow)"/>
-    </svg>
-  `);
-  
-  // Adicionar efeito de sombra ao poster arredondado
-  posterResized = await sharp(posterRounded)
-    .composite([{ input: shadowOverlay, blend: "over" }])
-    .png()
-    .toBuffer();
+          let lbSmall = await sharp(lb).resize(200, 200, { fit: "contain" }).png().toBuffer();
+          const logoTop = Math.round(height - 30 - 200);
+          const logoLeft = 30;
+          userLogoLayer = { input: lbSmall, top: logoTop, left: logoLeft };
 
-  // Logo/título no topo centralizado (será posicionado depois)
-  titleY = 80;  // Logo no topo
-  
-  // Sinopse à direita do poster (começa na mesma altura do poster, mais descida)
-  synopseStartY = pTop + 60;
-  
-  // Metadados abaixo da sinopse (mas ainda acima do final do poster)
-  metaY = synopseStartY + (linhas.length * lineHeight) + 40;
+          const logoSecW = 300;
+          const lbBig = await sharp(lb).resize(logoSecW).png().toBuffer();
+          
+          const lbBigBase64 = lbBig.toString('base64');
+          const { width: wBig, height: hBig } = await sharp(lbBig).metadata();
+          
+          const svgLogoSec = `
+            <svg width="${wBig}" height="${hBig}">
+              <image href="data:image/png;base64,${lbBigBase64}" width="${wBig}" height="${hBig}" opacity="0.15" />
+            </svg>
+          `;
+          const logoSecBuffer = Buffer.from(svgLogoSec);
 
-} else if (isOrionExclusivoVertical) {
-  // Layout do ORION_EXCLUSIVO vertical sem frame de celular (celular já embutido no overlay)
-  // Poster centralizado, com cantos arredondados
-  // Leve redução na largura para "encolher" um pouco o lado direito
-  pW = Math.round(width * 0.58);
-  pH = Math.round(pW * 1.7);
-  pLeft = Math.round((width - pW) / 2) - 4;
-  pTop = 220;
+          const logoSecX = sinopseAreaX - 40; 
+          const logoSecY = sinopseStartYX + sinopseTotalH + 150; 
 
-  const posterBase = await sharp(posterOriginal)
-    .resize(pW, pH, { fit: "cover", position: "center" })
-    .png()
-    .toBuffer();
+          secondaryLogoLayer = { input: logoSecBuffer, top: Math.round(logoSecY), left: Math.round(logoSecX) };
+        }
+      } catch (err) {
+        console.warn("Erro ao processar logos do usuário:", err.message);
+      }
 
-  const radius = 70;
-  const roundedCorner = Buffer.from(`
-    <svg width="${pW}" height="${pH}">
-      <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}"/>
-    </svg>
-  `);
+      if (secondaryLogoLayer) layers.push(secondaryLogoLayer);
+      if (overlayColorBuffer) layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
+      layers.push({ input: posterResized, top: pTop, left: pLeft });
+      if (logoFanartLayer) layers.push(logoFanartLayer);
+      layers.push({ input: svgBuffer, top: 0, left: 0 });
+      if (userLogoLayer) layers.push(userLogoLayer);
 
-  posterResized = await sharp(posterBase)
-    .composite([{ input: roundedCorner, blend: "dest-in" }])
-    .png()
-    .toBuffer();
+      const final = await sharp(backgroundBuffer)
+        .composite(layers)
+        .png({ quality: 95 })
+        .toBuffer();
 
-  // Ajustes de texto para Orion Exclusivo Vertical - alinhado ao poster
-  // Calcula baseado na parte inferior do poster
-  const posterBottom = pTop + pH;
-  // Título/logotipo um pouco abaixo do poster
-  titleY = posterBottom + 90;
+      const safeTitle = titulo.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
+      res.setHeader("Content-Disposition", `attachment; filename=banner_${safeTitle}.png`);
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.send(final);
+      console.log(`✅ Banner Bellatrix (SHADOW & POLISH) gerado: usuario=${req.uid} modelo=ORION_X cor=${corKey}`);
+      return;
+    }
 
-  // Posição base da sinopse/metadados
-  let baseSynopseY = titleY + 55;
-  let baseMetaY = baseSynopseY + (linhas.length * lineHeight);
+    if (isOrionExclusivoVertical) {
+      pW = Math.round(width * 0.58);
+      pH = Math.round(pW * 1.7);
+      pLeft = Math.round((width - pW) / 2) - 4;
+      pTop = 220;
 
-  // Se a sinopse for curta, desce um pouco o conjunto sinopse+meta para não ficar colado no título.
-  if (linhas.length <= 3) {
-    const extra = 40;
-    baseSynopseY += extra;
-    baseMetaY += extra;
-  } else if (linhas.length <= 5) {
-    const extra = 20;
-    baseSynopseY += extra;
-    baseMetaY += extra;
-  }
+      const posterBase = await sharp(posterOriginal)
+        .resize(pW, pH, { fit: "cover", position: "center" })
+        .png()
+        .toBuffer();
 
-  synopseStartY = baseSynopseY;
-  metaY = baseMetaY;
+      const radius = 70;
+      const roundedCorner = Buffer.from(`
+        <svg width="${pW}" height="${pH}">
+          <rect x="0" y="0" width="${pW}" height="${pH}" rx="${radius}" ry="${radius}"/>
+        </svg>
+      `);
 
-} else {
-  console.log("DEBUG: CAIU NO BLOCO ELSE (MODO PADRÃO/PREMIUM OU HORIZONTAL)");
-  // Lógica padrão
-  if (tipoNorm === "horizontal") {
-    pW = isPremium || isExclusive ? 560 : Math.round(width * 0.32);
-    pH = Math.round(pW * 1.58);
-    pLeft = isPremium || isExclusive ? 160 : Math.round((width - pW) / 2);
-    pTop = Math.round((height - pH) / 2) - 153;
-  } else {
-    pW = Math.round(width * 0.5);
-    pH = Math.round(pW * 1.58);
-    pLeft = Math.round((width - pW) / 2);
-    pTop = 193;
-  }
+      posterResized = await sharp(posterBase)
+        .composite([{ input: roundedCorner, blend: "dest-in" }])
+        .png()
+        .toBuffer();
 
-  posterResized = await sharp(posterOriginal)
-    .resize(pW, pH, { fit: "cover" })
-    .png()
-    .toBuffer();
+      const posterBottom = pTop + pH;
+      titleY = posterBottom + 90;
 
-  // Bloco else para texto padrão
-  const spaceAfterPoster = tipoNorm === "horizontal" ? 190 : 230;
-  const titleMargin = tipoNorm === "horizontal" ? 50 : 65;
-  const spaceAfterTitle = tipoNorm === "horizontal" ? 45 : 55;
+      let baseSynopseY = titleY + 55;
+      let baseMetaY = baseSynopseY + (linhas.length * lineHeight);
 
-  const startY = pTop + pH + spaceAfterPoster;
+      if (linhas.length <= 3) {
+        const extra = 40;
+        baseSynopseY += extra;
+        baseMetaY += extra;
+      } else if (linhas.length <= 5) {
+        const extra = 20;
+        baseSynopseY += extra;
+        baseMetaY += extra;
+      }
 
-  titleY = startY + titleMargin;
-  synopseStartY = titleY + spaceAfterTitle;
-  metaY = synopseStartY + (linhas.length * lineHeight) + 20;
-}
+      synopseStartY = baseSynopseY;
+      metaY = baseMetaY;
+    } else {
+      if (tipoNorm === "horizontal") {
+        pW = isPremium || isExclusive ? 560 : Math.round(width * 0.32);
+        pH = Math.round(pW * 1.58);
+        pLeft = isPremium || isExclusive ? 160 : Math.round((width - pW) / 2);
+        pTop = Math.round((height - pH) / 2) - 153;
+      } else {
+        pW = Math.round(width * 0.5);
+        pH = Math.round(pW * 1.58);
+        pLeft = Math.round((width - pW) / 2);
+        pTop = 193;
+      }
 
-// Definir textX e textAnchor DEPOIS dos blocos de layout (quando pW e pLeft já estão definidos)
-const textX = isOrionX ? (pLeft + pW + 70) : (tipoNorm === "horizontal" ? pLeft + pW + 40 : Math.round(width / 2));
-const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "middle");
+      posterResized = await sharp(posterOriginal)
+        .resize(pW, pH, { fit: "cover" })
+        .png()
+        .toBuffer();
 
-    // Logo acima
+      const spaceAfterPoster = tipoNorm === "horizontal" ? 190 : 230;
+      const titleMargin = tipoNorm === "horizontal" ? 50 : 65;
+      const spaceAfterTitle = tipoNorm === "horizontal" ? 45 : 55;
+
+      const startY = pTop + pH + spaceAfterPoster;
+
+      titleY = startY + titleMargin;
+      synopseStartY = titleY + spaceAfterTitle;
+      metaY = synopseStartY + (linhas.length * lineHeight) + 20;
+    }
+
     let logoFanartLayer = null;
     if (logoFanartBuffer) {
       try {
-        // Logo Fanart: garantir que nunca ultrapasse o tamanho do banner
-        const maxLogoWVertical = Math.round(width * 0.9);  // no máximo 90% da largura do banner
+        const maxLogoWVertical = Math.round(width * 0.9);
         const maxLogoHVertical = 420;
 
-        const logoMaxW =
-          isOrionX
-            ? Math.round(width * 0.85)
-            : (tipoNorm === "horizontal"
-              ? 1000
-              : Math.min(isOrionExclusivoVertical ? maxLogoWVertical : 1200, maxLogoWVertical));
-
-        const logoMaxH =
-          isOrionX
-            ? 280
-            : (tipoNorm === "horizontal"
-              ? 300
-              : (isOrionExclusivoVertical ? maxLogoHVertical : 360));
+        const logoMaxW = tipoNorm === "horizontal" ? 1000 : Math.min(isOrionExclusivoVertical ? maxLogoWVertical : 1200, maxLogoWVertical);
+        const logoMaxH = tipoNorm === "horizontal" ? 300 : (isOrionExclusivoVertical ? maxLogoHVertical : 360);
 
         const logoProcessed = await sharp(logoFanartBuffer)
           .resize(logoMaxW, logoMaxH, { fit: "inside" })
@@ -1224,15 +1201,11 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
           .toBuffer();
 
         const { width: lw, height: lh } = await sharp(logoProcessed).metadata();
-        // Logo centralizada para Orion X
-        const logoX = isOrionX ? Math.round((width - lw) / 2) : (tipoNorm === "horizontal" ? textX : Math.round((width - lw) / 2));
+        const textX = tipoNorm === "horizontal" ? (isPremium || isExclusive ? pLeft + pW + 100 : width / 2) : width / 2;
+        const logoX = tipoNorm === "horizontal" ? textX : Math.round((width - lw) / 2);
 
         let logoY;
-        if (isOrionX) {
-          // Logo TMDB centralizada no topo (formato 1080x1540)
-          logoY = 60;
-        } else if (isOrionExclusivoVertical) {
-          // Logo levemente mais próxima do título, mas um pouco mais alta no layout
+        if (isOrionExclusivoVertical) {
           logoY = titleY - lh - 20;
         } else {
           logoY = synopseStartY - lh - 270;
@@ -1248,47 +1221,49 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
     const exclusiveTitleValue = fanartTitle || titulo;
     const titleTextValue = isExclusive ? exclusiveTitleValue : titulo;
     const shouldDrawTitleText = isPremium || !logoFanartLayer;
-    
-    // Quando não há logo oficial nos modelos exclusivos, centralizar título onde seria a logo
-    let finalTitleTextY = titleY;
-    let finalTitleTextX = textX;
-    let finalTitleAnchor = textAnchor;
-    let adjustedTitleFontSize = titleFontSize;
-    
-    if ((isOrionX || isOrionExclusivoVertical) && !logoFanartLayer) {
-      // Centralizar título horizontalmente
-      finalTitleTextX = Math.round(width / 2);
-      finalTitleAnchor = "middle";
-      
-      // Posicionar na região da logo
-      if (isOrionX) {
-        finalTitleTextY = 280; // Centralizado verticalmente na região superior
-      } else {
-        // ORION_EXCLUSIVO: logo acima da sinopse (mesmo lugar que ficaria a logo oficial)
-        finalTitleTextY = synopseStartY - 180;
-      }
-      
-      // Tamanho dinâmico baseado no comprimento do título para não quebrar layout
-      if (isOrionX) {
-        adjustedTitleFontSize = 
-          titulo.length <= 12 ? 75 :
-          titulo.length <= 18 ? 62 :
-          titulo.length <= 25 ? 52 :
-          titulo.length <= 35 ? 44 :
-          titulo.length <= 45 ? 38 :
-          32;
-      } else {
-        adjustedTitleFontSize = 
-          titulo.length <= 12 ? 95 :
-          titulo.length <= 18 ? 82 :
-          titulo.length <= 25 ? 68 :
-          titulo.length <= 35 ? 56 :
-          titulo.length <= 45 ? 48 :
-          40;
-      }
+
+    const textX = tipoNorm === "horizontal" ? (isPremium || isExclusive ? pLeft + pW + 100 : width / 2) : width / 2;
+    const textAnchor = tipoNorm === "horizontal" ? "start" : "middle";
+
+    let titleFontSize;
+    if (isRigel) {
+      const titleLen = titleTextValue.length;
+      if (titleLen > 35) titleFontSize = 28;
+      else if (titleLen > 30) titleFontSize = 32;
+      else if (titleLen > 25) titleFontSize = 36;
+      else if (titleLen > 20) titleFontSize = 42;
+      else if (titleLen > 15) titleFontSize = 48;
+      else titleFontSize = 54;
+      console.log(`🎯 RIGEL (PADRAO): Título com ${titleLen} caracteres, fonte ajustada para ${titleFontSize}px`);
+    } else if (isBelteguese && shouldDrawTitleText) {
+      const titleLen = titleTextValue.length;
+      if (titleLen > 35) titleFontSize = 32;
+      else if (titleLen > 30) titleFontSize = 38;
+      else if (titleLen > 25) titleFontSize = 44;
+      else if (titleLen > 20) titleFontSize = 52;
+      else if (titleLen > 15) titleFontSize = 60;
+      else titleFontSize = 68;
+      console.log(`🎯 BELTEGUESE (ORION_EXCLUSIVO): Título com ${titleLen} caracteres, fonte ajustada para ${titleFontSize}px`);
+    } else {
+      titleFontSize = tipoNorm === "horizontal" ? 85 : (isOrionExclusivoVertical ? 72 : 78);
     }
 
-    // Sombra leve e sinopse/meta em negrito
+    const metaFontSize = tipoNorm === "horizontal" ? 34 : 32;
+    
+    const metaTextColor = isBelteguese ? "#ffffff" : corConfig.hex;
+    const metaStarColor = "#ffc107";
+    
+    if (isBelteguese) {
+      console.log(`⭐ BELTEGUESE: Metadados forçados para BRANCO (#ffffff) e estrela DOURADA (#ffc107)`);
+    }
+
+    const metaParts = [];
+    if (notaFinal) metaParts.push(parseFloat(notaFinal).toFixed(1));
+    if (genero) metaParts.push(genero);
+    if (anoFinal) metaParts.push(anoFinal);
+    if (duracao) metaParts.push(formatTime(duracao));
+    const metaString = metaParts.join(" • ");
+
     const svgContent = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <defs>
@@ -1308,17 +1283,17 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
             fill: #ffffff;
             font-family: Arial, sans-serif;
             font-weight: 900;
-            font-size: ${adjustedTitleFontSize}px;
+            font-size: ${titleFontSize}px;
             letter-spacing: -1px;
             filter: url(#dropShadow);
           }
           .synop {
             fill: #ffffff;
             font-family: "Segoe UI", Arial, sans-serif;
-            font-weight: ${isOrionX ? '800' : '600'}; /* negrito forte para Orion X */
+            font-weight: 600;
             font-size: ${synopFontSize}px;
             letter-spacing: 0.3px;
-            filter: url(#dropShadow); /* leve sombra */
+            filter: url(#dropShadow);
           }
           .meta {
             font-family: "Segoe UI", Arial, sans-serif;
@@ -1329,15 +1304,15 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
             filter: url(#dropShadow);
           }
           .meta-star {
-            fill: #ffc107; /* amarelo IMDB */
+            fill: ${metaStarColor};
           }
           .meta-text {
-            fill: ${metaColor};
+            fill: ${metaTextColor};
           }
         </style>
 
         ${shouldDrawTitleText ? `
-        <text x="${finalTitleTextX}" y="${finalTitleTextY}" text-anchor="${finalTitleAnchor}" class="title">
+        <text x="${textX}" y="${titleY}" text-anchor="${textAnchor}" class="title">
           ${safeXml(titleTextValue.toUpperCase())}
         </text>` : ""}
 
@@ -1348,128 +1323,31 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
         `).join("")}
 
         <text x="${textX}" y="${metaY}" text-anchor="${textAnchor}" class="meta">
-          ${(tmdbTipo === "tv" && temporada && metaStringLine2) ? `
-            <tspan class="meta-text">${safeXml(metaString.split(' - ')[0])} - </tspan>
-            <tspan class="meta-star">★ </tspan>
-            <tspan class="meta-text">${safeXml(metaString.split(' - ')[1] || '')}</tspan>
-          ` : `
-            <tspan class="meta-star">★ </tspan>
-            <tspan class="meta-text">${safeXml(metaString)}</tspan>
-          `}
+          <tspan class="meta-star">★ </tspan>
+          <tspan class="meta-text">${safeXml(metaString)}</tspan>
         </text>
-        ${metaStringLine2 ? `
-        <text x="${textX}" y="${metaY + metaFontSize + 8}" text-anchor="${textAnchor}" class="meta">
-          <tspan class="meta-text">${safeXml(metaStringLine2)}</tspan>
-        </text>
-        ` : ''}
 
       </svg>
     `;
     const svgBuffer = Buffer.from(svgContent);
 
-    // Logo do usuário
     let userLogoLayer = null;
-    let userLogoFooterLayer = null;
     try {
       const userDoc = await db.collection("usuarios").doc(req.uid).get();
       const userLogo = userDoc.exists ? userDoc.data().logo : null;
       if (userLogo && validarURL(userLogo)) {
         let lb = await fetchBuffer(userLogo, false);
-        
-        if (isOrionX) {
-          // Orion X: logo no canto inferior esquerdo com efeito de sombra
-          const logoSize = 200; // Levemente menor
-          lb = await sharp(lb)
-            .resize(logoSize, logoSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-            .ensureAlpha()
-            .png()
-            .toBuffer();
-          
-          // Aplicar 95% de opacidade (5% de transparência) com efeito de sombra
-          const logoWithEffect = Buffer.from(`
-            <svg width="${logoSize}" height="${logoSize}">
-              <defs>
-                <filter id="logoShadow">
-                  <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
-                  <feOffset dx="2" dy="3" result="offsetblur"/>
-                  <feComponentTransfer>
-                    <feFuncA type="linear" slope="0.6"/>
-                  </feComponentTransfer>
-                  <feMerge>
-                    <feMergeNode/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
-            </svg>
-          `);
-          
-          lb = await sharp(lb)
-            .composite([{
-              input: Buffer.from(`
-                <svg width="${logoSize}" height="${logoSize}">
-                  <rect x="0" y="0" width="${logoSize}" height="${logoSize}" fill="white" opacity="0.95"/>
-                </svg>
-              `),
-              blend: 'dest-in'
-            }])
-            .toBuffer();
-          
-          // Posicionar bem no canto inferior esquerdo
-          const userLogoTop = height - logoSize - 30;
-          const userLogoLeft = 30;
-          userLogoLayer = { input: lb, top: userLogoTop, left: userLogoLeft };
-        } else {
-          // Outros modelos: posição padrão no canto superior direito
-          lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
-          userLogoLayer = { input: lb, top: 40, left: width - 220 };
-        }
-        
-        // Logo adicional para Orion X (Bellatrix): grande no rodapé com transparência (sem rotação)
-        if (isOrionX) {
-          const logoFooterSize = Math.round(width * 0.36); // 36% da largura (ainda maior)
-          let lbFooter = await fetchBuffer(userLogo, false);
-          lbFooter = await sharp(lbFooter)
-            .resize(logoFooterSize, logoFooterSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-            .ensureAlpha()
-            .toBuffer();
-          
-          // Aplicar 20% de opacidade (80% de transparência)
-          lbFooter = await sharp(lbFooter)
-            .composite([{
-              input: Buffer.from([
-                `<svg width="${logoFooterSize}" height="${logoFooterSize}">`,
-                `<rect x="0" y="0" width="${logoFooterSize}" height="${logoFooterSize}" fill="white" opacity="0.2"/>`,
-                `</svg>`
-              ].join('')),
-              blend: 'dest-in'
-            }])
-            .toBuffer();
-          
-          // Posicionar mais para baixo e mais à esquerda
-          const footerTop = height - logoFooterSize - 150;  // Mais abaixo (200 → 150)
-          const footerLeft = width - logoFooterSize - 160;  // Mais à esquerda (120 → 160)
-          userLogoFooterLayer = { input: lbFooter, top: footerTop, left: footerLeft };
-        }
+        lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
+        userLogoLayer = { input: lb, top: 40, left: width - 220 };
       }
     } catch {}
 
     const layers = [];
 
-    // Ordem das camadas:
-    if (isOrionX && overlayColorBuffer) {
-      // Orion X: logo translúcida primeiro (atrás de tudo), depois overlay, poster e logo principal POR CIMA
-      if (userLogoFooterLayer) {
-        layers.push(userLogoFooterLayer);
-      }
-      layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
-      layers.push({ input: posterResized, top: pTop, left: pLeft });
-    } else if (isOrionExclusivoVertical && overlayColorBuffer) {
-      // Exclusive: poster POR TRÁS do overlay (usa modelo2)
+    if (isOrionExclusivoVertical && overlayColorBuffer) {
       layers.push({ input: posterResized, top: pTop, left: pLeft });
       layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
     } else {
-      // Premium / outros: overlay cobre backdrop e poster por cima
       if (overlayColorBuffer) {
         layers.push({ input: overlayColorBuffer, top: 0, left: 0 });
       }
@@ -1477,17 +1355,8 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
     }
 
     if (logoFanartLayer) layers.push(logoFanartLayer);
-
     layers.push({ input: svgBuffer, top: 0, left: 0 });
-
-    if (userLogoLayer) {
-      // Logo principal (opaca) no canto superior direito
-      layers.push(userLogoLayer);
-
-      // Removidas as marcas d'água extras para deixar o layout mais limpo no modelo exclusivo
-    }
-    
-    // Logo adicional translúcida já foi adicionada antes do overlay para Orion X
+    if (userLogoLayer) layers.push(userLogoLayer);
 
     const final = await sharp(backgroundBuffer)
       .composite(layers)
@@ -1501,163 +1370,946 @@ const textAnchor = isOrionX ? "start" : (tipoNorm === "horizontal" ? "start" : "
     res.send(final);
 
     console.log(`✅ Banner gerado: usuario=${req.uid} modelo=${modeloTipo || "PADRAO"} cor=${corKey} overlay=${!!overlayColorBuffer}`);
-    
-    // Salvar banner no Cloudinary e registro no Firestore (async, não bloqueia resposta)
-    (async () => {
-      try {
-        console.log(`📤 Iniciando upload do banner para Cloudinary...`);
-        
-        // Upload do banner para o Cloudinary
-        const uploadResult = await new Promise((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: 'banners_gerados',
-              public_id: `banner_${req.uid}_${Date.now()}`,
-              resource_type: 'image',
-              format: 'png'
-            },
-            (error, result) => {
-              if (error) reject(error);
-              else resolve(result);
-            }
-          );
-          uploadStream.end(final);
-        });
-        
-        console.log(`☁️ Upload Cloudinary concluído: ${uploadResult.secure_url}`);
-        
-        // Calcular data de expiração (7 dias)
-        const dataExpiracao = new Date();
-        dataExpiracao.setDate(dataExpiracao.getDate() + 7);
-        
-        // Salvar registro no Firestore
-        const docRef = await db.collection('banners').add({
-          userId: req.uid,
-          titulo: titulo,
-          modeloCor: corKey,
-          modeloTipo: modeloTipo || 'PADRAO',
-          tipo: tipoNorm,
-          tmdbId: tmdbId,
-          tmdbTipo: tmdbTipo,
-          temporada: temporada || null,
-          posterUrl: posterUrl,
-          bannerUrl: uploadResult.secure_url,
-          cloudinaryPublicId: uploadResult.public_id,
-          criadoEm: admin.firestore.FieldValue.serverTimestamp(),
-          expiraEm: admin.firestore.Timestamp.fromDate(dataExpiracao)
-        });
-        
-        console.log(`💾 Banner salvo no Firestore (ID: ${docRef.id})`);
-        console.log(`✅ URL do banner: ${uploadResult.secure_url}`);
-        console.log(`⏰ Expira em: ${dataExpiracao.toLocaleDateString('pt-BR')}`);
-      } catch (saveErr) {
-        console.error('❌ Erro ao salvar banner:', saveErr.message);
-        console.error(saveErr.stack);
-      }
-    })();
+
   } catch (err) {
     console.error("❌ Erro gerar banner:", err.message);
     res.status(500).json({ error: "Falha ao gerar o banner", details: err.message });
   }
 });
 
-// =====================================================================
-// ROTA: Buscar últimas criações do usuário
-// =====================================================================
-
-app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
-  try {
-    const agora = admin.firestore.Timestamp.now();
+// Função para processar FFmpeg com progresso
+async function spawnProcessWithProgress(command, args, onProgress) {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args);
+    let stdout = '';
+    let stderr = '';
     
-    // Buscar todos os banners do usuário SEM ordenação (evita necessidade de índice)
-    const snapshot = await db.collection('banners')
-      .where('userId', '==', req.uid)
-      .get();
+    process.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
     
-    const banners = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      // Filtrar apenas banners não expirados
-      if (data.bannerUrl && data.expiraEm && data.expiraEm > agora) {
-        banners.push({
-          id: doc.id,
-          titulo: data.titulo,
-          modeloCor: data.modeloCor,
-          modeloTipo: data.modeloTipo,
-          tipo: data.tipo,
-          tmdbId: data.tmdbId,
-          tmdbTipo: data.tmdbTipo,
-          temporada: data.temporada,
-          posterUrl: data.posterUrl,
-          thumbnailUrl: data.bannerUrl,
-          bannerUrl: data.bannerUrl,
-          criadoEm: data.criadoEm?.toDate().toISOString(),
-          expiraEm: data.expiraEm?.toDate().toISOString(),
-          criadoEmTimestamp: data.criadoEm?.toMillis() || 0
-        });
+    process.stderr.on('data', (data) => {
+      const text = data.toString();
+      stderr += text;
+      
+      // Extrair progresso do FFmpeg
+      if (onProgress && text.includes('time=')) {
+        const timeMatch = text.match(/time=(\d{2}):(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          const hours = parseInt(timeMatch[1]);
+          const minutes = parseInt(timeMatch[2]);
+          const seconds = parseInt(timeMatch[3]);
+          const currentTime = hours * 3600 + minutes * 60 + seconds;
+          onProgress(currentTime);
+        }
       }
     });
     
-    // Ordenar por data de criação no JavaScript (mais recentes primeiro)
-    banners.sort((a, b) => b.criadoEmTimestamp - a.criadoEmTimestamp);
+    process.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const error = new Error(`${command} falhou (código ${code})`);
+        error.stderr = stderr;
+        error.stdout = stdout;
+        reject(error);
+      }
+    });
     
-    // Limitar a 20 resultados
-    res.json(banners.slice(0, 20));
+    process.on('error', (err) => {
+      const error = new Error(`Falha ao executar ${command}: ${err.message}`);
+      error.originalError = err;
+      reject(error);
+    });
+  });
+}
+
+// Endpoint SSE para receber progresso em tempo real
+app.get("/api/video-progress/:jobId", verificarAuth, (req, res) => {
+  const { jobId } = req.params;
+  const userId = req.uid;
+  
+  // Headers SSE
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive'
+  });
+  
+  // Salvar conexão
+  const connectionKey = `${userId}:${jobId}`;
+  progressConnections.set(connectionKey, res);
+  
+  // Enviar ping inicial
+  res.write('data: {"status":"connected"}\n\n');
+  
+  // Cleanup ao desconectar
+  req.on('close', () => {
+    progressConnections.delete(connectionKey);
+  });
+});
+
+// Função auxiliar para enviar progresso
+function sendProgress(userId, jobId, data) {
+  const connectionKey = `${userId}:${jobId}`;
+  const connection = progressConnections.get(connectionKey);
+  if (connection) {
+    connection.write(`data: ${JSON.stringify(data)}\n\n`);
+  }
+}
+
+app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
+  const tempFiles = [];
+  const startTime = Date.now(); // Cronometrar tempo total
+  let requestAborted = false;
+  
+  // Detectar se cliente abortou requisição
+  req.on('close', () => {
+    if (!res.headersSent) {
+      requestAborted = true;
+      console.log("⚠️ Requisição abortada pelo cliente");
+    }
+  });
+  
+  try {
+    const { tmdbId, tmdbTipo, duracao, temporada, qualidade } = req.body || {};
+
+    console.log(`\n🎬 ==========================================`);
+    console.log(`   GERAÇÃO DE VÍDEO INICIADA`);
+    console.log(`   TMDB ID: ${tmdbId} | Tipo: ${tmdbTipo}`);
+    console.log(`   Duração: ${duracao}s | Qualidade: ${qualidade}p`);
+    console.log(`   ⏱️ Início: ${new Date().toLocaleTimeString('pt-BR')}`);
+    console.log(`==========================================\n`);
+
+    if (!tmdbId) return res.status(400).json({ error: "tmdbId obrigatório" });
+    if (!tmdbTipo || !["movie", "tv"].includes(tmdbTipo)) {
+      return res.status(400).json({ error: "tmdbTipo deve ser 'movie' ou 'tv'" });
+    }
+    if (![30, 60, 90].includes(parseInt(duracao))) {
+      return res.status(400).json({ error: "Duração deve ser 30, 60 ou 90 segundos" });
+    }
+
+    const duracaoNum = parseInt(duracao);
+    const tempDir = path.join(__dirname, "temp");
+    const outputDir = path.join(__dirname, "public", "videos");
+    
+    await fsPromises.mkdir(tempDir, { recursive: true });
+    await fsPromises.mkdir(outputDir, { recursive: true });
+
+    console.log("📡 1/8 - Buscando dados no TMDB...");
+    const detailsUrl = buildTMDBUrl(`/${tmdbTipo}/${tmdbId}`, {
+      append_to_response: "videos,images,credits",
+      include_image_language: "pt,en,null"
+    });
+    const detailsResp = await fetchWithTimeout(detailsUrl, {}, 15000);
+    if (!detailsResp.ok) {
+      return res.status(404).json({ error: "Filme/Série não encontrado no TMDB" });
+    }
+    const details = await detailsResp.json();
+
+    const titulo = details.title || details.name || "Título Desconhecido";
+    const sinopse = details.overview || "Sinopse não disponível.";
+    let ano = (details.release_date || details.first_air_date || "").slice(0, 4);
+    let nota = details.vote_average || 0;
+    const generos = details.genres?.map(g => g.name).slice(0, 2).join(", ") || "";
+    const runtime = details.runtime || (details.episode_run_time?.[0]) || 0;
+
+    if (tmdbTipo === "tv" && temporada) {
+      try {
+        const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`);
+        const seasonResp = await fetchWithTimeout(seasonUrl);
+        if (seasonResp.ok) {
+          const seasonData = await seasonResp.json();
+          if (seasonData.air_date) ano = seasonData.air_date.slice(0, 4);
+          if (seasonData.vote_average && seasonData.vote_average > 0) {
+            nota = seasonData.vote_average;
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Falha ao buscar dados da temporada:", err.message);
+      }
+    }
+
+    console.log(`✅ Dados: "${titulo}" (${ano})`);
+
+    console.log("🎥 2/8 - Buscando vídeo/trailer OFICIAL (apenas YouTube ou TMDB)...");
+    const videos = details.videos?.results || [];
+    
+    // Buscar TRAILERS OFICIAIS apenas (tipo Trailer ou Teaser)
+    // Ordem de prioridade: Trailer oficial PT-BR > PT > EN > Teaser PT-BR > PT > EN
+    const findOfficialTrailer = (lang, type) => videos.find(v => 
+      v.site === "YouTube" && v.type === type && v.iso_639_1 === lang
+    );
+    const findAnyOfficialTrailer = (type) => videos.find(v => 
+      v.site === "YouTube" && v.type === type
+    );
+    
+    // Prioridade: Trailer oficial (PT-BR > PT > EN > qualquer) depois Teaser (PT-BR > PT > EN)
+    let trailer = findOfficialTrailer("pt-BR", "Trailer") || 
+                  findOfficialTrailer("pt", "Trailer") || 
+                  findOfficialTrailer("en", "Trailer") || 
+                  findAnyOfficialTrailer("Trailer") ||
+                  findOfficialTrailer("pt-BR", "Teaser") || 
+                  findOfficialTrailer("pt", "Teaser") || 
+                  findOfficialTrailer("en", "Teaser") || 
+                  findAnyOfficialTrailer("Teaser");
+    
+    let trailerKey = null;
+    let useCreatedVideo = false;
+    
+    if (trailer && trailer.site === "YouTube") {
+      trailerKey = trailer.key;
+      console.log(`✅ Vídeo encontrado no YouTube: ${trailerKey} (${trailer.iso_639_1 || 'sem idioma'})`);
+    } else {
+      // Criar vídeo placeholder com backdrop animado
+      console.log("⚠️ Nenhum vídeo disponível - criando vídeo placeholder com backdrop animado");
+      useCreatedVideo = true;
+      trailerKey = `placeholder_${tmdbId}`;
+    }
+
+    console.log("⬇️ 3/8 - Obtendo/Criando vídeo...");
+    const trailerPath = path.join(tempDir, `trailer_${trailerKey}.mp4`);
+    tempFiles.push(trailerPath);
+
+    let downloadSuccess = false;
+    let lastError = null;
+
+    if (useCreatedVideo) {
+      // Criar vídeo placeholder com movimento
+      console.log("   Criando vídeo placeholder com zoom suave...");
+      try {
+        await spawnProcess('ffmpeg', [
+          '-f', 'lavfi',
+          '-i', 'color=c=#0a0a15:s=1920x1080:d=30',
+          '-f', 'lavfi',
+          '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+          '-vf', 'zoompan=z=\'min(zoom+0.0015,1.5)\':d=1:s=1920x1080,fade=in:0:30',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-t', '30',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-y', trailerPath
+        ]);
+        downloadSuccess = true;
+        console.log(`   ✅ Vídeo placeholder criado`);
+      } catch (err) {
+        console.error(`   ❌ Falha ao criar placeholder: ${err.message}`);
+      }
+    } else {
+      // Baixar do YouTube
+      console.log(`   URL: https://www.youtube.com/watch?v=${trailerKey}`);
+      console.log(`   Destino: ${trailerPath}`);
+
+      // Determinar qualidade do trailer baseada no parâmetro
+      const trailerQuality = qualidade >= 1080 ? '1080' : '720';
+
+      // ESTRATÉGIA 1: yt-dlp otimizado para velocidade E qualidade HD
+      try {
+        console.log(`   Tentativa 1: yt-dlp qualidade ${trailerQuality}p HD...`);
+        await spawnProcess('yt-dlp', [
+          '-f', `bestvideo[height<=${trailerQuality}][ext=mp4]+bestaudio/best[height<=${trailerQuality}]`,
+          '--merge-output-format', 'mp4',
+          '--no-playlist',
+          '--concurrent-fragments', '8',
+          '--no-warnings',
+          '--socket-timeout', '10',
+          '--retries', '1',
+        '-o', trailerPath,
+        `https://www.youtube.com/watch?v=${trailerKey}`
+      ]);
+      
+      const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+      if (fileExists) {
+        downloadSuccess = true;
+        console.log(`   ✅ Sucesso com yt-dlp (${trailerQuality}p)`);
+      }
+    } catch (err) {
+      lastError = err;
+      console.log(`   ⚠️ Falhou com yt-dlp: ${err.message}`);
+    }
+
+    // ESTRATÉGIA 2: Fallback para qualidade menor se primeira falhou
+    if (!downloadSuccess) {
+      try {
+        console.log("   Tentativa 2: yt-dlp qualidade 480p (fallback)...");
+        await spawnProcess('yt-dlp', [
+          '-f', 'best[height<=480][ext=mp4]',
+          '--no-playlist',
+          '--concurrent-fragments', '4',
+          '--socket-timeout', '10',
+          '--retries', '1',
+          '-o', trailerPath,
+          `https://www.youtube.com/watch?v=${trailerKey}`
+        ]);
+        
+        const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (fileExists) {
+          downloadSuccess = true;
+          console.log(`   ✅ Sucesso com yt-dlp (480p fallback)`);
+        }
+      } catch (err) {
+        lastError = err;
+        console.log(`   ⚠️ Falhou com yt-dlp (fallback): ${err.message}`);
+      }
+    }
+
+    // ESTRATÉGIA 3: Criar vídeo placeholder se tudo falhar
+    if (!downloadSuccess) {
+      console.log("   Tentativa 3: Criando vídeo placeholder...");
+      try {
+        await spawnProcess('ffmpeg', [
+          '-f', 'lavfi',
+          '-i', 'color=c=black:s=1920x1080:d=30',
+          '-f', 'lavfi',
+          '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-t', '30',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-y', trailerPath
+        ]);
+        
+        const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (fileExists) {
+          downloadSuccess = true;
+          console.log(`   ⚠️ Usando vídeo placeholder (trailer não disponível)`);
+        }
+      } catch (err) {
+        console.log(`   ❌ Falhou ao criar placeholder: ${err.message}`);
+      }
+    }
+  } // Fim do bloco else (download do YouTube)
+
+    if (!downloadSuccess) {
+      console.error("❌ Todas as estratégias falharam");
+      console.error("   Último erro:", lastError?.message);
+      if (lastError?.stderr) console.error("   stderr:", lastError.stderr);
+      
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      
+      return res.status(500).json({ 
+        error: "Falha ao obter trailer", 
+        details: "Verifique se yt-dlp está instalado corretamente",
+        trailerKey: trailerKey
+      });
+    }
+
+    console.log(`✅ Trailer obtido com sucesso`);
+
+
+    console.log("🎨 4/8 - Buscando logo oficial do filme (TMDB primeiro, Fanart depois)...");
+    let logoUrl = null;
+    
+    // Buscar PRIMEIRO no TMDB
+    const logos = details.images?.logos || [];
+    const findLogo = (langs) => logos.find(l => langs.includes(l.iso_639_1 || "null"));
+    const chosenLogo = findLogo(["pt", "pt-BR"]) || findLogo(["en", "null"]) || logos[0];
+    if (chosenLogo?.file_path) {
+      logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+      console.log(`✅ Logo oficial encontrada no TMDB (${chosenLogo.iso_639_1 || 'sem idioma'})`);
+    } else {
+      // Se não encontrou no TMDB, buscar no Fanart API
+      console.log("⚠️ Logo não encontrada no TMDB, tentando Fanart API...");
+      try {
+        let fanartData = null;
+        if (tmdbTipo === "movie") {
+          fanartData = await fanartService.getMovieArt(tmdbId);
+        } else if (tmdbTipo === "tv") {
+          fanartData = await fanartService.getTVArt(tmdbId);
+        }
+        
+        if (fanartData && fanartData.hdmovielogo && fanartData.hdmovielogo[0]) {
+          logoUrl = fanartData.hdmovielogo[0].url;
+          console.log(`✅ Logo oficial encontrada no Fanart API (HD Movie)`);
+        } else if (fanartData && fanartData.movielogo && fanartData.movielogo[0]) {
+          logoUrl = fanartData.movielogo[0].url;
+          console.log(`✅ Logo oficial encontrada no Fanart API (Movie)`);
+        } else if (fanartData && fanartData.hdtvlogo && fanartData.hdtvlogo[0]) {
+          logoUrl = fanartData.hdtvlogo[0].url;
+          console.log(`✅ Logo oficial encontrada no Fanart API (HD TV)`);
+        } else if (fanartData && fanartData.clearlogo && fanartData.clearlogo[0]) {
+          logoUrl = fanartData.clearlogo[0].url;
+          console.log(`✅ Logo oficial encontrada no Fanart API (Clear TV)`);
+        } else {
+          console.log(`⚠️ Logo oficial não encontrada em nenhuma fonte`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Falha ao buscar logo no Fanart: ${err.message}`);
+      }
+    }
+
+    console.log("🖼️ 5/8 - Buscando poster do filme...");
+    let posterUrl = null;
+    const posters = details.images?.posters || [];
+    
+    if (tmdbTipo === "tv" && temporada) {
+      try {
+        const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`, { append_to_response: "images" });
+        const seasonResp = await fetchWithTimeout(seasonUrl);
+        if (seasonResp.ok) {
+          const seasonData = await seasonResp.json();
+          if (seasonData.poster_path) {
+            posterUrl = `https://image.tmdb.org/t/p/original${seasonData.poster_path}`;
+            console.log(`✅ Poster da temporada ${temporada} encontrado`);
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ Falha ao buscar poster da temporada: ${err.message}`);
+      }
+    }
+    
+    if (!posterUrl) {
+      const findPoster = (langs) => posters.find(p => langs.includes(p.iso_639_1 || "null"));
+      const chosenPoster = findPoster(["pt", "pt-BR"]) || findPoster(["en", "null"]) || posters[0];
+      if (chosenPoster?.file_path) {
+        posterUrl = `https://image.tmdb.org/t/p/original${chosenPoster.file_path}`;
+      } else if (details.poster_path) {
+        posterUrl = `https://image.tmdb.org/t/p/original${details.poster_path}`;
+      }
+    }
+
+    if (!posterUrl) {
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return res.status(404).json({ error: "Poster não disponível para este título" });
+    }
+
+    console.log(`✅ Poster obtido do TMDB`);
+
+    console.log("🌌 6/8 - Processando backdrop (1080x1920)...");
+    let backdropPath = null;
+    const backdrops = details.images?.backdrops || [];
+    
+    console.log(`   Backdrops disponíveis: ${backdrops.length}`);
+    
+    // Tentar usar images.backdrops primeiro, depois backdrop_path do details
+    let backdropUrl = null;
+    if (backdrops.length > 0) {
+      const randomIndex = Math.floor(Math.random() * Math.min(backdrops.length, 5));
+      backdropUrl = `https://image.tmdb.org/t/p/original${backdrops[randomIndex].file_path}`;
+      console.log(`   Usando backdrop do array images (${randomIndex + 1}/${backdrops.length})`);
+    } else if (details.backdrop_path) {
+      backdropUrl = `https://image.tmdb.org/t/p/original${details.backdrop_path}`;
+      console.log(`   Usando backdrop_path do details principal`);
+    }
+    
+    if (backdropUrl) {
+      console.log(`   Baixando backdrop: ${backdropUrl}`);
+      try {
+        const backdropBuffer = await fetchBuffer(backdropUrl);
+        const backdropProcessed = await sharp(backdropBuffer)
+          .resize(1080, 1920, { fit: "cover", position: "center" })
+          .modulate({ brightness: 0.35 })
+          .blur(3)
+          .toBuffer();
+        backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
+        await sharp(backdropProcessed).toFile(backdropPath);
+        tempFiles.push(backdropPath);
+        console.log(`✅ Backdrop processado (1080x1920, escurecido e blur aplicado)`);
+      } catch (err) {
+        console.warn("⚠️ Falha ao processar backdrop:", err.message);
+      }
+    } else {
+      console.warn("⚠️ Nenhum backdrop disponível no TMDB e no details");
+    }
+
+    if (!backdropPath) {
+      console.log("⚠️ Criando backdrop preto como fallback");
+      backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
+      await sharp({
+        create: { width: 1080, height: 1920, channels: 4, background: { r: 5, g: 5, b: 10, alpha: 1 } }
+      }).png().toFile(backdropPath);
+      tempFiles.push(backdropPath);
+    }
+
+    console.log("🖌️ 7/8 - Gerando composição visual com NOVO LAYOUT...");
+    
+    // Buscar logo do usuário
+    const userDoc = await db.collection("usuarios").doc(req.uid).get();
+    const userLogo = userDoc.exists ? userDoc.data().logo : null;
+    
+    // Dimensões do vídeo final (vertical)
+    const videoWidth = 1080;
+    const videoHeight = 1920;
+    
+    // LAYOUT: Poster DENTRO DO QUADRO NEON (overlay) - DIREITA, vertical
+    // Quadro neon está posicionado na área direita do overlay
+    const posterWidth = 382;  // +1mm maior
+    const posterHeight = 548; // +1mm maior
+    const posterX = 570;      // SUTILMENTE mais à DIREITA
+    const posterY = 880;      // MAIS PARA BAIXO
+    
+    // Processar poster do filme COM BORDAS ARREDONDADAS
+    const posterBuffer = await fetchBuffer(posterUrl);
+    const posterResized = await sharp(posterBuffer)
+      .resize(posterWidth, posterHeight, { fit: "cover", position: "center" })
+      .composite([{
+        input: Buffer.from(
+          `<svg width="${posterWidth}" height="${posterHeight}">
+            <rect x="0" y="0" width="${posterWidth}" height="${posterHeight}" rx="20" ry="20" fill="white"/>
+          </svg>`
+        ),
+        blend: 'dest-in'
+      }])
+      .toBuffer();
+    
+    // Preparar composições
+    const composites = [];
+    
+    // 1. Adicionar poster do filme (direita inferior)
+    composites.push({
+      input: posterResized,
+      top: posterY,
+      left: posterX
+    });
+    
+    // 2. Processar e adicionar logo do filme (centro-esquerda, acima da sinopse)
+    let logoProcessed = null;
+    if (logoUrl) {
+      try {
+        const logoBuffer = await fetchBuffer(logoUrl);
+        logoProcessed = await sharp(logoBuffer)
+          .resize(450, 120, { fit: "inside", withoutEnlargement: true })
+          .toBuffer();
+        const { width: logoW, height: logoH } = await sharp(logoProcessed).metadata();
+        
+        composites.push({
+          input: logoProcessed,
+          top: 780, // MAIS BAIXO (era 720)
+          left: 60  // LADO ESQUERDO para ser visível
+        });
+        console.log(`✅ Logo oficial adicionada (${logoW}x${logoH})`);
+      } catch (err) {
+        console.warn("⚠️ Falha ao processar logo oficial:", err.message);
+      }
+    }
+    
+    // 3. Adicionar logo do cliente (topo)
+    if (userLogo && validarURL(userLogo)) {
+      try {
+        const userLogoBuffer = await fetchBuffer(userLogo, false);
+        const userLogoResized = await sharp(userLogoBuffer)
+          .resize(280, 280, { fit: "contain", withoutEnlargement: true })
+          .toBuffer();
+        const { width: userLogoW, height: userLogoH } = await sharp(userLogoResized).metadata();
+        
+        composites.push({
+          input: userLogoResized,
+          top: 1200,
+          left: 120 // LEVEMENTE MAIS À DIREITA
+        });
+        console.log(`✅ Logo do cliente adicionada`);
+      } catch (err) {
+        console.warn("⚠️ Falha ao processar logo do cliente:", err.message);
+      }
+    }
+    
+    // 4. Criar overlay com textos (título se não houver logo, sinopse, metadados)
+    // Título abaixo do trailer/backdrop
+    const titleLines = logoUrl ? [] : wrapText(titulo.toUpperCase(), 22);
+    const titleFontSize = titulo.length > 30 ? 38 : titulo.length > 20 ? 44 : 50;
+    
+    // Sinopse MAIS COMPRIDA HORIZONTALMENTE, MENOS quebras
+    const synopLines = wrapText(sinopse, 50).slice(0, 4); // 50 chars = MENOS quebra
+    const synopFontSize = 24; // Maior para mais nitidez
+    
+    // Metadados em caixinhas
+    const metaItems = [];
+    metaItems.push(`★ ${nota.toFixed(1)}`);
+    metaItems.push(ano);
+    if (temporada) metaItems.push(`Temp. ${temporada}`);
+    if (generos) {
+      const generosSplit = generos.split(", ");
+      metaItems.push(...generosSplit.slice(0, 2));
+    }
+    
+    const svgOverlay = `
+      <svg width="${videoWidth}" height="${videoHeight}" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="textShadow">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.8"/>
+          </filter>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        
+        <style>
+          .title {
+            fill: white;
+            font-family: 'Arial Black', sans-serif;
+            font-weight: 900;
+            font-size: ${titleFontSize}px;
+            text-anchor: start;
+            filter: url(#textShadow);
+            letter-spacing: 1px;
+          }
+          .synop {
+            fill: #ffffff;
+            font-family: Arial, sans-serif;
+            font-weight: 500;
+            font-size: 24px;
+            text-anchor: start;
+            filter: url(#textShadow);
+          }
+          .meta-box {
+            fill: rgba(255, 255, 255, 0.1);
+            stroke: #ffffff;
+            stroke-width: 2;
+            rx: 15;
+          }
+          .meta-text {
+            fill: #ffffff;
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+            font-size: 18px;
+            text-anchor: middle;
+            filter: url(#textShadow);
+          }
+        </style>
+        
+        <!-- Título ABAIXO do trailer/backdrop (se não houver logo) -->
+        ${!logoUrl && titleLines.length > 0 ? titleLines.map((line, i) => 
+          `<text x="60" y="${740 + i * (titleFontSize + 10)}" class="title" text-anchor="start">${safeXml(line)}</text>`
+        ).join("") : ''}
+        
+        <!-- Sinopse PRIMEIRO (subiu) -->
+        ${synopLines.map((line, i) => 
+          `<text x="60" y="${1500 + i * 36}" class="synop">${safeXml(line)}</text>`
+        ).join("")}
+        
+        <!-- Metadados MAIS PERTO da sinopse, alinhados à esquerda -->
+        ${metaItems.slice(0, 3).map((item, i) => {
+          const boxX = 60 + (i * 160); // Alinhado com sinopse (x=60)
+          const boxY = 1650; // MAIS PERTO (era 1670)
+          const boxWidth = 150;
+          const boxHeight = 45;
+          return `
+            <rect class="meta-box" x="${boxX}" y="${boxY}" width="${boxWidth}" height="${boxHeight}"/>
+            <text class="meta-text" x="${boxX + boxWidth/2}" y="${boxY + boxHeight/2 + 6}">${safeXml(item)}</text>
+          `;
+        }).join("")}
+      </svg>
+    `;
+    
+    const svgBuffer = Buffer.from(svgOverlay);
+    composites.push({
+      input: svgBuffer,
+      top: 0,
+      left: 0
+    });
+    
+    // Criar frame TRANSPARENTE com todos os elementos (poster, logos, textos)
+    // NÃO usar backdrop como base - ele vai no FFmpeg!
+    const framePath = path.join(tempDir, `frame_${tmdbId}.png`);
+    await sharp({
+      create: {
+        width: videoWidth,
+        height: videoHeight,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // TRANSPARENTE!
+      }
+    })
+      .composite(composites)
+      .png()
+      .toFile(framePath);
+    
+    tempFiles.push(framePath);
+    console.log(`✅ Frame visual gerado (1080x1920)`);
+
+
+    console.log("✂️ 8/8 - Cortando e processando trailer...");
+    
+    if (requestAborted) {
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return; // Não enviar resposta se já abortou
+    }
+    
+    const trimmedPath = path.join(tempDir, `trailer_trimmed_${tmdbId}.mp4`);
+    tempFiles.push(trimmedPath);
+
+    try {
+      const cutStart = Date.now();
+      console.log(`   🛠️ Corte ULTRA-RÁPIDO com stream copy...`);
+      console.log(`   ⏱️ Cortando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
+      
+      try {
+        // Tentar corte com COPY (instantâneo - nenhuma recodificação)
+        await spawnProcess('ffmpeg', [
+          '-ss', '0',
+          '-i', trailerPath,
+          '-t', duracaoNum.toString(),
+          '-c', 'copy',
+          '-avoid_negative_ts', 'make_zero',
+          '-y', trimmedPath
+        ]);
+        const cutTime = Math.floor((Date.now() - cutStart) / 1000);
+        console.log(`✅ Corte instantâneo com copy (tempo: ${cutTime}s)`);
+      } catch (copyErr) {
+        // Fallback: corte com recodificação ultrafast
+        console.log(`   ⚠️ Copy falhou, usando recodificação ultrafast...`);
+        const cutPreset = qualidade >= 1080 ? 'veryfast' : 'ultrafast';
+        const cutCrf = qualidade >= 1080 ? '33' : '40';
+        
+        await spawnProcess('ffmpeg', [
+          '-i', trailerPath,
+          '-t', duracaoNum.toString(),
+          '-c:v', 'libx264',
+          '-preset', cutPreset,
+          '-tune', 'zerolatency',
+          '-crf', cutCrf,
+          '-c:a', 'aac',
+          '-b:a', '48k',
+          '-threads', '0',
+          '-y', trimmedPath
+        ]);
+        const cutTime = Math.floor((Date.now() - cutStart) / 1000);
+        console.log(`✅ Trailer recodificado (tempo: ${cutTime}s, preset: ${cutPreset})`);
+      }
+    } catch (err) {
+      console.error("❌ Erro ao cortar trailer:", err.message);
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return res.status(500).json({ error: "Falha ao processar trailer" });
+    }
+
+    console.log("🎬 9/9 - Compondo vídeo final com FFmpeg (Trailer + Frame + Overlay)...");
+    
+    if (requestAborted) {
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return; // Não enviar resposta se já abortou
+    }
+    
+    const overlayPath = path.join(__dirname, "public", "images", "videos", "overlay.png");
+    
+    if (!await fileExists(overlayPath)) {
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return res.status(404).json({ error: "Overlay não encontrado. Certifique-se de que o arquivo existe em public/images/videos/overlay.png" });
+    }
+
+    const outputFilename = `video_${tmdbId}_${Date.now()}.mp4`;
+    const outputPath = path.join(outputDir, outputFilename);
+
+    try {
+      const compStart = Date.now();
+      // Preset SUPER-RÁPIDO: superfast para todos + CRF alto
+      const preset = 'superfast'; // superfast para TODOS os tamanhos
+      const crf = qualidade >= 1080 ? '35' : '42'; // CRF alto = mais rápido
+      const audioBitrate = '48k';
+      const threads = '0'; // 0 = auto
+      
+      console.log(`   ⏱️ Composição: preset=${preset}, crf=${crf}, audio=${audioBitrate}, threads=auto`);
+      console.log(`   💨 Processando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
+      
+      // Composição FFmpeg: Backdrop → Trailer (TOPO 1920x1080 - INVERTIDO CORRETO) → Overlay PNG → Frame
+      await spawnProcess('ffmpeg', [
+        // Entrada 0: Backdrop escuro (fundo)
+        '-loop', '1',
+        '-framerate', '30',
+        '-i', backdropPath,
+        // Entrada 1: Trailer cortado (vídeo no topo - 1920x1080 WIDTH x HEIGHT)
+        '-i', trimmedPath,
+        // Entrada 2: Overlay PNG (moldura neon)
+        '-loop', '1',
+        '-framerate', '30',
+        '-i', overlayPath,
+        // Entrada 3: Frame com textos e poster
+        '-loop', '1',
+        '-framerate', '30',
+        '-i', framePath,
+        // Filtros ULTRA-SIMPLIFICADOS para MÁXIMA velocidade
+        '-filter_complex',
+        // 1. Backdrop simples (fundo do banner vertical 1080x1920)
+        `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[backdrop];` +
+        // 2. Trailer HD 1080p GRANDE 1080x720 (ocupa 37.5% da altura - bem visível)
+        `[1:v]scale=1080:720[trailer_scaled];` +
+        // 3. Sobrepor trailer NO TOPO (y=0) - POR TRÁS do overlay
+        `[backdrop][trailer_scaled]overlay=0:0:shortest=1[with_trailer];` +
+        // 4. Sobrepor overlay PNG - POR CIMA do trailer
+        `[with_trailer][2:v]overlay=0:0:shortest=1[with_overlay];` +
+        // 5. Sobrepor frame com textos/poster - TOPO
+        `[with_overlay][3:v]overlay=0:0:shortest=1,format=yuv420p[final]`,
+        // Mapear video e audio
+        '-map', '[final]',
+        '-map', '1:a?',
+        // Duração
+        '-t', duracaoNum.toString(),
+        // Codecs ULTRA-RÁPIDOS
+        '-c:v', 'libx264',
+        '-preset', preset,
+        '-tune', 'zerolatency',
+        '-crf', crf,
+        '-pix_fmt', 'yuv420p',
+        '-r', '30',
+        // Áudio leve
+        '-c:a', 'aac',
+        '-b:a', audioBitrate,
+        '-ar', '44100',
+        '-ac', '2',
+        // Velocidade MÁXIMA
+        '-threads', threads,
+        '-movflags', '+faststart',
+        '-y',
+        outputPath
+      ]);
+      const compTime = Math.floor((Date.now() - compStart) / 1000);
+      const totalTime = Math.floor((Date.now() - startTime) / 1000);
+      console.log(`✅ Vídeo gerado com sucesso! (composição: ${compTime}s, total: ${totalTime}s)`);
+    } catch (err) {
+      console.error("❌ Erro na composição do vídeo:", err.message);
+      if (err.stderr) console.error("FFmpeg stderr:", err.stderr);
+      await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+      return res.status(500).json({ error: "Falha ao compor vídeo final", details: err.message });
+    }
+
+    await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+
+    const totalTime = Math.floor((Date.now() - startTime) / 1000);
+    const minutes = Math.floor(totalTime / 60);
+    const seconds = totalTime % 60;
+    const timeStr = minutes > 0 ? `${minutes}min ${seconds}s` : `${seconds}s`;
+
+    console.log("\n✅ ==========================================");
+    console.log(`   VÍDEO GERADO COM SUCESSO!`);
+    console.log(`   Arquivo: ${outputFilename}`);
+    console.log(`   Resolução: 1080x1920 (vertical)`);
+    console.log(`   Duração: ${duracaoNum}s`);
+    console.log(`   ⏱️ Tempo total de processamento: ${timeStr}`);
+    console.log(`==========================================\n`);
+
+    res.download(outputPath, outputFilename, (err) => {
+      if (err && !res.headersSent) {
+        console.error("❌ Erro ao enviar vídeo:", err.message);
+        res.status(500).json({ error: "Erro ao enviar vídeo" });
+      }
+      
+      // Limpar arquivo de saída após 5 minutos
+      setTimeout(() => {
+        fsPromises.unlink(outputPath).catch(() => {});
+      }, 5 * 60 * 1000);
+    });
+
   } catch (err) {
-    console.error('❌ Erro ao buscar últimas criações:', err.message);
-    res.status(500).json({ error: 'Erro ao buscar últimas criações' });
+    console.error("\n❌ ERRO NA GERAÇÃO DO VÍDEO:", err.message);
+    console.error(err.stack);
+    
+    await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Falha ao gerar vídeo promocional",
+        details: err.message
+      });
+    }
   }
 });
 
-// =====================================================================
-// JOB: Limpeza automática de banners expirados
-// =====================================================================
+app.get("/api/test-video", verificarAuth, async (req, res) => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    system: {
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch
+    },
+    tools: {},
+    paths: {
+      temp: path.join(__dirname, "temp"),
+      output: path.join(__dirname, "public", "videos"),
+      overlay: path.join(__dirname, "public", "images", "videos", "overlay.png")
+    },
+    checks: {}
+  };
 
-// Job de limpeza - executa a cada 1 hora
-const cleanupJob = setInterval(async () => {
+  // Teste FFmpeg
   try {
-    const agora = admin.firestore.Timestamp.now();
-    const snapshot = await db.collection('banners')
-      .where('expiraEm', '<=', agora)
-      .limit(100)
-      .get();
-    
-    if (snapshot.empty) {
-      console.log('🧹 Limpeza automática: Nenhum banner expirado');
-      return;
-    }
-    
-    console.log(`🧹 Limpando ${snapshot.size} banners expirados...`);
-    
-    const batch = db.batch();
-    const deletePromises = [];
-    
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      // Deletar do Cloudinary
-      if (data.cloudinaryPublicId) {
-        deletePromises.push(
-          cloudinary.uploader.destroy(data.cloudinaryPublicId)
-            .then(() => console.log(`☁️ Cloudinary: ${data.cloudinaryPublicId} deletado`))
-            .catch(err => console.warn(`⚠️ Erro ao deletar do Cloudinary: ${err.message}`))
-        );
-      }
-      // Deletar do Firestore
-      batch.delete(doc.ref);
-    });
-    
-    await Promise.all(deletePromises);
-    await batch.commit();
-    
-    console.log(`✅ ${snapshot.size} banners expirados removidos (Cloudinary + Firestore)`);
+    const ffmpegResult = await spawnProcess('ffmpeg', ['-version']);
+    diagnostics.tools.ffmpeg = {
+      installed: true,
+      version: ffmpegResult.stdout.split('\n')[0]
+    };
   } catch (err) {
-    console.error('❌ Erro na limpeza de banners:', err.message);
+    diagnostics.tools.ffmpeg = {
+      installed: false,
+      error: err.message
+    };
   }
-}, 60 * 60 * 1000); // Executar a cada 1 hora
 
-console.log('🤖 Job de limpeza automática iniciado (roda a cada 1 hora)');
+  // Teste yt-dlp
+  try {
+    const ytdlpResult = await spawnProcess('yt-dlp', ['--version']);
+    diagnostics.tools.ytdlp = {
+      installed: true,
+      version: ytdlpResult.stdout.trim()
+    };
+  } catch (err) {
+    diagnostics.tools.ytdlp = {
+      installed: false,
+      error: err.message
+    };
+  }
 
-// =====================================================================
+  // Teste youtube-dl
+  try {
+    const youtubedlResult = await spawnProcess('youtube-dl', ['--version']);
+    diagnostics.tools.youtubedl = {
+      installed: true,
+      version: youtubedlResult.stdout.trim()
+    };
+  } catch (err) {
+    diagnostics.tools.youtubedl = {
+      installed: false,
+      error: err.message
+    };
+  }
+
+  // Verifica overlay
+  diagnostics.checks.overlay = await fileExists(diagnostics.paths.overlay);
+
+  // Verifica diretórios
+  try {
+    await fsPromises.mkdir(diagnostics.paths.temp, { recursive: true });
+    diagnostics.checks.tempDir = true;
+  } catch {
+    diagnostics.checks.tempDir = false;
+  }
+
+  try {
+    await fsPromises.mkdir(diagnostics.paths.output, { recursive: true });
+    diagnostics.checks.outputDir = true;
+  } catch {
+    diagnostics.checks.outputDir = false;
+  }
+
+  // Status geral
+  const allToolsOk = diagnostics.tools.ffmpeg?.installed && 
+                     (diagnostics.tools.ytdlp?.installed || diagnostics.tools.youtubedl?.installed);
+  const allChecksOk = diagnostics.checks.overlay && 
+                      diagnostics.checks.tempDir && 
+                      diagnostics.checks.outputDir;
+
+  diagnostics.status = allToolsOk && allChecksOk ? 'READY' : 'NOT_READY';
+  diagnostics.ready = allToolsOk && allChecksOk;
+
+  if (!diagnostics.ready) {
+    diagnostics.issues = [];
+    if (!diagnostics.tools.ffmpeg?.installed) {
+      diagnostics.issues.push('FFmpeg não instalado. Execute: sudo apt install ffmpeg');
+    }
+    if (!diagnostics.tools.ytdlp?.installed && !diagnostics.tools.youtubedl?.installed) {
+      diagnostics.issues.push('yt-dlp ou youtube-dl não instalado. Execute: sudo apt install yt-dlp');
+    }
+    if (!diagnostics.checks.overlay) {
+      diagnostics.issues.push(`Overlay não encontrado em: ${diagnostics.paths.overlay}`);
+    }
+    if (!diagnostics.checks.tempDir || !diagnostics.checks.outputDir) {
+      diagnostics.issues.push('Erro ao criar diretórios temporários');
+    }
+  }
+
+  res.json(diagnostics);
+});
 
 app.get("/api/health", async (req, res) => {
   const result = {
@@ -1742,701 +2394,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || "Erro interno" });
 });
 
-// ============================================
-// 🎬 FUNÇÕES AUXILIARES PARA GERAÇÃO DE VÍDEO
-// ============================================
-
-// Função para baixar trailer do YouTube
-async function downloadTrailer(trailerKey, outputPath, ytdlpCommand = 'yt-dlp') {
-  return new Promise((resolve, reject) => {
-    console.log(`📹 Baixando trailer com: ${ytdlpCommand}`);
-    
-    const ytdlp = spawn(ytdlpCommand, [
-      '-f', 'best[height<=480]', // Baixar 480p para geração mais rápida
-      '--no-playlist',
-      '--no-warnings',
-      '--socket-timeout', '30',
-      '--retries', '3',
-      '-o', outputPath,
-      `https://youtube.com/watch?v=${trailerKey}`
-    ]);
-
-    // Timeout de 60 segundos para download
-    const timeout = setTimeout(() => {
-      ytdlp.kill();
-      reject(new Error('Timeout ao baixar trailer'));
-    }, 60000);
-
-    ytdlp.on('close', (code) => {
-      clearTimeout(timeout);
-      if (code === 0) {
-        console.log(`✅ Trailer baixado: ${outputPath}`);
-        resolve();
-      } else {
-        reject(new Error(`yt-dlp falhou com código ${code}`));
-      }
-    });
-
-    ytdlp.on('error', (err) => {
-      clearTimeout(timeout);
-      console.error(`❌ Erro yt-dlp: ${err.message}`);
-      reject(new Error(`Erro ao executar yt-dlp: ${err.message}`));
-    });
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Rota não encontrada",
+    path: req.path,
+    method: req.method
   });
-}
-
-// Função para gerar vídeo vertical com FFmpeg
-async function generateVideoFFmpeg(options) {
-  return new Promise((resolve, reject) => {
-    const {
-      trailerPath,      // Caminho do trailer baixado
-      backdropPath,     // Backdrop processado
-      framePath,        // Frame com overlay+poster+textos
-      outputPath,       // Caminho de saída
-      duracao,          // Duração em segundos
-      width = 640,      // Largura (padrão 480p)
-      height = 1200     // Altura (padrão 480p)
-    } = options;
-    
-    // Sempre processa em 1080x1920, depois escala para qualidade desejada
-    const trailerHeight = 576;  // 30% de 1920
-    const backdropHeight = 1344; // 70% de 1920
-    
-    // FPS baseado na qualidade FINAL
-    const fps = width >= 1080 ? 30 : width >= 720 ? 24 : 24;
-
-    ffmpeg()
-      // ENTRADA 1: Backdrop (loop)
-      .input(backdropPath)
-      .inputOptions(['-loop 1', '-framerate 30'])
-      .duration(duracao)
-
-      // ENTRADA 2: Trailer
-      .input(trailerPath)
-      .inputOptions(['-t', duracao])
-
-      // ENTRADA 3: Frame overlay (loop)
-      .input(framePath)
-      .inputOptions(['-loop 1', '-framerate 30'])
-      .duration(duracao)
-
-      // FILTROS COMPLEXOS (processa em 1080x1920, escala na saída)
-      .complexFilter([
-        // 1. Processar trailer: escalar e cortar para 1080x576 (topo)
-        `[1:v]scale=1080:576:force_original_aspect_ratio=increase,crop=1080:576,setsar=1,fps=30[trailer]`,
-        
-        // 2. Processar backdrop: já está em 1080x1920, cortar para 1080x1344 (parte inferior)
-        `[0:v]scale=1080:1344:force_original_aspect_ratio=increase,crop=1080:1344,setsar=1,fps=30[backdrop]`,
-        
-        // 3. Empilhar trailer (topo) + backdrop (embaixo) = 1080x1920
-        `[trailer][backdrop]vstack=inputs=2[bg]`,
-        
-        // 4. Sobrepor frame e escalar para qualidade desejada
-        `[bg][2:v]overlay=0:0:shortest=1,scale=${width}:${height},fps=${fps}[final]`
-      ])
-
-      // MAPEAMENTO E CODECS (OTIMIZAÇÃO POR QUALIDADE)
-      .outputOptions([
-        '-map', '[final]',
-        '-map', '1:a?',
-        '-c:v', 'libx264',
-        '-preset', width >= 1080 ? 'medium' : width >= 720 ? 'fast' : 'ultrafast',
-        '-crf', width >= 1080 ? '20' : width >= 720 ? '23' : '26',
-        '-g', fps * 2,
-        '-bf', width >= 1080 ? '3' : '2',
-        '-refs', width >= 1080 ? '4' : '2',
-        '-c:a', 'aac',
-        '-b:a', width >= 1080 ? '160k' : '128k',
-        '-ar', '48000',
-        '-t', duracao.toString(),
-        '-pix_fmt', 'yuv420p',
-        '-threads', '0',
-        '-movflags', '+faststart'
-      ])
-
-      // SAÍDA
-      .output(outputPath)
-
-      // EVENTOS
-      .on('start', (cmd) => {
-        console.log(`🎬 FFmpeg iniciado (${width}x${height} @ ${fps}fps): ${cmd}`);
-      })
-      .on('progress', (progress) => {
-        if (progress.percent) {
-          console.log(`⏳ Progresso: ${progress.percent.toFixed(1)}%`);
-        }
-      })
-      .on('end', () => {
-        console.log(`✅ Vídeo gerado: ${outputPath}`);
-        resolve();
-      })
-      .on('error', (err) => {
-        console.error(`❌ Erro FFmpeg: ${err.message}`);
-        reject(err);
-      })
-      .run();
-  });
-}
-
-// ============================================
-// 🎬 ROTA DE TESTE (SEM MIDDLEWARE)
-// ============================================
-console.log('🧪 Registrando rota de teste POST /api/test-video');
-app.post("/api/test-video", async (req, res) => {
-  console.log('✅ Rota de teste funcionou!');
-  res.json({ success: true, message: 'Rota de teste OK!' });
-});
-
-// ============================================
-// 🎬 ENDPOINT: GERAR VÍDEO COM TRAILER (VERTICAL 1080x1920)
-// Layout: Trailer horizontal no topo (atrás do overlay) + Overlay com poster, título, metadados e sinopse
-// Não salva no Cloudinary/Firestore - apenas gera e retorna para download
-// ============================================
-console.log('🎬 Registrando rota POST /api/gerar-video');
-app.post("/api/gerar-video", verificarAuth, authLimiter, async (req, res) => {
-  console.log('🚀 Requisição recebida em /api/gerar-video');
-  const startTime = Date.now();
-  let tempFiles = [];
-
-  try {
-    // Verificar se FFmpeg e yt-dlp estão disponíveis
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execPromise = promisify(exec);
-    
-    // Verificar yt-dlp com múltiplas tentativas (prioridade para python3 -m yt_dlp no Render)
-    let ytdlpFound = false;
-    let ytdlpVersion = '';
-    let ytdlpCommand = 'yt-dlp'; // comando padrão
-    
-    // No Render, python3 -m yt_dlp é mais confiável
-    try {
-      const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
-      ytdlpVersion = stdout.trim();
-      ytdlpFound = true;
-      ytdlpCommand = 'python3 -m yt_dlp';
-      console.log(`✅ yt-dlp disponível via python3: ${ytdlpVersion}`);
-    } catch (err) {
-      console.warn('⚠️ python3 -m yt_dlp não funcionou, tentando binário direto...');
-      
-      // Fallback para caminhos diretos
-      const pathsToTry = process.platform === 'win32'
-        ? [
-            'C:\\Users\\charl\\AppData\\Roaming\\Python\\Python314\\Scripts\\yt-dlp.exe',
-            'yt-dlp'
-          ]
-        : ['yt-dlp', '/usr/local/bin/yt-dlp', '/usr/bin/yt-dlp'];
-      
-      for (const path of pathsToTry) {
-        try {
-          const { stdout } = await execPromise(`"${path}" --version`, { timeout: 5000 });
-          ytdlpVersion = stdout.trim();
-          ytdlpFound = true;
-          ytdlpCommand = path;
-          console.log(`✅ yt-dlp encontrado em: ${path} | Versão: ${ytdlpVersion}`);
-          break;
-        } catch (pathErr) {
-          console.error(`⚠️ Não encontrado em: ${path}`);
-        }
-      }
-      
-      if (!ytdlpFound) {
-        console.warn('⚠️ yt-dlp não encontrado. Tentando instalar via python3 -m pip install yt-dlp ...');
-        try {
-          await execPromise('python3 -m pip install --no-cache-dir -q yt-dlp', { timeout: 20000 });
-          const { stdout } = await execPromise('python3 -m yt_dlp --version', { timeout: 5000 });
-          ytdlpVersion = stdout.trim();
-          ytdlpFound = true;
-          ytdlpCommand = 'python3 -m yt_dlp';
-          console.log(`✅ yt-dlp instalado on-the-fly: ${ytdlpVersion}`);
-        } catch (installErr) {
-          console.error('❌ yt-dlp não instalado no servidor e instalação automática falhou:', installErr.message);
-          return res.status(500).json({ 
-            error: 'yt-dlp não instalado no servidor. Contate o administrador.' 
-          });
-        }
-      }
-    }
-    
-    // Verificar FFmpeg
-    try {
-      const { stdout } = await execPromise('ffmpeg -version', { timeout: 5000 });
-      console.log('✅ FFmpeg disponível');
-    } catch (err) {
-      console.error('❌ FFmpeg não encontrado:', err.message);
-      return res.status(500).json({ 
-        error: 'FFmpeg não instalado no servidor. Entre em contato com o suporte.' 
-      });
-    }
-
-    const {
-      tmdbId,
-      tmdbTipo,
-      duracao = 30, // Duração em segundos (15, 30, 60, 90)
-      qualidade = 480, // Qualidade em pixels (480, 720, 1080)
-      temporada
-    } = req.body;
-
-    // Definir dimensões baseado na qualidade
-    let width, height;
-    switch (parseInt(qualidade)) {
-      case 1080:
-        width = 1080;
-        height = 1920;
-        break;
-      case 720:
-        width = 720;
-        height = 1280;
-        break;
-      case 480:
-      default:
-        width = 640;
-        height = 1200;
-        break;
-    }
-
-    console.log(`\n🎬 === INICIANDO GERAÇÃO DE VÍDEO VERTICAL (${width}x${height}) ===`);
-    console.log(`📋 TMDB ID: ${tmdbId} | Tipo: ${tmdbTipo} | Duração: ${duracao}s | Qualidade: ${qualidade}p`);
-
-    // Validações
-    if (!tmdbId || !tmdbTipo) {
-      return res.status(400).json({ error: "tmdbId e tmdbTipo são obrigatórios" });
-    }
-
-    if (![15, 30, 60, 90].includes(parseInt(duracao))) {
-      return res.status(400).json({ error: "Duração inválida. Use: 15, 30, 60 ou 90" });
-    }
-    
-    if (![480, 720, 1080].includes(parseInt(qualidade))) {
-      return res.status(400).json({ error: "Qualidade inválida. Use: 480, 720 ou 1080" });
-    }
-
-    // 1. Buscar dados do TMDB
-    const tmdbUrl = `https://api.themoviedb.org/3/${tmdbTipo}/${tmdbId}?api_key=${process.env.TMDB_KEY}&language=pt-BR&append_to_response=videos`;
-    const tmdbRes = await fetch(tmdbUrl);
-    if (!tmdbRes.ok) throw new Error("Erro ao buscar dados do TMDB");
-    const tmdbData = await tmdbRes.json();
-
-    console.log(`✅ Dados carregados: ${tmdbData.title || tmdbData.name}`);
-
-    // 2. Buscar trailer em múltiplas fontes
-    let trailerKey = null;
-    let useBackdropAsFallback = false;
-
-    // 2.1. Para séries, tentar buscar trailer da temporada específica
-    if (tmdbTipo === 'tv' && temporada) {
-      try {
-        const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${temporada}/videos?api_key=${process.env.TMDB_KEY}`;
-        const seasonRes = await fetch(seasonUrl);
-        if (seasonRes.ok) {
-          const seasonData = await seasonRes.json();
-          const trailerPT = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'pt');
-          const trailerEN = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube' && v.iso_639_1 === 'en');
-          const anyTrailer = seasonData.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube');
-          trailerKey = trailerPT?.key || trailerEN?.key || anyTrailer?.key;
-          if (trailerKey) {
-            console.log(`✅ Trailer da temporada ${temporada} encontrado: ${trailerKey}`);
-          }
-        }
-      } catch (err) {
-        console.warn(`⚠️ Erro ao buscar trailer da temporada: ${err.message}`);
-      }
-    }
-
-    // 2.2. Se não encontrou trailer da temporada, tentar buscar trailer geral
-    if (!trailerKey && tmdbData.videos?.results && tmdbData.videos.results.length > 0) {
-      const trailerPT = tmdbData.videos.results.find(v => 
-        v.type === "Trailer" && v.site === "YouTube" && v.iso_639_1 === "pt"
-      );
-      const trailerEN = tmdbData.videos.results.find(v => 
-        v.type === "Trailer" && v.site === "YouTube" && v.iso_639_1 === "en"
-      );
-      const anyTrailer = tmdbData.videos.results.find(v => 
-        v.type === "Trailer" && v.site === "YouTube"
-      );
-      const anyVideo = tmdbData.videos.results.find(v => v.site === "YouTube");
-      
-      trailerKey = trailerPT?.key || trailerEN?.key || anyTrailer?.key || anyVideo?.key;
-    }
-
-    // 2.2. Se não encontrar no TMDB, tentar buscar no YouTube via API
-    if (!trailerKey) {
-      console.log(`⚠️ Trailer não encontrado no TMDB, buscando no YouTube...`);
-      try {
-        const searchQuery = encodeURIComponent(`${tmdbData.title || tmdbData.name} official trailer ${ano}`);
-        const youtubeSearchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${searchQuery}&type=video&maxResults=1&key=${process.env.YOUTUBE_API_KEY || process.env.TMDB_KEY}`;
-        const ytRes = await fetch(youtubeSearchUrl);
-        if (ytRes.ok) {
-          const ytData = await ytRes.json();
-          if (ytData.items && ytData.items.length > 0) {
-            trailerKey = ytData.items[0].id.videoId;
-            console.log(`✅ Trailer encontrado no YouTube: ${trailerKey}`);
-          }
-        }
-      } catch (err) {
-        console.log(`⚠️ Erro ao buscar no YouTube: ${err.message}`);
-      }
-    }
-
-    // 2.3. Se ainda não encontrar, usar backdrop como fallback (sem download de trailer)
-    if (!trailerKey) {
-      console.log(`⚠️ Nenhum trailer encontrado, usando backdrop estático como fallback`);
-      useBackdropAsFallback = true;
-    } else {
-      console.log(`🎥 Trailer: https://youtube.com/watch?v=${trailerKey}`);
-    }
-
-    // 3. Preparar dados
-    let titulo = (tmdbData.title || tmdbData.name || "Sem título").substring(0, 50);
-    
-    // Buscar logo oficial do TMDB
-    let logoOficialUrl = null;
-    try {
-      const imagesUrl = `https://api.themoviedb.org/3/${tmdbTipo}/${tmdbId}/images?api_key=${process.env.TMDB_KEY}`;
-      const imagesRes = await fetch(imagesUrl);
-      if (imagesRes.ok) {
-        const imagesData = await imagesRes.json();
-        const logoPT = imagesData.logos?.find(l => l.iso_639_1 === 'pt');
-        const logoEN = imagesData.logos?.find(l => l.iso_639_1 === 'en');
-        const anyLogo = imagesData.logos?.[0];
-        const logoPath = logoPT?.file_path || logoEN?.file_path || anyLogo?.file_path;
-        if (logoPath) {
-          logoOficialUrl = `https://image.tmdb.org/t/p/w500${logoPath}`;
-          console.log(`✅ Logo oficial encontrado`);
-        }
-      }
-    } catch (err) {
-      console.warn(`⚠️ Erro ao buscar logo oficial: ${err.message}`);
-    }
-    
-    const sinopse = (tmdbData.overview || "Sem sinopse disponível").substring(0, 200);
-    const genero = tmdbData.genres?.[0]?.name || "Geral";
-    const ano = (tmdbData.release_date || tmdbData.first_air_date || "").substring(0, 4);
-    const nota = tmdbData.vote_average?.toFixed(1) || "0.0";
-    
-    // Buscar poster da temporada se for série
-    let posterUrl = tmdbData.poster_path ? `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}` : null;
-    if (tmdbTipo === 'tv' && temporada) {
-      try {
-        const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${temporada}?api_key=${process.env.TMDB_KEY}&language=pt-BR`;
-        const seasonRes = await fetch(seasonUrl);
-        if (seasonRes.ok) {
-          const seasonData = await seasonRes.json();
-          if (seasonData.poster_path) {
-            posterUrl = `https://image.tmdb.org/t/p/w500${seasonData.poster_path}`;
-            console.log(`✅ Poster da temporada ${temporada} encontrado`);
-          }
-        }
-      } catch (err) {
-        console.warn(`⚠️ Erro ao buscar poster da temporada: ${err.message}`);
-      }
-    }
-    
-    const backdropUrl = tmdbData.backdrop_path ? `https://image.tmdb.org/t/p/original${tmdbData.backdrop_path}` : null;
-    
-    // Se for série e tiver temporada, adicionar info
-    const infoTemporada = (tmdbTipo === 'tv' && temporada) ? `Temporada ${temporada}` : null;
-
-    console.log(`📝 ${titulo} | ⭐ ${nota} | 📅 ${ano} | 🎭 ${genero}`);
-
-    // 4. Buscar logo do usuário do Firestore
-    let userLogoUrl = null;
-    try {
-      const userDoc = await db.collection('usuarios').doc(req.uid).get();
-      if (userDoc.exists) {
-        const userData = userDoc.data();
-        userLogoUrl = userData.logoUrl || userData.logo || null;
-        console.log(`📸 Logo do usuário: ${userLogoUrl ? 'Encontrado' : 'Não encontrado'}`);
-      }
-    } catch (err) {
-      console.warn(`⚠️ Erro ao buscar logo do usuário: ${err.message}`);
-    }
-
-    // 5. Baixar overlay base
-    const overlayPath = path.join(__dirname, "public", "images", "videos", "videos.png");
-    if (!await fsPromises.access(overlayPath).then(() => true).catch(() => false)) {
-      throw new Error("Overlay não encontrado: public/images/videos/videos.png");
-    }
-
-    // 5. Baixar poster
-    let posterBuffer = null;
-    if (posterUrl) {
-      try {
-        const posterRes = await fetch(posterUrl);
-        posterBuffer = await posterRes.arrayBuffer();
-        console.log(`✅ Poster baixado: ${(posterBuffer.byteLength / 1024).toFixed(2)} KB`);
-      } catch (err) {
-        console.warn(`⚠️ Erro ao baixar poster: ${err.message}`);
-      }
-    }
-
-    // 6. Baixar backdrop
-    let backdropBuffer = null;
-    if (backdropUrl) {
-      try {
-        const backdropRes = await fetch(backdropUrl);
-        backdropBuffer = await backdropRes.arrayBuffer();
-        console.log(`✅ Backdrop baixado: ${(backdropBuffer.byteLength / 1024).toFixed(2)} KB`);
-      } catch (err) {
-        console.warn(`⚠️ Erro ao baixar backdrop: ${err.message}`);
-      }
-    }
-
-    // 7. Processar backdrop para formato vertical 1080x1920 - 12% transparente
-    const backdropProcessedPath = path.join(__dirname, `temp_backdrop_${Date.now()}.png`);
-    if (backdropBuffer) {
-      await sharp(Buffer.from(backdropBuffer))
-        .resize(1080, 1920, { fit: "cover", position: "center" })
-        .ensureAlpha()
-        .composite([{
-          input: Buffer.from(
-            `<svg width="1080" height="1920"><rect width="1080" height="1920" fill="rgba(0,0,0,0.88)"/></svg>`
-          ),
-          blend: 'over'
-        }])
-        .png()
-        .toFile(backdropProcessedPath);
-      tempFiles.push(backdropProcessedPath);
-      console.log(`✅ Backdrop processado: 640x1200`);
-    }
-
-    // 8. Criar frame com overlay + poster + textos (640x1200)
-    const framePath = path.join(__dirname, `temp_frame_${Date.now()}.png`);
-    
-    // Quebrar sinopse em linhas (máx 35 chars por linha, 5 linhas)
-    const breakText = (text, maxChars, maxLines) => {
-      const words = text.split(' ');
-      const lines = [];
-      let currentLine = '';
-      
-      for (const word of words) {
-        if ((currentLine + word).length <= maxChars) {
-          currentLine += (currentLine ? ' ' : '') + word;
-        } else {
-          if (lines.length < maxLines) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            break;
-          }
-        }
-      }
-      if (currentLine && lines.length < maxLines) lines.push(currentLine);
-      return lines;
-    };
-
-    // Função para escapar caracteres XML/SVG
-    const escapeXml = (text) => {
-      return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-    };
-
-    const sinopseLines = breakText(sinopse, 50, 3);
-    const sinopseSVG = sinopseLines.map((line, idx) => 
-      `<text x="40" y="${1620 + (idx * 28)}" class="sinopse" text-anchor="start">${escapeXml(line)}</text>`
-    ).join('\n');
-
-    const tituloEscapado = escapeXml(titulo);
-    const generoEscapado = escapeXml(genero);
-
-    const svgOverlay = `
-      <svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@400;600;800&amp;display=swap');
-            .titulo { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 68px; fill: white; text-shadow: 0 4px 20px rgba(0,0,0,0.9); }
-            .meta { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 22px; fill: white; text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
-            .sinopse { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 22px; fill: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,0.9); letter-spacing: 0.3px; }
-          </style>
-        </defs>
-        
-        <!-- Título ou Logo Oficial -->
-        ${logoOficialUrl ? '' : `<text x="80" y="775" class="titulo" text-anchor="start">${escapeXml(tituloEscapado.substring(0, Math.ceil(tituloEscapado.length / 2)))}</text>
-        <text x="80" y="850" class="titulo" text-anchor="start">${escapeXml(tituloEscapado.substring(Math.ceil(tituloEscapado.length / 2)))}</text>`}
-        
-        <!-- Sinopse (mais larga e nítida, acima dos metadados) -->
-        ${sinopseSVG}
-        
-        <!-- Metadados bem brancos com caixas arredondadas sem fundo (mais à esquerda: 40px) -->
-        <g transform="translate(40, 1728)">
-          <rect x="0" y="0" width="${(nota.toString().length + 3) * 15}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
-          <text x="${((nota.toString().length + 3) * 15) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">⭐ ${nota}</text>
-        </g>
-        <g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20}, 1728)">
-          <rect x="0" y="0" width="${(ano.toString().length + 2) * 16}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
-          <text x="${((ano.toString().length + 2) * 16) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${ano}</text>
-        </g>
-        <g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20}, 1728)">
-          <rect x="0" y="0" width="${(generoEscapado.length + 2) * 12}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
-          <text x="${((generoEscapado.length + 2) * 12) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${generoEscapado}</text>
-        </g>
-        ${infoTemporada ? `<g transform="translate(${40 + (nota.toString().length + 3) * 15 + 20 + (ano.toString().length + 2) * 16 + 20 + (generoEscapado.length + 2) * 12 + 20}, 1728)">
-          <rect x="0" y="0" width="${(infoTemporada.length + 2) * 13}" height="38" rx="10" ry="10" fill="none" stroke="#FFFFFF" stroke-width="3"/>
-          <text x="${((infoTemporada.length + 2) * 13) / 2}" y="26" class="meta" text-anchor="middle" style="fill: #FFFFFF; font-weight: 700;">${escapeXml(infoTemporada)}</text>
-        </g>` : ''}
-      </svg>
-    `;
-
-    // Tamanhos fixos para 1080x1920
-    const posterWidth = 380;  // Reduzido de 390 para 380
-    const posterHeight = 550; // Reduzido de 555 para 550
-    const logoFilmWidth = 480;  // Reduzido de 500 para 480
-    const logoFilmHeight = 175; // Reduzido de 185 para 175
-    const logoClientSize = 340; // Aumentado de 305 para 340
-    
-    // Compor frame: overlay base + poster + textos (SEMPRE 1080x1920)
-    const overlayBuffer = await fsPromises.readFile(overlayPath);
-    const compositeInputs = [];
-
-    // Adicionar logo oficial do TMDB
-    if (logoOficialUrl) {
-      try {
-        const logoRes = await fetch(logoOficialUrl);
-        const logoBuffer = await logoRes.arrayBuffer();
-        const logoResized = await sharp(Buffer.from(logoBuffer))
-          .resize(logoFilmWidth, logoFilmHeight, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .png()
-          .toBuffer();
-        compositeInputs.push({ input: logoResized, left: 35, top: 790 });
-        console.log(`✅ Logo oficial do TMDB adicionado`);
-      } catch (err) {
-        console.warn(`⚠️ Erro ao adicionar logo oficial: ${err.message}`);
-      }
-    }
-    
-    // SEMPRE adicionar logo do cliente
-    if (userLogoUrl) {
-      try {
-        const logoRes = await fetch(userLogoUrl);
-        const logoBuffer = await logoRes.arrayBuffer();
-        const logoResized = await sharp(Buffer.from(logoBuffer))
-          .resize(logoClientSize, logoClientSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-          .png()
-          .toBuffer();
-        compositeInputs.push({ input: logoResized, left: 100, top: 1235 });
-        console.log(`✅ Logo do cliente adicionado acima da sinopse`);
-      } catch (err) {
-        console.warn(`⚠️ Erro ao adicionar logo do cliente: ${err.message}`);
-      }
-    }
-
-    // Adicionar poster (milimetricamente mais alto e mais à direita: 573 top, 585 left)
-    if (posterBuffer) {
-      const posterResized = await sharp(Buffer.from(posterBuffer))
-        .resize(posterWidth, posterHeight, { fit: "cover" })
-        .composite([{
-          input: Buffer.from(
-            `<svg><rect x="0" y="0" width="${posterWidth}" height="${posterHeight}" rx="12" ry="12" fill="white"/></svg>`
-          ),
-          blend: 'dest-in'
-        }])
-        .png()
-        .toBuffer();
-      compositeInputs.push({ input: posterResized, left: 570, top: 875 });
-    }
-
-    // Adicionar textos SVG
-    compositeInputs.push({ input: Buffer.from(svgOverlay), top: 0, left: 0 });
-
-    await sharp(overlayBuffer)
-      .resize(1080, 1920, { fit: "cover" })
-      .composite(compositeInputs)
-      .png()
-      .toFile(framePath);
-    
-    tempFiles.push(framePath);
-    console.log(`✅ Frame criado: 1080x1920 (modelo fixo)`);
-
-    // 9. Baixar trailer do YouTube (ou usar backdrop como fallback)
-    let trailerTempPath = null;
-    
-    if (!useBackdropAsFallback) {
-      trailerTempPath = path.join(__dirname, `temp_trailer_${Date.now()}.mp4`);
-      tempFiles.push(trailerTempPath);
-
-      try {
-        console.log(`📥 Baixando trailer: ${trailerKey}`);
-        await downloadTrailer(trailerKey, trailerTempPath, ytdlpCommand);
-      } catch (error) {
-        console.error(`⚠️ Erro ao baixar trailer:`, error.message);
-        console.log(`🔄 Usando backdrop estático como fallback...`);
-        useBackdropAsFallback = true;
-        trailerTempPath = null;
-      }
-    }
-
-    // Se não houver trailer, usar backdrop processado como "trailer" estático
-    if (useBackdropAsFallback) {
-      trailerTempPath = backdropProcessedPath; // Usar o mesmo backdrop
-      console.log(`📸 Modo estático: usando backdrop como vídeo base`);
-    }
-
-    // 10. Gerar vídeo com FFmpeg
-    const videoOutputPath = path.join(__dirname, `video_${Date.now()}.mp4`);
-    tempFiles.push(videoOutputPath);
-
-    try {
-      console.log(`🎬 Iniciando geração de vídeo ${width}x${height}...`);
-      await generateVideoFFmpeg({
-        trailerPath: trailerTempPath,
-        backdropPath: backdropProcessedPath,
-        framePath: framePath,
-        outputPath: videoOutputPath,
-        duracao: duracao,
-        width: width,
-        height: height
-      });
-    } catch (error) {
-      console.error(`❌ Erro ao gerar vídeo:`, error);
-      return res.status(500).json({ 
-        error: "Erro ao processar vídeo",
-        details: error.message 
-      });
-    }
-
-    // 11. Retornar vídeo
-    const videoBuffer = await fsPromises.readFile(videoOutputPath);
-    const safeTitle = titulo.replace(/[^a-zA-Z0-9]/g, '_');
-    
-    res.set("Content-Type", "video/mp4");
-    res.set("Content-Disposition", `attachment; filename="Video_${safeTitle}_${duracao}s.mp4"`);
-    res.send(videoBuffer);
-
-    // Limpar arquivos temporários IMEDIATAMENTE após envio
-    setTimeout(async () => {
-      for (const file of tempFiles) {
-        try {
-          await fsPromises.unlink(file);
-          console.log(`🗑️ Arquivo temporário removido: ${path.basename(file)}`);
-        } catch (err) {
-          console.error(`⚠️ Erro ao deletar ${path.basename(file)}:`, err.message);
-        }
-      }
-      console.log(`✅ Limpeza concluída: ${tempFiles.length} arquivos removidos`);
-    }, 2000);
-
-  } catch (error) {
-    console.error("❌ Erro ao gerar vídeo:", error);
-    
-    // Limpar arquivos temporários em caso de erro
-    for (const file of tempFiles) {
-      try {
-        await fsPromises.unlink(file);
-        console.log(`🗑️ Limpeza de erro: ${path.basename(file)} removido`);
-      } catch (err) {
-        // Ignorar erros de limpeza
-      }
-    }
-
-    res.status(500).json({
-      error: "Erro ao gerar vídeo",
-      message: error.message
-    });
-  }
 });
 
 async function gracefulShutdown(signal) {
@@ -2452,17 +2415,6 @@ async function gracefulShutdown(signal) {
   process.exit(0);
 }
 
-// ============================================
-// 🚫 HANDLER 404 (DEVE VIR DEPOIS DE TODAS AS ROTAS)
-// ============================================
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Rota não encontrada",
-    path: req.path,
-    method: req.method
-  });
-});
-
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("unhandledRejection", (reason) => console.error("Unhandled Rejection:", reason));
@@ -2471,21 +2423,62 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+// Criar HTTP server e Socket.IO
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
+// Namespace para progresso de vídeo
+const videoProgress = io.of("/video-progress");
+
+videoProgress.on("connection", (socket) => {
+  console.log(`📡 Cliente Socket.IO conectado: ${socket.id}`);
+  
+  socket.on("disconnect", () => {
+    console.log(`📡 Cliente Socket.IO desconectado: ${socket.id}`);
+  });
+  
+  socket.on("subscribe", (jobId) => {
+    console.log(`📡 Cliente inscrito no job: ${jobId}`);
+    socket.join(jobId);
+  });
+});
+
+// Função global para emitir progresso
+global.emitVideoProgress = (jobId, data) => {
+  videoProgress.to(jobId).emit("progress", data);
+};
+
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`
 ╔═══════════════════════════════════════╗
-║   🚀 ORION CREATOR SERVER 2.8.0      ║
+║   🚀 ORION CREATOR SERVER 2.8.22     ║
 ║   TMDB + Fanart + Firebase           ║
-║   Premium: Blur + Overlay            ║
-║   Exclusive: Poster limpo + Modelo2  ║
+║   Video Generation + Socket.IO       ║
 ╚═══════════════════════════════════════╝
 Porta: ${PORT}
 Node: ${process.version}
 Env: ${process.env.NODE_ENV || "development"}
 TMDB Key: ${process.env.TMDB_KEY ? "✔" : "✘"}
 Fanart Key: ${process.env.FANART_API_KEY ? "✔" : "✘"}
-Cores: ${Object.keys(COLORS).join(", ")}
-Premium Overlays: ${Object.keys(PREMIUM_OVERLAYS).filter(k => PREMIUM_OVERLAYS[k]).length}/8
-📦 Banners salvos automaticamente (expiram em 7 dias)
+Socket.IO: ✔ Ativo
+
+✨ VERSÃO 2.8.22:
+   • NOVO: Progresso em tempo real via Socket.IO
+   • NOVO: Otimizações de velocidade (preset, CRF, threads)
+   • NOVO: Geração completa de vídeos com FFmpeg + Sharp
+   • RIGEL (PADRAO): Título ajustado dinamicamente (28-54px)
+   • BELTEGUESE (ORION_EXCLUSIVO): Metadados brancos + estrela dourada
+   • BELLATRIX (ORION_X): Backdrop muito escuro com overlay
+   • TODOS: Alternância de backdrop e poster
+   
+⚙️ DEPENDÊNCIAS NECESSÁRIAS:
+   • FFmpeg instalado no sistema
+   • yt-dlp instalado no sistema
+   • Overlay em: public/images/videos/overlay.png
 `);
 });
