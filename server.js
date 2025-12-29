@@ -1533,7 +1533,27 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     console.log(`✅ Dados: "${titulo}" (${ano})`);
 
     console.log("🎥 2/8 - Buscando vídeo/trailer OFICIAL (apenas YouTube ou TMDB)...");
-    const videos = details.videos?.results || [];
+    let videos = details.videos?.results || [];
+    
+    // Para SÉRIES, buscar trailer específico da temporada
+    if (tmdbTipo === "tv" && temporada) {
+      try {
+        console.log(`   Buscando trailer da temporada ${temporada}...`);
+        const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`, { append_to_response: "videos" });
+        const seasonResp = await fetchWithTimeout(seasonUrl);
+        if (seasonResp.ok) {
+          const seasonData = await seasonResp.json();
+          if (seasonData.videos?.results && seasonData.videos.results.length > 0) {
+            videos = seasonData.videos.results;
+            console.log(`   ✅ Usando trailers da temporada ${temporada} (${videos.length} vídeos encontrados)`);
+          } else {
+            console.log(`   ⚠️ Nenhum trailer específico da temporada ${temporada}, usando trailers da série`);
+          }
+        }
+      } catch (err) {
+        console.warn(`   ⚠️ Falha ao buscar trailers da temporada: ${err.message}`);
+      }
+    }
     
     // Buscar TRAILERS OFICIAIS apenas (tipo Trailer ou Teaser)
     // Ordem de prioridade: Trailer oficial PT-BR > PT > EN > Teaser PT-BR > PT > EN
@@ -1604,17 +1624,22 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       // Determinar qualidade do trailer baseada no parâmetro
       const trailerQuality = qualidade >= 1080 ? '1080' : '720';
 
-      // ESTRATÉGIA 1: yt-dlp otimizado para velocidade E qualidade HD
+      // ESTRATÉGIA 1: yt-dlp ULTRA-RÁPIDO com boa qualidade
       try {
-        console.log(`   Tentativa 1: yt-dlp qualidade ${trailerQuality}p HD...`);
+        console.log(`   Tentativa 1: yt-dlp qualidade ${trailerQuality}p RÁPIDO...`);
+        // Formato simples e rápido
+        const formatString = qualidade >= 1080 
+          ? 'best[height<=1080]'
+          : 'best[height<=720]';
+        
         await spawnProcess('yt-dlp', [
-          '-f', `bestvideo[height<=${trailerQuality}][ext=mp4]+bestaudio/best[height<=${trailerQuality}]`,
-          '--merge-output-format', 'mp4',
+          '-f', formatString,
           '--no-playlist',
-          '--concurrent-fragments', '8',
+          '--concurrent-fragments', '16',
           '--no-warnings',
           '--socket-timeout', '10',
           '--retries', '1',
+          '--no-check-certificates',
         '-o', trailerPath,
         `https://www.youtube.com/watch?v=${trailerKey}`
       ]);
@@ -1798,15 +1823,31 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       console.log(`   Baixando backdrop: ${backdropUrl}`);
       try {
         const backdropBuffer = await fetchBuffer(backdropUrl);
-        const backdropProcessed = await sharp(backdropBuffer)
+        // Processar backdrop e aplicar sombra PRETA por cima
+        const backdropResized = await sharp(backdropBuffer)
           .resize(1080, 1920, { fit: "cover", position: "center" })
-          .modulate({ brightness: 0.35 })
           .blur(3)
           .toBuffer();
+        
+        // Criar overlay de sombra preta (70% opacidade)
+        const shadowOverlay = await sharp({
+          create: {
+            width: 1080,
+            height: 1920,
+            channels: 4,
+            background: { r: 0, g: 0, b: 0, alpha: 0.70 }
+          }
+        }).png().toBuffer();
+        
+        // Compor backdrop com sombra preta
+        const backdropProcessed = await sharp(backdropResized)
+          .composite([{ input: shadowOverlay, blend: 'over' }])
+          .toBuffer();
+        
         backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
         await sharp(backdropProcessed).toFile(backdropPath);
         tempFiles.push(backdropPath);
-        console.log(`✅ Backdrop processado (1080x1920, escurecido e blur aplicado)`);
+        console.log(`✅ Backdrop processado (1080x1920, sombra preta 70% aplicada)`);
       } catch (err) {
         console.warn("⚠️ Falha ao processar backdrop:", err.message);
       }
@@ -2048,25 +2089,22 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
         console.log(`✅ Corte instantâneo com copy (tempo: ${cutTime}s)`);
       } catch (copyErr) {
-        // Fallback: corte com recodificação ultrafast
+        // Fallback: corte ULTRA-RÁPIDO com recodificação
         console.log(`   ⚠️ Copy falhou, usando recodificação ultrafast...`);
-        const cutPreset = qualidade >= 1080 ? 'veryfast' : 'ultrafast';
-        const cutCrf = qualidade >= 1080 ? '33' : '40';
         
         await spawnProcess('ffmpeg', [
           '-i', trailerPath,
           '-t', duracaoNum.toString(),
           '-c:v', 'libx264',
-          '-preset', cutPreset,
-          '-tune', 'zerolatency',
-          '-crf', cutCrf,
+          '-preset', 'ultrafast',
+          '-crf', '28',
           '-c:a', 'aac',
-          '-b:a', '48k',
+          '-b:a', '96k',
           '-threads', '0',
           '-y', trimmedPath
         ]);
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
-        console.log(`✅ Trailer recodificado (tempo: ${cutTime}s, preset: ${cutPreset})`);
+        console.log(`✅ Trailer recodificado ultrafast (tempo: ${cutTime}s)`);
       }
     } catch (err) {
       console.error("❌ Erro ao cortar trailer:", err.message);
@@ -2093,22 +2131,22 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     try {
       const compStart = Date.now();
-      // Preset SUPER-RÁPIDO: superfast para todos + CRF alto
-      const preset = 'superfast'; // superfast para TODOS os tamanhos
-      const crf = qualidade >= 1080 ? '35' : '42'; // CRF alto = mais rápido
-      const audioBitrate = '48k';
+      // Preset ULTRA-RÁPIDO para gerar em menos de 1 minuto
+      const preset = 'ultrafast';
+      const crf = qualidade >= 1080 ? '28' : '26';
+      const audioBitrate = '96k';
       const threads = '0'; // 0 = auto
       
       console.log(`   ⏱️ Composição: preset=${preset}, crf=${crf}, audio=${audioBitrate}, threads=auto`);
       console.log(`   💨 Processando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
       
-      // Composição FFmpeg: Backdrop → Trailer (TOPO 1920x1080 - INVERTIDO CORRETO) → Overlay PNG → Frame
+      // Composição FFmpeg: Backdrop → Trailer (1080x608 NO TOPO SEM BORDAS) → Overlay PNG → Frame
       await spawnProcess('ffmpeg', [
         // Entrada 0: Backdrop escuro (fundo)
         '-loop', '1',
         '-framerate', '30',
         '-i', backdropPath,
-        // Entrada 1: Trailer cortado (vídeo no topo - 1920x1080 WIDTH x HEIGHT)
+        // Entrada 1: Trailer cortado (vídeo no topo - LARGURA TOTAL)
         '-i', trimmedPath,
         // Entrada 2: Overlay PNG (moldura neon)
         '-loop', '1',
@@ -2118,13 +2156,13 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         '-loop', '1',
         '-framerate', '30',
         '-i', framePath,
-        // Filtros ULTRA-SIMPLIFICADOS para MÁXIMA velocidade
+        // Filtros otimizados para VELOCIDADE e qualidade
         '-filter_complex',
         // 1. Backdrop simples (fundo do banner vertical 1080x1920)
         `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[backdrop];` +
-        // 2. Trailer HD 1080p GRANDE 1080x720 (ocupa 37.5% da altura - bem visível)
-        `[1:v]scale=1080:720[trailer_scaled];` +
-        // 3. Sobrepor trailer NO TOPO (y=0) - POR TRÁS do overlay
+        // 2. Trailer 1080x608 (16:9 ocupando LARGURA TOTAL - proporcional)
+        `[1:v]scale=1080:608[trailer_scaled];` +
+        // 3. Sobrepor trailer NO TOPO EXATO (x=0, y=0) SEM NENHUMA BORDA
         `[backdrop][trailer_scaled]overlay=0:0:shortest=1[with_trailer];` +
         // 4. Sobrepor overlay PNG - POR CIMA do trailer
         `[with_trailer][2:v]overlay=0:0:shortest=1[with_overlay];` +
@@ -2135,14 +2173,14 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         '-map', '1:a?',
         // Duração
         '-t', duracaoNum.toString(),
-        // Codecs ULTRA-RÁPIDOS
+        // Codecs ULTRA-RÁPIDOS com boa qualidade
         '-c:v', 'libx264',
         '-preset', preset,
-        '-tune', 'zerolatency',
+        '-tune', 'fastdecode',
         '-crf', crf,
         '-pix_fmt', 'yuv420p',
         '-r', '30',
-        // Áudio leve
+        // Áudio rápido
         '-c:a', 'aac',
         '-b:a', audioBitrate,
         '-ar', '44100',
