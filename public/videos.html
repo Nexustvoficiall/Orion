@@ -1684,7 +1684,7 @@
   </main>
 
   <!-- MODAL DE GERAÇÃO EM MASSA -->
-  <div id="massModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="massModalTitle" onclick="if(event.target.id==='massModal') closeMassModal()">
+  <div id="massModal" class="modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="massModalTitle" onclick="if(event.target.id==='massModal') closeMassModal()">
     <div class="modal-content" role="document" id="massModalContent">
       <button class="close-btn" id="closeMassModalBtn" aria-label="Fechar">&times;</button>
 
@@ -1781,7 +1781,7 @@
   </div>
 
   <!-- MODAL DO BANNER -->
-  <div id="modalBanner" class="modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Gerador de banners">
+  <div id="modalBanner" class="modal" style="display:none" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Gerador de banners">
     <div class="modal-content" role="document" id="modalContent" tabindex="-1">
       <button class="close-btn" id="closeModalBtn" type="button" aria-label="Fechar modal">✕</button>
 
@@ -1824,15 +1824,7 @@
               <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 Dica: Vídeos mais curtos são melhores para redes sociais</p>
             </div>
             
-            <!-- Seleção de Qualidade -->
-            <div id="qualitySelectorContainer" style="margin-top:20px;">
-              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">🎞️ Qualidade do Vídeo:</label>
-              <select id="selectQuality" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
-                <option value="720" selected style="color:#e8e3ff; background:#2a1f3d;">📱 720p - HD (Recomendado)</option>
-                <option value="1080" style="color:#e8e3ff; background:#2a1f3d;">🎬 1080p - Full HD (Alta qualidade)</option>
-              </select>
-              <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 720p é rápido, 1080p tem melhor qualidade</p>
-            </div>
+            <!-- Qualidade fixa 720p HD - otimizado para WhatsApp (<10MB) -->
 
             <!-- Botão Gerar -->
             <div style="margin-top:30px; display:flex; gap:10px; justify-content:center;">
@@ -2486,8 +2478,8 @@
           <div style="position:absolute; inset:0; background: radial-gradient(circle at 30% 40%, rgba(192, 132, 252, 0.15), transparent 60%); pointer-events:none; animation: nebulaMove 8s ease-in-out infinite;"></div>
           <div class="loader" style="position:relative; z-index:2;"></div>
           <h3 style="color:var(--accent); font-size:24px; margin:0; text-align:center; position:relative; z-index:2; text-shadow: 0 0 20px rgba(192, 132, 252, 0.6);">🎬 Gerando seu vídeo...</h3>
-          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | Qualidade: ${qualidade}p</p>
-          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical ${qualidade === 1080 ? '1080x1920' : '720x1280'}</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | 720p HD</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical 720x1280 (WhatsApp)</p>
           
           <!-- Cronômetro em Tempo Real -->
           <div style="text-align:center; margin:20px 0;">
@@ -2583,15 +2575,15 @@
           .replace(/[^a-zA-Z0-9]/g, '_')
           .substring(0, 30);
         const seasonSuffix = currentData.selectedSeason ? `_T${currentData.selectedSeason}` : '';
-        const fileName = `Video_${safeTitle}_${duracao}s_${qualidade}p${seasonSuffix}.mp4`;
+        const fileName = `Video_${safeTitle}_${duracao}s_720p${seasonSuffix}.mp4`;
         
         // Mostrar resultado - Controles no lado esquerdo
         els.leftPanel.innerHTML = `
           <div style="display:flex; flex-direction:column; gap:24px; align-items:center; justify-content:center; padding:40px; width:100%; height:100%;">
             <div style="text-align:center;">
               <h3 style="color:var(--accent); font-size:32px; margin:0 0 10px; text-shadow: 0 0 30px rgba(192, 132, 252, 0.6);">✨ Vídeo Pronto!</h3>
-              <p class="text-muted" style="font-size:14px; margin:0;">Duração: ${duracao}s | ${qualidade}p</p>
-              <p class="text-muted" style="font-size:14px; margin:0;">📱 ${qualidade === 1080 ? '1080x1920' : qualidade === 720 ? '720x1280' : '640x1200'} (Vertical)</p>
+              <p class="text-muted" style="font-size:14px; margin:0;">Duração: ${duracao}s | 720p HD</p>
+              <p class="text-muted" style="font-size:14px; margin:0;">📱 720x1280 (Vertical - WhatsApp)</p>
               <p style="font-size:12px; color:#9ca3af; margin-top:8px;">🎬 Trailer + Overlay + Textos</p>
             </div>
             

@@ -543,7 +543,8 @@ app.post("/api/upload", verificarAuth, uploadLimiter, upload.single("file"), (re
 
 app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
   try {
-    const dias = parseInt(req.query.dias, 10) || 3;
+    // Padrão 1 dia (24 horas) - banners expiram automaticamente
+    const dias = parseInt(req.query.dias, 10) || 1;
     const limiteMs = dias * 24 * 60 * 60 * 1000;
     const agora = Date.now();
     const bannersRef = db.collection("banners");
@@ -554,11 +555,13 @@ app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
     const banners = [];
     snap.forEach(doc => {
       const data = doc.data();
-      if (data.criadoEm && (agora - data.criadoEm.toMillis ? data.criadoEm.toMillis() : data.criadoEm) <= limiteMs) {
+      const criadoEmMs = data.criadoEm?.toMillis ? data.criadoEm.toMillis() : data.criadoEm;
+      if (criadoEmMs && (agora - criadoEmMs) <= limiteMs) {
         banners.push({ id: doc.id, ...data });
       }
     });
-    res.json({ banners });
+    // Retornar array direto para compatibilidade com frontend
+    res.json(banners);
   } catch (err) {
     console.error("❌ Erro ao buscar últimas criações:", err.message);
     res.status(500).json({ error: "Erro ao buscar últimas criações" });
@@ -1364,6 +1367,45 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       .toBuffer();
 
     const safeTitle = titulo.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
+    
+    // Salvar no Cloudinary e registrar no Firestore para "Últimas Criações"
+    try {
+      const cloudinaryResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: `orion/banners/${req.uid}`,
+            public_id: `banner_${safeTitle}_${Date.now()}`,
+            resource_type: 'image',
+            format: 'png'
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        uploadStream.end(final);
+      });
+      
+      // Salvar referência no Firestore
+      await db.collection("banners").add({
+        uid: req.uid,
+        titulo: titulo,
+        url: cloudinaryResult.secure_url,
+        publicId: cloudinaryResult.public_id,
+        modelo: modeloTipo || "PADRAO",
+        cor: corKey,
+        tipo: tipoNorm,
+        tmdbId: tmdbId || null,
+        tmdbTipo: tmdbTipo || null,
+        criadoEm: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      console.log(`📁 Banner salvo no Cloudinary: ${cloudinaryResult.public_id}`);
+    } catch (saveErr) {
+      console.warn("⚠️ Erro ao salvar banner (não crítico):", saveErr.message);
+      // Continua mesmo se não conseguir salvar - o banner ainda é retornado
+    }
+    
     res.setHeader("Content-Disposition", `attachment; filename=banner_${safeTitle}.png`);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "public, max-age=3600");
@@ -1621,25 +1663,23 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       console.log(`   URL: https://www.youtube.com/watch?v=${trailerKey}`);
       console.log(`   Destino: ${trailerPath}`);
 
-      // Determinar qualidade do trailer baseada no parâmetro
-      const trailerQuality = qualidade >= 1080 ? '1080' : '720';
+      // Qualidade fixa 720p para otimização de tamanho
+      const trailerQuality = '720';
 
-      // ESTRATÉGIA 1: yt-dlp ULTRA-RÁPIDO com boa qualidade
+      // ESTRATÉGIA 1: yt-dlp 720p HD (otimizado para WhatsApp)
       try {
-        console.log(`   Tentativa 1: yt-dlp qualidade ${trailerQuality}p RÁPIDO...`);
-        // Formato simples e rápido
-        const formatString = qualidade >= 1080 
-          ? 'best[height<=1080]'
-          : 'best[height<=720]';
+        console.log(`   Tentativa 1: yt-dlp 720p HD...`);
+        // 720p = bom equilíbrio entre qualidade e tamanho
+        const formatString = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]';
         
         await spawnProcess('yt-dlp', [
           '-f', formatString,
           '--no-playlist',
-          '--concurrent-fragments', '16',
           '--no-warnings',
-          '--socket-timeout', '10',
-          '--retries', '1',
+          '--socket-timeout', '15',
+          '--retries', '2',
           '--no-check-certificates',
+          '--merge-output-format', 'mp4',
         '-o', trailerPath,
         `https://www.youtube.com/watch?v=${trailerKey}`
       ]);
@@ -1647,7 +1687,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
       if (fileExists) {
         downloadSuccess = true;
-        console.log(`   ✅ Sucesso com yt-dlp (${trailerQuality}p)`);
+        console.log(`   ✅ Sucesso com yt-dlp (720p HD)`);
       }
     } catch (err) {
       lastError = err;
@@ -1659,9 +1699,8 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       try {
         console.log("   Tentativa 2: yt-dlp qualidade 480p (fallback)...");
         await spawnProcess('yt-dlp', [
-          '-f', 'best[height<=480][ext=mp4]',
+          '-f', 'best[height<=480]',
           '--no-playlist',
-          '--concurrent-fragments', '4',
           '--socket-timeout', '10',
           '--retries', '1',
           '-o', trailerPath,
@@ -2131,39 +2170,43 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     try {
       const compStart = Date.now();
-      // Preset ULTRA-RÁPIDO para gerar em menos de 1 minuto
-      const preset = 'ultrafast';
-      const crf = qualidade >= 1080 ? '28' : '26';
-      const audioBitrate = '96k';
-      const threads = '0'; // 0 = auto
       
-      console.log(`   ⏱️ Composição: preset=${preset}, crf=${crf}, audio=${audioBitrate}, threads=auto`);
+      // QUALIDADE FIXA 720p HD - OTIMIZADO PARA WHATSAPP (<10MB)
+      // Bitrates calculados para máximo 10MB:
+      // 30s: 2000kbps = ~7.5MB | 60s: 1100kbps = ~8.3MB | 90s: 750kbps = ~8.4MB
+      const targetBitrateVideo = duracaoNum <= 30 ? '2000k' : duracaoNum <= 60 ? '1100k' : '750k';
+      const targetBitrateAudio = '96k';
+      const preset = 'fast'; // Boa qualidade com velocidade razoável
+      const crf = '25'; // CRF equilibrado para 720p HD
+      
+      console.log(`   ⏱️ Composição 720p HD (WhatsApp <10MB)`);
+      console.log(`   📊 Config: 720p HD, crf=${crf}, video=${targetBitrateVideo}, audio=${targetBitrateAudio}`);
       console.log(`   💨 Processando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
       
-      // Composição FFmpeg: Backdrop → Trailer (1080x608 NO TOPO SEM BORDAS) → Overlay PNG → Frame
+      // Composição FFmpeg SIMPLIFICADA: menos filtros = mais rápido
       await spawnProcess('ffmpeg', [
         // Entrada 0: Backdrop escuro (fundo)
         '-loop', '1',
-        '-framerate', '30',
+        '-framerate', '24',
         '-i', backdropPath,
         // Entrada 1: Trailer cortado (vídeo no topo - LARGURA TOTAL)
         '-i', trimmedPath,
         // Entrada 2: Overlay PNG (moldura neon)
         '-loop', '1',
-        '-framerate', '30',
+        '-framerate', '24',
         '-i', overlayPath,
         // Entrada 3: Frame com textos e poster
         '-loop', '1',
-        '-framerate', '30',
+        '-framerate', '24',
         '-i', framePath,
-        // Filtros otimizados para VELOCIDADE e qualidade
+        // Filtros SIMPLIFICADOS para MÁXIMA velocidade
         '-filter_complex',
         // 1. Backdrop simples (fundo do banner vertical 1080x1920)
-        `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920[backdrop];` +
-        // 2. Trailer 1080x608 (16:9 ocupando LARGURA TOTAL - proporcional)
-        `[1:v]scale=1080:608[trailer_scaled];` +
-        // 3. Sobrepor trailer NO TOPO EXATO (x=0, y=0) SEM NENHUMA BORDA
-        `[backdrop][trailer_scaled]overlay=0:0:shortest=1[with_trailer];` +
+        `[0:v]scale=1080:1920[backdrop];` +
+        // 2. Trailer 1080x607 MAIS PARA CIMA (altura reduzida para caber melhor)
+        `[1:v]scale=1080:607[trailer_scaled];` +
+        // 3. Sobrepor trailer NO TOPO ABSOLUTO (y=-10 para subir ainda mais)
+        `[backdrop][trailer_scaled]overlay=0:-10:shortest=1[with_trailer];` +
         // 4. Sobrepor overlay PNG - POR CIMA do trailer
         `[with_trailer][2:v]overlay=0:0:shortest=1[with_overlay];` +
         // 5. Sobrepor frame com textos/poster - TOPO
@@ -2173,20 +2216,24 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         '-map', '1:a?',
         // Duração
         '-t', duracaoNum.toString(),
-        // Codecs ULTRA-RÁPIDOS com boa qualidade
+        // Codecs RÁPIDOS com BOA qualidade
         '-c:v', 'libx264',
         '-preset', preset,
-        '-tune', 'fastdecode',
         '-crf', crf,
+        '-maxrate', targetBitrateVideo,
+        '-bufsize', '2M',
         '-pix_fmt', 'yuv420p',
-        '-r', '30',
-        // Áudio rápido
+        '-r', '24',
+        '-g', '48',
+        '-profile:v', 'main',
+        '-level', '4.0',
+        // Áudio com qualidade
         '-c:a', 'aac',
-        '-b:a', audioBitrate,
+        '-b:a', targetBitrateAudio,
         '-ar', '44100',
-        '-ac', '2',
-        // Velocidade MÁXIMA
-        '-threads', threads,
+        '-ac', '2', // Stereo
+        // Velocidade máxima
+        '-threads', '0',
         '-movflags', '+faststart',
         '-y',
         outputPath
@@ -2203,6 +2250,10 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
 
+    // Obter tamanho do arquivo
+    const fileStats = await fsPromises.stat(outputPath);
+    const fileSizeMB = (fileStats.size / (1024 * 1024)).toFixed(2);
+    
     const totalTime = Math.floor((Date.now() - startTime) / 1000);
     const minutes = Math.floor(totalTime / 60);
     const seconds = totalTime % 60;
@@ -2213,6 +2264,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     console.log(`   Arquivo: ${outputFilename}`);
     console.log(`   Resolução: 1080x1920 (vertical)`);
     console.log(`   Duração: ${duracaoNum}s`);
+    console.log(`   📦 Tamanho: ${fileSizeMB}MB ${fileSizeMB <= 10 ? '✅ (WhatsApp OK)' : '⚠️ (>10MB)'}`);
     console.log(`   ⏱️ Tempo total de processamento: ${timeStr}`);
     console.log(`==========================================\n`);
 
@@ -2490,6 +2542,48 @@ videoProgress.on("connection", (socket) => {
 global.emitVideoProgress = (jobId, data) => {
   videoProgress.to(jobId).emit("progress", data);
 };
+
+// 🧹 LIMPEZA AUTOMÁTICA DE BANNERS EXPIRADOS (24 horas)
+async function limparBannersExpirados() {
+  try {
+    const agora = Date.now();
+    const limiteMs = 24 * 60 * 60 * 1000; // 24 horas
+    const bannersRef = db.collection("banners");
+    const snap = await bannersRef.get();
+    
+    let removidos = 0;
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      const criadoEmMs = data.criadoEm?.toMillis ? data.criadoEm.toMillis() : data.criadoEm;
+      
+      if (criadoEmMs && (agora - criadoEmMs) > limiteMs) {
+        // Remover do Cloudinary se tiver publicId
+        if (data.publicId) {
+          try {
+            await cloudinary.uploader.destroy(data.publicId);
+          } catch (cloudErr) {
+            console.warn(`⚠️ Erro ao remover do Cloudinary: ${data.publicId}`, cloudErr.message);
+          }
+        }
+        
+        // Remover do Firestore
+        await doc.ref.delete();
+        removidos++;
+      }
+    }
+    
+    if (removidos > 0) {
+      console.log(`🧹 Limpeza: ${removidos} banners expirados removidos`);
+    }
+  } catch (err) {
+    console.error("❌ Erro na limpeza de banners:", err.message);
+  }
+}
+
+// Executar limpeza a cada hora
+setInterval(limparBannersExpirados, 60 * 60 * 1000);
+// Executar limpeza inicial após 30 segundos
+setTimeout(limparBannersExpirados, 30000);
 
 httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`

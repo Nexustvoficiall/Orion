@@ -2316,7 +2316,27 @@
     els.searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') performSearch();
     });
-    els.clearButton.onclick = () => location.reload();
+    
+    // Limpar filtros SEM perder itens selecionados
+    els.clearButton.onclick = () => {
+      // Limpar campo de busca
+      els.searchInput.value = '';
+      if (els.typeFilter) els.typeFilter.value = 'all';
+      
+      // Esconder resultados da busca
+      els.searchResults.style.display = 'none';
+      els.searchResults.innerHTML = '';
+      
+      // Mostrar seções normais novamente
+      document.querySelectorAll('.section-title').forEach(el => el.style.display = 'block');
+      ['lancamentosGrid', 'filmesPopularesGrid', 'seriesPopularesGrid', 'ultimasCriacoesGrid'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'flex';
+      });
+      
+      // Manter os itens selecionados - apenas atualizar visual
+      updateSelectionState();
+    };
 
     async function init() {
       try {
