@@ -72,7 +72,7 @@ if (!admin.apps.length) {
 const db = getFirestore();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080; // Fly.io e outras plataformas usam portas variáveis
 
 const fanartService = new FanartService(process.env.FANART_API_KEY);
 console.log("✅ Fanart.tv Service inicializado");
@@ -85,9 +85,16 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// ⚡ OTIMIZADO: Compressão para respostas 3x menores
+import compression from 'compression';
+app.use(compression({ level: 6 })); // Gzip/Brotli
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  maxAge: '7d', // ⚡ Cache de arquivos estáticos por 7 dias
+  etag: true
+}));
 
 const tmdbLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -177,8 +184,9 @@ class SimpleCache {
   destroy() { clearInterval(this.timer); this.clear(); }
   get size() { return this.map.size; }
 }
-const imageCache = new SimpleCache(60 * 60 * 1000, 200);
-const tmdbCache = new SimpleCache(30 * 60 * 1000, 500);
+// ⚡ OTIMIZADO: Cache 3x maior e TTL aumentado
+const imageCache = new SimpleCache(3 * 60 * 60 * 1000, 500); // 3h, 500 itens
+const tmdbCache = new SimpleCache(2 * 60 * 60 * 1000, 1000); // 2h, 1000 itens
 
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -2180,14 +2188,14 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         // Codec ULTRAFAST
         '-c:v', 'libx264',
         '-preset', 'ultrafast', // Mudado de fast para ultrafast (3-5x mais rápido)
-        '-crf', '28', // Aumentado de 25 (qualidade OK, muito mais rápido)
-        '-tune', 'fastdecode',
+        '-crf', '30', // ⚡ OTIMIZADO: 30 = mais rápido
+        '-tune', 'zerolatency', // ⚡ OTIMIZADO: encoding instantâneo
         '-maxrate', targetBitrateVideo,
-        '-bufsize', '2M',
+        '-bufsize', '1M', // ⚡ Reduzido para menor latência
         '-pix_fmt', 'yuv420p',
         '-r', '24',
-        '-g', '72', // Aumentado de 48 (menos keyframes = mais rápido)
-        '-profile:v', 'baseline', // Mudado de main (encoding mais rápido)
+        '-g', '96', // ⚡ Menos keyframes = muito mais rápido
+        '-profile:v', 'baseline', // Encoding rápido
         '-level', '3.1',
         // Áudio otimizado
         '-c:a', 'aac',
@@ -2569,10 +2577,25 @@ Socket.IO: ✔ Ativo
    • BELTEGUESE (ORION_EXCLUSIVO): Metadados brancos + estrela dourada
    • BELLATRIX (ORION_X): Backdrop muito escuro com overlay
    • TODOS: Alternância de backdrop e poster
+   • ⚡ OTIMIZADO: Cache 3x maior, compressão gzip, FFmpeg ultrafast
    
 ⚙️ DEPENDÊNCIAS NECESSÁRIAS:
    • FFmpeg instalado no sistema
    • yt-dlp instalado no sistema
    • Overlay em: public/images/videos/overlay.png
 `);
+
+  // ⚡ HEALTH CHECK: Previne cold start do Render
+  // Faz ping a si mesmo a cada 10 minutos
+  if (process.env.RENDER_EXTERNAL_URL) {
+    setInterval(async () => {
+      try {
+        await fetch(`${process.env.RENDER_EXTERNAL_URL}/api/health`);
+        console.log("💓 Health check OK");
+      } catch (err) {
+        console.log("⚠️ Health check falhou");
+      }
+    }, 10 * 60 * 1000);
+    console.log("✅ Health check ativo (previne cold start)");
+  }
 });

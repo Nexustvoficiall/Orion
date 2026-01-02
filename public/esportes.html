@@ -3,23 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Banners de Divulgação - Orion Creator</title>
+  <title>📢 Banners de Divulgação - Orion Creator</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     * {
-      box-sizing: border-box;
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
     }
 
     body {
-      font-family: "Poppins", sans-serif;
-      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
       color: white;
+      font-family: 'Poppins', sans-serif;
       overflow-x: hidden;
       min-height: 100vh;
+      position: relative;
     }
 
-    /* ESTRELAS ANIMADAS */
+    /* Estrelas animadas */
     .stars {
       position: fixed;
       width: 100%;
@@ -28,13 +31,269 @@
       left: 0;
       background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
       animation: moveStars 120s linear infinite;
-      z-index: -1;
+      z-index: 0;
       opacity: 0.3;
     }
 
     @keyframes moveStars {
       from { background-position: 0 0; }
       to { background-position: -10000px 5000px; }
+    }
+
+    /* Container principal */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 100px 20px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header premium */
+    .page-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .page-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+    }
+
+    .page-subtitle {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 400;
+    }
+
+    /* Grid de categorias */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin-bottom: 40px;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .category-card {
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.8) 0%, rgba(46, 16, 101, 0.8) 50%, rgba(59, 7, 100, 0.8) 100%);
+      border-radius: 15px;
+      padding: 20px 15px;
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        0 0 80px rgba(168, 85, 247, 0.2),
+        inset 0 0 60px rgba(168, 85, 247, 0.05);
+      backdrop-filter: blur(20px);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .category-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+      animation: rotateGlow 10s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotateGlow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .category-card:hover {
+      transform: translateY(-10px) scale(1.03);
+      border-color: #a855f7;
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        0 0 120px rgba(168, 85, 247, 0.4);
+    }
+
+    .category-card.active {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3));
+      border-color: #a855f7;
+      box-shadow: 
+        0 15px 50px rgba(168, 85, 247, 0.6),
+        0 0 100px rgba(168, 85, 247, 0.5);
+    }
+
+    .category-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .category-icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .category-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Seção de geração de banner */
+    .generation-section {
+      display: none;
+      max-width: 800px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.9), rgba(46, 16, 101, 0.9));
+      border-radius: 20px;
+      padding: 40px;
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        0 0 100px rgba(168, 85, 247, 0.3);
+    }
+
+    .generation-section.active {
+      display: block;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .generation-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #a855f7;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 25px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #c084fc;
+      margin-bottom: 10px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(10, 10, 30, 0.6);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 10px;
+      padding: 12px 15px;
+      color: white;
+      font-size: 1rem;
+      font-family: 'Poppins', sans-serif;
+      transition: all 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+
+    .form-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    textarea.form-input {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    select.form-input {
+      cursor: pointer;
+    }
+
+    .btn-generate {
+      width: 100%;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 15px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+
+    .btn-generate:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(168, 85, 247, 0.6);
+    }
+
+    .btn-generate:active {
+      transform: translateY(0);
+    }
+
+    .preview-area {
+      margin-top: 30px;
+      padding: 30px;
+      background: rgba(10, 10, 30, 0.4);
+      border-radius: 15px;
+      border: 1px dashed rgba(168, 85, 247, 0.3);
+      text-align: center;
+      display: none;
+    }
+
+    .preview-area.active {
+      display: block;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .btn-download {
+      background: linear-gradient(90deg, #ec4899, #a855f7);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(236, 72, 153, 0.5);
     }
 
     /* SIDEBAR */
@@ -215,106 +474,17 @@
       box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
     }
 
-    /* CONTEÚDO PRINCIPAL */
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 80px 20px 40px;
-    }
-
-    .page-header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
-    .page-title {
-      font-size: 2.5rem;
-      font-weight: 800;
-      background: linear-gradient(90deg, #a855f7, #6366f1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 15px;
-    }
-
-    .page-subtitle {
-      font-size: 1.2rem;
-      color: #c084fc;
-      max-width: 700px;
-      margin: 0 auto;
-      line-height: 1.6;
-    }
-
-    .divulgacao-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
-      margin-top: 40px;
-    }
-
-    .divulgacao-card {
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1));
-      border: 1px solid rgba(168, 85, 247, 0.3);
-      border-radius: 15px;
-      padding: 30px;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-
-    .divulgacao-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(168, 85, 247, 0.3);
-      border-color: rgba(168, 85, 247, 0.5);
-    }
-
-    .divulgacao-icon {
-      font-size: 3rem;
-      margin-bottom: 15px;
-    }
-
-    .divulgacao-card h3 {
-      font-size: 1.5rem;
-      color: #a855f7;
-      margin-bottom: 10px;
-    }
-
-    .divulgacao-card p {
-      color: #c084fc;
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-
-    .btn-primary {
-      background: linear-gradient(90deg, #a855f7, #6366f1);
-      color: white;
-      border: none;
-      padding: 12px 30px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .btn-primary:hover {
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(168, 85, 247, 0.5);
-    }
-
-    /* FOOTER */
+    /* Footer */
     footer {
       margin-top: 60px;
       text-align: center;
-      color: #d1d5db;
-      font-size: 0.95em;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.95rem;
       padding: 25px 10px;
-      border-top: 1px solid rgba(168, 85, 247, 0.3);
+      border-top: 1px solid rgba(168, 85, 247, 0.2);
     }
 
-    /* RESPONSIVO - MOBILE */
+    /* Responsivo */
     @media (max-width: 768px) {
       .sidebar {
         width: 250px;
@@ -355,7 +525,7 @@
       }
 
       .container {
-        padding: 60px 15px 30px;
+        padding: 80px 15px 40px;
       }
 
       .page-title {
@@ -363,12 +533,16 @@
       }
 
       .page-subtitle {
-        font-size: 1rem;
+        font-size: 0.95rem;
       }
 
-      .divulgacao-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
+      .categories-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+      }
+
+      .generation-section {
+        padding: 25px;
       }
     }
   </style>
@@ -419,53 +593,85 @@
 
   <div class="container">
     <div class="page-header">
-      <h1 class="page-title">📢 Banners de Divulgação</h1>
+      <h1 class="page-title">📢 BANNERS DE DIVULGAÇÃO</h1>
       <p class="page-subtitle">
-        Crie banners profissionais para promover seus serviços, produtos e eventos nas redes sociais!
+        Crie banners profissionais para promover seus serviços, produtos e eventos
       </p>
     </div>
 
-    <div class="divulgacao-grid">
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">🎯</div>
-        <h3>Serviços IPTV</h3>
-        <p>Gere banners atraentes para divulgar seus planos de IPTV com preços e benefícios</p>
-        <button class="btn-primary">Em Breve</button>
+    <!-- Grid de Categorias -->
+    <div class="categories-grid">
+      <div class="category-card" data-category="iptv">
+        <div class="category-content">
+          <span class="category-icon">📺</span>
+          <div class="category-name">IPTV</div>
+        </div>
       </div>
 
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">🎉</div>
-        <h3>Eventos</h3>
-        <p>Crie banners de eventos esportivos, shows e outras ocasiões especiais</p>
-        <button class="btn-primary">Em Breve</button>
+      <div class="category-card" data-category="eventos">
+        <div class="category-content">
+          <span class="category-icon">🎉</span>
+          <div class="category-name">Eventos</div>
+        </div>
       </div>
 
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">💰</div>
-        <h3>Promoções</h3>
-        <p>Divulgue suas ofertas especiais e promoções com banners chamativos</p>
-        <button class="btn-primary">Em Breve</button>
+      <div class="category-card" data-category="promocoes">
+        <div class="category-content">
+          <span class="category-icon">💰</span>
+          <div class="category-name">Promoções</div>
+        </div>
       </div>
 
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">📱</div>
-        <h3>Redes Sociais</h3>
-        <p>Banners otimizados para Instagram, Facebook, WhatsApp e outras plataformas</p>
-        <button class="btn-primary">Em Breve</button>
+      <div class="category-card" data-category="lancamentos">
+        <div class="category-content">
+          <span class="category-icon">🚀</span>
+          <div class="category-name">Lançamentos</div>
+        </div>
       </div>
 
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">🎨</div>
-        <h3>Personalizados</h3>
-        <p>Crie banners totalmente personalizados com suas cores e informações</p>
-        <button class="btn-primary">Em Breve</button>
+      <div class="category-card" data-category="novidades">
+        <div class="category-content">
+          <span class="category-icon">✨</span>
+          <div class="category-name">Novidades</div>
+        </div>
       </div>
 
-      <div class="divulgacao-card">
-        <div class="divulgacao-icon">⚡</div>
-        <h3>Rápido & Fácil</h3>
-        <p>Gere seus banners em segundos com modelos profissionais prontos para uso</p>
-        <button class="btn-primary">Em Breve</button>
+      <div class="category-card" data-category="personalizado">
+        <div class="category-content">
+          <span class="category-icon">🎨</span>
+          <div class="category-name">Personalizado</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção de Geração de Banner -->
+    <div class="generation-section" id="generationSection">
+      <h2 class="generation-title">✨ Criar Banner</h2>
+      
+      <div class="form-group">
+        <label class="form-label">Título do Banner</label>
+        <input type="text" class="form-input" id="bannerTitle" placeholder="Ex: Promoção Especial de IPTV">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-input" id="bannerDescription" placeholder="Descreva o que você quer promover..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tamanho do Banner</label>
+        <select class="form-input" id="bannerSize">
+          <option value="1920x1080">1920x1080 (Landscape - Full HD)</option>
+          <option value="1080x1920">1080x1920 (Portrait - Stories)</option>
+          <option value="1080x1080">1080x1080 (Quadrado - Feed)</option>
+        </select>
+      </div>
+
+      <button class="btn-generate" id="btnGenerate">🎨 Gerar Banner</button>
+
+      <div class="preview-area" id="previewArea">
+        <img src="" alt="Banner Preview" class="preview-image" id="previewImage">
+        <button class="btn-download" id="btnDownload">⬇️ Download Banner</button>
       </div>
     </div>
   </div>
@@ -493,6 +699,76 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getDatabase(app);
+
+    // ==================== GERENCIAMENTO DE CATEGORIAS ====================
+    let selectedCategory = null;
+
+    // Click nos cards de categoria
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', function() {
+        const category = this.getAttribute('data-category');
+        
+        // Se clicar na mesma categoria, desseleciona
+        if (selectedCategory === category) {
+          this.classList.remove('active');
+          selectedCategory = null;
+          document.getElementById('generationSection').classList.remove('active');
+          return;
+        }
+        
+        // Remove active de todos os cards
+        document.querySelectorAll('.category-card').forEach(c => c.classList.remove('active'));
+        
+        // Adiciona active ao card clicado
+        this.classList.add('active');
+        selectedCategory = category;
+        
+        // Mostra seção de geração
+        const generationSection = document.getElementById('generationSection');
+        generationSection.classList.add('active');
+        
+        // Scroll suave para a seção
+        setTimeout(() => {
+          generationSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      });
+    });
+
+    // ==================== GERAÇÃO DE BANNER ====================
+    document.getElementById('btnGenerate').addEventListener('click', function() {
+      const title = document.getElementById('bannerTitle').value.trim();
+      const description = document.getElementById('bannerDescription').value.trim();
+      const size = document.getElementById('bannerSize').value;
+      
+      if (!title) {
+        alert('⚠️ Por favor, insira um título para o banner!');
+        return;
+      }
+      
+      if (!selectedCategory) {
+        alert('⚠️ Por favor, selecione uma categoria!');
+        return;
+      }
+      
+      // Placeholder para geração de banner
+      console.log('Gerando banner:', { category: selectedCategory, title, description, size });
+      alert('🚧 Funcionalidade em desenvolvimento!\n\nEm breve você poderá gerar banners profissionais automaticamente.');
+      
+      // Exemplo de preview (remover quando implementar)
+      // document.getElementById('previewArea').classList.add('active');
+      // document.getElementById('previewImage').src = 'URL_DO_BANNER_GERADO';
+    });
+
+    // ==================== DOWNLOAD DE BANNER ====================
+    document.getElementById('btnDownload').addEventListener('click', function() {
+      const imageUrl = document.getElementById('previewImage').src;
+      if (!imageUrl) return;
+      
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `banner-${selectedCategory}-${Date.now()}.png`;
+      link.click();
+    });
 
     // ==================== GERENCIAMENTO DE LOGO E WHATSAPP ====================
     let userLogoUrl = null;
@@ -684,7 +960,7 @@
       }
     });
 
-    // Verifica autenticação e carrega dados do usuário
+    // ==================== AUTENTICAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
         window.location.href = "index.html";
@@ -704,7 +980,7 @@
       window.location.href = "index.html";
     });
     
-    // Toggle Menu Sidebar com overlay
+    // ==================== MENU SIDEBAR ====================
     const menuToggle = document.getElementById("menu-toggle");
     const sidebar = document.getElementById("sidebar");
     const sidebarOverlay = document.getElementById("sidebarOverlay");

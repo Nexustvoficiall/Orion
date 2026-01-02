@@ -3,11 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⚽ Jogos da Rodada - Orion</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<title>⚽ Esportes - Orion Creator</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   body {
-    background: radial-gradient(circle at center, #1a0033 0%, #0b001a 100%);
+    background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
     color: white;
     font-family: 'Poppins', sans-serif;
     overflow-x: hidden;
@@ -15,85 +22,179 @@
     position: relative;
   }
 
-  /* Estrelas suaves animadas */
-  .star {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    opacity: 0.25;
-    animation: moveStar linear infinite;
+  /* Estrelas animadas */
+  .stars {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+    animation: moveStars 120s linear infinite;
+    z-index: 0;
+    opacity: 0.3;
   }
 
-  @keyframes moveStar {
-    from { transform: translateY(0); opacity: 0.25; }
-    to { transform: translateY(-1000px); opacity: 0; }
+  @keyframes moveStars {
+    from { background-position: 0 0; }
+    to { background-position: -10000px 5000px; }
   }
 
-  header {
-    text-align: center;
-    padding: 3rem 1rem 2rem;
-    z-index: 10;
+  /* Container principal */
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 100px 20px 40px;
     position: relative;
+    z-index: 1;
   }
 
-  header img {
-    width: 140px;
-    margin: 0 auto 1rem;
-    filter: drop-shadow(0 0 15px rgba(150, 100, 255, 0.6));
+  /* Header premium */
+  .page-header {
+    text-align: center;
+    margin-bottom: 50px;
   }
 
-  header h1 {
-    font-size: 2.5rem;
-    font-weight: bold;
-    color: #b694ff;
-    text-shadow: 0 0 10px #7b4eff, 0 0 25px #3f1b8a;
+  .page-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 15px;
+    letter-spacing: 2px;
   }
 
-  header p, #rodada {
-    color: #bfaeff;
+  .page-subtitle {
     font-size: 1.1rem;
-    margin-top: 0.5rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 400;
   }
 
-  /* Botões de ligas */
-  .liga-btn {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.2);
-    backdrop-filter: blur(8px);
-    color: white;
-    transition: all 0.3s ease;
+  /* Grid de categorias de esportes */
+  .sports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 40px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
-  .liga-btn:hover, .liga-btn.active {
-    background: rgba(255,255,255,0.25);
-    transform: scale(1.05);
+  .sport-card {
+    background: linear-gradient(135deg, rgba(30, 11, 58, 0.8) 0%, rgba(46, 16, 101, 0.8) 50%, rgba(59, 7, 100, 0.8) 100%);
+    border-radius: 15px;
+    padding: 20px 15px;
+    border: 2px solid rgba(168, 85, 247, 0.4);
+    box-shadow: 
+      0 10px 40px rgba(0, 0, 0, 0.5),
+      0 0 80px rgba(168, 85, 247, 0.2),
+      inset 0 0 60px rgba(168, 85, 247, 0.05);
+    backdrop-filter: blur(20px);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
   }
 
-  /* Cards dos jogos */
+  .sport-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+    animation: rotateSportGlow 10s linear infinite;
+    z-index: 0;
+  }
+
+  @keyframes rotateSportGlow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .sport-card:hover {
+    transform: translateY(-10px) scale(1.03);
+    border-color: #a855f7;
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.7),
+      0 0 120px rgba(168, 85, 247, 0.4);
+  }
+
+  .sport-card.active {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3));
+    border-color: #a855f7;
+    box-shadow: 
+      0 15px 50px rgba(168, 85, 247, 0.6),
+      0 0 100px rgba(168, 85, 247, 0.5);
+  }
+
+  .sport-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sport-icon {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .sport-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Jogos container */
+  .games-section {
+    margin-top: 40px;
+  }
+
+  .section-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem;
+    color: #a855f7;
+    margin-bottom: 25px;
+    text-align: center;
+  }
+
+  #jogos-hoje {
+    display: grid;
+    gap: 20px;
+  }
+
+  /* Card de jogo premium */
   .card-jogo {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 1rem;
-    padding: 1rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.3s;
+    background: linear-gradient(135deg, rgba(30, 11, 58, 0.8), rgba(46, 16, 101, 0.8));
+    border: 2px solid rgba(168, 85, 247, 0.3);
+    border-radius: 20px;
+    padding: 25px;
+    backdrop-filter: blur(15px);
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   }
 
   .card-jogo:hover {
-    background: rgba(255,255,255,0.12);
-    transform: scale(1.02);
+    transform: translateY(-5px);
+    border-color: #a855f7;
+    box-shadow: 0 15px 45px rgba(168, 85, 247, 0.4);
   }
 
   footer {
     text-align: center;
-    margin-top: 3rem;
-    padding: 2rem 1rem;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    font-size: 0.875rem;
-    color: #aaa6ff;
+    margin-top: 60px;
+    padding: 25px 10px;
+    border-top: 1px solid rgba(168, 85, 247, 0.3);
+    color: #d1d5db;
+    font-size: 0.95em;
   }
 
   /* ==================== SIDEBAR ==================== */
@@ -333,25 +434,66 @@
   }
 </script>
 
-<header>
-  <img src="/images/logo.png" alt="Orion Logo">
-  <h1>⚽ Jogos da Rodada</h1>
-  <p>🌌 Explore os confrontos e resultados do universo Orion!</p>
-  <div id="rodada"></div>
-</header>
+<div class="stars"></div>
 
-<div class="flex flex-wrap justify-center gap-3 relative z-10">
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="BSA">🇧🇷 Série A</button>
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="PL">🏴 Premier League</button>
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="BL1">🇩🇪 Bundesliga</button>
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="PD">🇪🇸 La Liga</button>
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="SA">🇮🇹 Serie A</button>
-  <button class="liga-btn px-4 py-2 rounded-full" data-league="CL">🏆 Champions League</button>
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">⚽ ESPORTES AO VIVO</h1>
+    <p class="page-subtitle">Escolha seu esporte favorito e acompanhe os jogos em tempo real</p>
+  </div>
+
+  <!-- Grid de categorias de esportes -->
+  <div class="sports-grid">
+    <div class="sport-card" data-sport="futebol">
+      <div class="sport-content">
+        <span class="sport-icon">⚽</span>
+        <div class="sport-name">Futebol</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="basquete">
+      <div class="sport-content">
+        <span class="sport-icon">🏀</span>
+        <div class="sport-name">Basquete</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="ufc">
+      <div class="sport-content">
+        <span class="sport-icon">🥊</span>
+        <div class="sport-name">UFC/MMA</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="f1">
+      <div class="sport-content">
+        <span class="sport-icon">🏎️</span>
+        <div class="sport-name">Fórmula 1</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="voley">
+      <div class="sport-content">
+        <span class="sport-icon">🏐</span>
+        <div class="sport-name">Vôlei</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="todos">
+      <div class="sport-content">
+        <span class="sport-icon">🌐</span>
+        <div class="sport-name">Gerar Todos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção de jogos -->
+  <div class="games-section" id="games-section" style="display: none;">
+    <h2 class="section-title" id="sport-title">Jogos de Hoje</h2>
+    <div id="rodada" style="text-align: center; color: #a855f7; margin-bottom: 20px; font-weight: 600;"></div>
+    <div id="jogos-hoje"></div>
+  </div>
 </div>
-
-<main class="max-w-3xl mx-auto mt-8 px-4 relative z-10">
-  <div id="jogos-hoje" class="grid gap-4"></div>
-</main>
 
 <footer>
   © 2025 Orion Creator — Todos os direitos reservados
@@ -634,68 +776,133 @@
 <script>
 const jogosContainer = document.getElementById('jogos-hoje');
 const rodadaEl = document.getElementById('rodada');
-const botoesLiga = document.querySelectorAll('.liga-btn');
+const gamesSection = document.getElementById('games-section');
+const sportTitle = document.getElementById('sport-title');
+const sportCards = document.querySelectorAll('.sport-card');
 
 const statusPT = {
   "SCHEDULED": "Agendado",
-  "LIVE": "Ao Vivo",
-  "IN_PLAY": "Em Andamento",
-  "PAUSED": "Pausado",
-  "FINISHED": "Finalizado",
-  "POSTPONED": "Adiado",
-  "CANCELLED": "Cancelado"
+  "LIVE": "🔴 Ao Vivo",
+  "IN_PLAY": "🔴 Em Andamento",
+  "PAUSED": "⏸️ Pausado",
+  "FINISHED": "✅ Finalizado",
+  "POSTPONED": "⏰ Adiado",
+  "CANCELLED": "❌ Cancelado"
 };
 
-async function carregarJogos(leagueCode='BSA'){
-  jogosContainer.innerHTML = '<p class="text-center text-purple-300 animate-pulse">🔄 Carregando jogos...</p>';
-  rodadaEl.textContent='';
+const sportsConfig = {
+  futebol: {
+    title: '⚽ FUTEBOL - Jogos de Hoje',
+    leagues: ['BSA', 'PL', 'BL1', 'PD', 'SA', 'CL']
+  },
+  basquete: {
+    title: '🏀 BASQUETE - Jogos de Hoje',
+    message: '🏀 Sistema de basquete em desenvolvimento...'
+  },
+  ufc: {
+    title: '🥊 UFC/MMA - Lutas Programadas',
+    message: '🥊 Sistema de UFC/MMA em desenvolvimento...'
+  },
+  f1: {
+    title: '🏎️ FÓRMULA 1 - Próximas Corridas',
+    message: '🏎️ Sistema de Fórmula 1 em desenvolvimento...'
+  },
+  voley: {
+    title: '🏐 VÔLEI - Jogos de Hoje',
+    message: '🏐 Sistema de vôlei em desenvolvimento...'
+  },
+  todos: {
+    title: '🌐 TODOS OS ESPORTES',
+    leagues: ['BSA', 'PL', 'BL1', 'PD', 'SA', 'CL']
+  }
+};
 
-  try{
+async function carregarJogos(sport) {
+  const config = sportsConfig[sport];
+  if (!config) return;
+
+  sportTitle.textContent = config.title;
+  gamesSection.style.display = 'block';
+  jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #a855f7; font-size: 1.2rem;"><div style="animation: spin 1s linear infinite; display: inline-block;">⚽</div> Carregando jogos...</div>';
+  rodadaEl.textContent = '';
+
+  // Se não tem leagues configuradas, mostrar mensagem
+  if (!config.leagues) {
+    jogosContainer.innerHTML = `<div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 20px; border: 2px solid rgba(168, 85, 247, 0.3);"><p style="font-size: 1.5rem; color: #a855f7; margin-bottom: 10px;">${config.message}</p><p style="color: rgba(255,255,255,0.6);">Em breve você poderá acompanhar este esporte!</p></div>`;
+    return;
+  }
+
+  try {
+    // Carregar primeira liga como exemplo
+    const leagueCode = config.leagues[0];
     const res = await fetch(`/api/jogos?league=${leagueCode}`);
     const data = await res.json();
 
-    if(!data.matches || data.matches.length===0){
-      jogosContainer.innerHTML='<p class="text-center text-gray-400">⚠️ Nenhum jogo encontrado para esta rodada.</p>';
+    if (!data.matches || data.matches.length === 0) {
+      jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.6);">⚠️ Nenhum jogo encontrado para hoje.</div>';
       return;
     }
 
-    if(data.matchday) rodadaEl.textContent=`Rodada ${data.matchday}`;
+    if (data.matchday) rodadaEl.textContent = `Rodada ${data.matchday}`;
 
-    jogosContainer.innerHTML='';
-    data.matches.forEach(jogo=>{
+    jogosContainer.innerHTML = '';
+    data.matches.forEach(jogo => {
       const dataJogo = new Date(jogo.utcDate || jogo.date);
-      const dia = dataJogo.toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
-      const hora = dataJogo.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      const status=statusPT[jogo.status]||jogo.status;
+      const dia = dataJogo.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const hora = dataJogo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const status = statusPT[jogo.status] || jogo.status;
+      const placar = jogo.score?.fullTime ? `${jogo.score.fullTime.home || 0} x ${jogo.score.fullTime.away || 0}` : 'vs';
 
-      const card=`
-      <div class="card-jogo">
-        <div class="text-center font-semibold">${jogo.homeTeam.name}</div>
-        <div class="text-center">
-          <span class="text-lg font-bold">${dia} ${hora}</span>
-          <p class="text-sm text-gray-300">${status}</p>
+      const card = `
+      <div class="card-jogo" style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center;">
+        <div style="text-align: right; font-weight: 600; font-size: 1.1rem;">
+          ${jogo.homeTeam.name}
         </div>
-        <div class="text-center font-semibold">${jogo.awayTeam.name}</div>
+        <div style="text-align: center; min-width: 150px;">
+          <div style="font-size: 1.3rem; font-weight: 700; color: #a855f7; margin-bottom: 5px;">${placar}</div>
+          <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">${dia} • ${hora}</div>
+          <div style="font-size: 0.85rem; color: #6366f1; margin-top: 5px;">${status}</div>
+        </div>
+        <div style="text-align: left; font-weight: 600; font-size: 1.1rem;">
+          ${jogo.awayTeam.name}
+        </div>
       </div>`;
-      jogosContainer.innerHTML+=card;
+      jogosContainer.innerHTML += card;
     });
 
-  }catch(err){
+  } catch (err) {
     console.error(err);
-    jogosContainer.innerHTML='<p class="text-center text-red-400">❌ Erro ao carregar dados da API.</p>';
+    jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">❌ Erro ao carregar dados da API.</div>';
   }
 }
 
-// Liga padrão
-carregarJogos();
-
-botoesLiga.forEach(botao=>{
-  botao.addEventListener('click',()=>{
-    botoesLiga.forEach(b=>b.classList.remove('active'));
-    botao.classList.add('active');
-    carregarJogos(botao.dataset.league);
+// Adicionar eventos aos cards
+sportCards.forEach(card => {
+  card.addEventListener('click', () => {
+    // Remover active de todos
+    sportCards.forEach(c => c.classList.remove('active'));
+    // Adicionar active no clicado
+    card.classList.add('active');
+    // Carregar jogos
+    const sport = card.dataset.sport;
+    carregarJogos(sport);
+    
+    // Scroll suave para a seção de jogos
+    setTimeout(() => {
+      gamesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   });
 });
+
+// Adicionar animação de spin para loading
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style);
 </script>
 </body>
 </html>
