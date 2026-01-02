@@ -3,390 +3,546 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gerador Orion - Perfil</title>
+  <title>Meu Perfil - Orion Creator</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #050011;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 20px;
-    }
-
-    .perfil-container {
-      position: relative;
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(15px);
-      border-radius: 20px;
-      width: 100%;
-      max-width: 420px;
-      padding: 30px 25px;
-      text-align: center;
-      overflow: hidden;
-      border: 2px solid rgba(130,0,255,0.2);
-      box-shadow: 0 0 20px rgba(130,0,255,0.4);
-    }
-
-    /* Vórtice galáctico */
-    .perfil-container::before {
-      content: "";
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: conic-gradient(from 0deg, rgba(130,0,255,0.2), rgba(0,255,255,0.2), transparent, rgba(130,0,255,0.2));
-      animation: rotate 60s linear infinite;
-      z-index: 0;
-    }
-
-    @keyframes rotate {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    h1 {
-      position: relative;
-      z-index: 1;
-      margin-bottom: 20px;
-      font-size: 26px;
-      color: #b366ff;
-      text-shadow: 0 0 10px rgba(179,102,255,0.8);
-    }
-
-    .form-group {
-      position: relative;
-      z-index: 1;
-      margin-bottom: 20px;
-      text-align: left;
-    }
-
-    label {
-      font-weight: 600;
-      color: #ccc;
-      font-size: 14px;
-      margin-left: 5px;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="tel"],
-    input[type="file"] {
-      width: 100%;
-      padding: 12px;
-      margin-top: 5px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(179,102,255,0.4);
-      border-radius: 10px;
-      color: white;
-      font-size: 15px;
-      transition: 0.3s;
+    * {
       box-sizing: border-box;
     }
 
-    input:focus {
-      outline: none;
-      border-color: #a366ff;
-      box-shadow: 0 0 10px rgba(179,102,255,0.5);
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
+      color: white;
+      overflow-x: hidden;
+      min-height: 100vh;
     }
 
-    input[readonly] {
-      opacity: 0.7;
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 120s linear infinite;
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    /* HEADER MOBILE */
+    .mobile-header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      height: 60px;
+      background: rgba(10, 10, 30, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 90;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    .mobile-header .logo {
+      height: 40px;
+    }
+
+    /* MENU TOGGLE */
+    #menu-toggle {
+      position: fixed;
+      top: 10px;
+      left: 15px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 101;
+      font-weight: bold;
+      font-size: 1.3rem;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+      transition: all 0.25s ease;
+    }
+
+    #menu-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    }
+
+    /* CONTAINER */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 100px 20px 40px;
+    }
+
+    .page-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.8rem;
+      text-align: center;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 50px;
+      text-shadow: 0 0 40px rgba(168, 85, 247, 0.5);
+      letter-spacing: 2px;
+    }
+
+    /* PERFIL CARD */
+    .perfil-card {
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.9) 0%, rgba(46, 16, 101, 0.9) 50%, rgba(59, 7, 100, 0.9) 100%);
+      border-radius: 25px;
+      padding: 40px;
+      margin-bottom: 30px;
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        0 0 80px rgba(168, 85, 247, 0.2),
+        inset 0 0 60px rgba(168, 85, 247, 0.05);
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+
+    .perfil-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 
+        0 15px 50px rgba(0, 0, 0, 0.6),
+        0 0 100px rgba(168, 85, 247, 0.3);
+    }
+
+    .perfil-section {
+      margin-bottom: 30px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid rgba(168, 85, 247, 0.2);
+    }
+
+    .perfil-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #a855f7;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1));
+      border-radius: 12px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .info-row:hover {
+      background: linear-gradient(90deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    .info-label {
+      font-weight: 700;
+      color: #c084fc;
+      font-size: 1rem;
+    }
+
+    .info-value {
+      color: #e0e0e0;
+      font-size: 1rem;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-label {
+      display: block;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+
+    .input-field {
+      width: 100%;
+      background: rgba(10, 10, 30, 0.5);
+      border: 2px solid rgba(168, 85, 247, 0.4);
+      border-radius: 10px;
+      padding: 12px;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+
+    .input-field:disabled {
+      opacity: 0.6;
       cursor: not-allowed;
     }
 
-    #user-logo {
-      display: block;
-      margin: 15px auto;
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid rgba(179,102,255,0.5);
-      box-shadow: 0 0 10px rgba(179,102,255,0.3);
-    }
-
-    input[type="file"] {
-      cursor: pointer;
-      background: rgba(179,102,255,0.15);
-      border: 1px solid rgba(179,102,255,0.3);
-      padding: 10px;
-    }
-
-    input[type="file"]:hover {
-      background: rgba(179,102,255,0.25);
-    }
-
-    button {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      background: linear-gradient(90deg, #7a00ff, #5200cc);
+    .btn-primary {
+      background: linear-gradient(90deg, #a855f7, #6366f1);
       color: white;
       border: none;
-      padding: 12px 0;
+      padding: 14px 30px;
       border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      margin-top: 15px;
+      font-weight: 700;
+      font-size: 1rem;
       cursor: pointer;
-      box-shadow: 0 0 15px rgba(122,0,255,0.4);
-      transition: 0.3s;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      width: 100%;
     }
 
-    button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 25px rgba(179,102,255,0.8);
+    .btn-primary:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.5);
     }
 
-    #logo-info {
-      font-size: 13px;
-      color: #bbb;
-      margin-top: 5px;
+    .btn-voltar {
+      background: rgba(168, 85, 247, 0.2);
+      color: #a855f7;
+      border: 2px solid #a855f7;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 20px;
     }
 
-    /* Responsividade */
+    .btn-voltar:hover {
+      background: #a855f7;
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    .success-msg {
+      background: rgba(34, 197, 94, 0.2);
+      border: 2px solid #22c55e;
+      color: #22c55e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+
+    .error-msg {
+      background: rgba(239, 68, 68, 0.2);
+      border: 2px solid #ef4444;
+      color: #ef4444;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 600;
+      display: none;
+    }
+
     @media (max-width: 768px) {
-      body {
-        padding: 15px;
-      }
-      
-      .perfil-container {
-        max-width: 100%;
-        padding: 25px 20px;
-      }
-      
-      input[type="text"],
-      input[type="email"],
-      input[type="tel"],
-      input[type="file"] {
-        font-size: 16px; /* Evita zoom no iOS */
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .perfil-container {
-        padding: 20px 15px;
+      .mobile-header {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: linear-gradient(180deg, rgba(10, 1, 24, 0.98), rgba(15, 5, 38, 0.95));
+        backdrop-filter: blur(10px);
+        z-index: 99;
+        align-items: center;
+        justify-content: center;
+        padding: 0 15px;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
       }
 
-      h1 {
-        font-size: 22px;
+      .mobile-header .logo {
+        width: 120px;
+        filter: drop-shadow(0 0 10px #a855f7);
       }
 
-      input[type="text"],
-      input[type="email"],
-      input[type="tel"],
-      input[type="file"] {
-        font-size: 16px;
-        padding: 10px;
+      #menu-toggle {
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        padding: 0 !important;
+        font-size: 1.2rem !important;
+        line-height: 44px !important;
+        text-align: center !important;
+        z-index: 1002 !important;
+        border-radius: 12px !important;
       }
 
-      button {
-        font-size: 14px;
-        padding: 10px 0;
-        min-height: 44px;
+      .container {
+        padding: 80px 15px 40px;
       }
-      
-      #user-logo {
-        width: 80px;
-        height: 80px;
+
+      .page-title {
+        font-size: 1.8rem;
+      }
+
+      .perfil-card {
+        padding: 20px;
+      }
+
+      .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
       }
     }
   </style>
 </head>
-
 <body>
-  <div class="perfil-container">
-    <h1>Meu Perfil 🌌</h1>
+  <div class="stars"></div>
 
-    <div class="form-group">
-      <label for="username">Nome de Usuário</label>
-      <input type="text" id="username" placeholder="Seu nome de exibição">
+  <button id="menu-toggle">☰</button>
+
+  <div class="container">
+    <h1 class="page-title">👤 Meu Perfil</h1>
+
+    <!-- INFORMAÇÕES DA CONTA -->
+    <div class="perfil-card">
+      <div class="perfil-section">
+        <div class="section-title">📧 Informações da Conta</div>
+        <div class="info-row">
+          <span class="info-label">Email:</span>
+          <span class="info-value" id="userEmail">carregando...</span>
+        </div>
+      </div>
+
+      <!-- ALTERAR NOME -->
+      <div class="perfil-section">
+        <div class="section-title">✏️ Alterar Nome de Usuário</div>
+        <div class="input-group">
+          <label class="input-label">Nome Atual</label>
+          <input type="text" class="input-field" id="currentName" disabled>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Novo Nome</label>
+          <input type="text" class="input-field" id="newName" placeholder="Digite seu novo nome" maxlength="50">
+        </div>
+        <button class="btn-primary" id="btnUpdateName">Atualizar Nome</button>
+        <div class="success-msg" id="successMsg">✅ Nome atualizado com sucesso!</div>
+        <div class="error-msg" id="errorMsg">❌ Erro ao atualizar nome. Tente novamente.</div>
+      </div>
+
+      <!-- DETALHES DA CONTA -->
+      <div class="perfil-section">
+        <div class="section-title">📊 Detalhes da Conta</div>
+        <div class="info-row">
+          <span class="info-label">Status:</span>
+          <span class="info-value" id="accountStatus">carregando...</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Dias Restantes:</span>
+          <span class="info-value" id="daysRemaining">--</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Data de Vencimento:</span>
+          <span class="info-value" id="expirationDate">--/--/----</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Uploads de Logo Restantes:</span>
+          <span class="info-value" id="uploadsRemaining">--/2</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Próximo Reset de Logo:</span>
+          <span class="info-value" id="logoResetDate">--/--/----</span>
+        </div>
+      </div>
     </div>
 
-    <div class="form-group">
-      <label for="email">Email (não editável)</label>
-      <input type="email" id="email" readonly>
-    </div>
-
-    <div class="form-group">
-      <label for="whatsapp">WhatsApp para banners</label>
-      <input type="tel" id="whatsapp" placeholder="Ex: (11) 99999-9999">
-    </div>
-
-    <div class="form-group">
-      <label for="logo-upload">Envie sua logo (PNG, JPG, WEBP)</label>
-      <img id="user-logo" src="" alt="Logo do usuário" style="display:none;">
-      <input type="file" id="logo-upload" accept="image/*">
-      <p id="logo-info"></p>
-    </div>
-
-    <button id="saveProfile">Salvar Alterações</button>
-    <button id="backBtn">⬅️ Voltar</button>
+    <a href="home.html" class="btn-voltar">← Voltar para Início</a>
   </div>
 
-  <!-- Script -->
-<script type="module">
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getAuth, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
-  authDomain: "orion-lab-a9298.firebaseapp.com",
-  projectId: "orion-lab-a9298",
-  storageBucket: "orion-lab-a9298.firebasestorage.app",
-  messagingSenderId: "421847499235",
-  appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
-  databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
-};
+    // Configuração Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+    };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-const firestore = getFirestore(app); // 🔧 NOVO: Firestore
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    const firestore = getFirestore(app);
 
-const usernameEl = document.getElementById('username');
-const emailEl = document.getElementById('email');
-const whatsappEl = document.getElementById('whatsapp');
-const logoImg = document.getElementById('user-logo');
-const logoUpload = document.getElementById('logo-upload');
-const logoInfo = document.getElementById('logo-info');
-const saveBtn = document.getElementById('saveProfile');
-const backBtn = document.getElementById('backBtn');
+    // Toggle menu sidebar
+    const menuToggle = document.getElementById("menu-toggle");
+    menuToggle.addEventListener("click", () => {
+      window.location.href = "home.html";
+    });
 
-let currentUserData = null;
-
-onAuthStateChanged(auth, async user => {
-  if (!user) return window.location.href = 'index.html';
-  emailEl.value = user.email;
-
-  // Busca dados no Realtime DB
-  const snapshot = await get(child(ref(db), 'usuarios/' + user.uid));
-  if (snapshot.exists()) {
-    currentUserData = snapshot.val();
-    usernameEl.value = currentUserData.nome || '';
-    whatsappEl.value = currentUserData.whatsapp || '';
-    currentUserData.logoChanges = currentUserData.logoChanges || 0;
-
-    if (currentUserData.logo) {
-      logoImg.src = currentUserData.logo;
-      logoImg.style.display = 'block';
-    }
-    logoInfo.textContent = `Trocas de logo usadas: ${currentUserData.logoChanges}/2 (por mês)`;
-  } else {
-    currentUserData = { logoChanges: 0 };
-    logoInfo.textContent = `Trocas de logo usadas: 0/2 (por mês)`;
-  }
-
-  // 🔧 Upload de logo para Cloudinary COM AUTENTICAÇÃO
-  logoUpload.addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (currentUserData.logoChanges >= 2) {
-      alert('⚠️ Você já atingiu o limite de 2 trocas de logo neste mês.');
-      logoUpload.value = '';
-      return;
-    }
-
-    // 🔧 NOVO: Obter token de autenticação
-    let token;
-    try {
-      token = await user.getIdToken();
-    } catch (err) {
-      console.error('❌ Erro ao obter token:', err);
-      alert('❌ Erro de autenticação. Faça login novamente.');
-      return;
-    }
-
-    // Cria FormData para enviar para o server
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      logoInfo.textContent = '⏳ Enviando logo...';
-
-      // 🔧 NOVO: Adicionar header Authorization com token Bearer
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+    // Carregar dados do usuário
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
       }
 
-      const data = await response.json();
-      const logoUrl = data.url;
+      try {
+        // Dados do Authentication
+        document.getElementById('userEmail').textContent = user.email;
 
-      // Atualiza preview
-      logoImg.src = logoUrl;
-      logoImg.style.display = 'block';
-      currentUserData.logo = logoUrl;
-      currentUserData.logoChanges++;
-      logoInfo.textContent = `✅ Logo atualizada! Trocas usadas: ${currentUserData.logoChanges}/2 (por mês)`;
+        // Dados do Realtime Database
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "usuarios/" + user.uid));
 
-      // 🔧 NOVO: Salva no Realtime Database
-      await update(ref(db, 'usuarios/' + user.uid), {
-        logo: logoUrl,
-        logoChanges: currentUserData.logoChanges
-      });
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          
+          // Nome atual
+          const userName = dados.nome || "Sem nome";
+          document.getElementById('currentName').value = userName;
 
-      // 🔧 NOVO: Salva no Firestore também
-      await setDoc(doc(firestore, 'usuarios', user.uid), {
-        logo: logoUrl,
-        logoChanges: currentUserData.logoChanges
-      }, { merge: true }); // merge: true = não sobrescreve outros campos
+          // Status da conta
+          const dataExp = new Date(dados.data_expiracao);
+          const hoje = new Date();
+          const diffTime = dataExp - hoje;
+          const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      console.log('✅ Logo salva em Realtime DB e Firestore');
+          document.getElementById('daysRemaining').textContent = diasRestantes;
+          document.getElementById('expirationDate').textContent = dataExp.toLocaleDateString('pt-BR');
 
-    } catch (err) {
-      console.error('❌ Erro ao enviar logo:', err);
-      logoInfo.textContent = `❌ Erro: ${err.message}`;
-      alert(`❌ Erro ao enviar logo: ${err.message}`);
-      logoUpload.value = '';
-    }
-  });
+          if (diasRestantes > 7) {
+            document.getElementById('accountStatus').textContent = "✅ Ativo";
+            document.getElementById('accountStatus').style.color = "#22c55e";
+          } else if (diasRestantes > 0) {
+            document.getElementById('accountStatus').textContent = "⚠️ Expirando em breve";
+            document.getElementById('accountStatus').style.color = "#f59e0b";
+          } else {
+            document.getElementById('accountStatus').textContent = "❌ Expirado";
+            document.getElementById('accountStatus').style.color = "#ef4444";
+          }
 
-  // Salvar alterações
-  saveBtn.addEventListener('click', async () => {
-    if (!currentUserData) return;
-    currentUserData.nome = usernameEl.value.trim();
-    currentUserData.whatsapp = whatsappEl.value.trim();
+          // Uploads de logo
+          const uploadsRestantes = dados.uploads_restantes || 2;
+          document.getElementById('uploadsRemaining').textContent = `${uploadsRestantes}/2`;
 
-    try {
-      // 🔧 NOVO: Salva em Realtime DB
-      await update(ref(db, 'usuarios/' + user.uid), currentUserData);
+          if (dados.data_reset_logo) {
+            const dataReset = new Date(dados.data_reset_logo);
+            document.getElementById('logoResetDate').textContent = dataReset.toLocaleDateString('pt-BR');
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        document.getElementById('errorMsg').textContent = "⚠️ Erro ao carregar dados do perfil.";
+        document.getElementById('errorMsg').style.display = "block";
+      }
+    });
 
-      // 🔧 NOVO: Salva em Firestore também
-      await setDoc(doc(firestore, 'usuarios', user.uid), {
-        nome: currentUserData.nome,
-        whatsapp: currentUserData.whatsapp
-      }, { merge: true });
+    // Atualizar nome
+    document.getElementById('btnUpdateName').addEventListener('click', async () => {
+      const newName = document.getElementById('newName').value.trim();
+      
+      if (!newName) {
+        document.getElementById('errorMsg').textContent = "❌ Por favor, insira um nome válido!";
+        document.getElementById('errorMsg').style.display = "block";
+        document.getElementById('successMsg').style.display = "none";
+        return;
+      }
 
-      alert('✅ Perfil atualizado com sucesso!');
-    } catch (err) {
-      console.error(err);
-      alert('❌ Erro ao atualizar perfil!');
-    }
-  });
+      if (newName.length < 3) {
+        document.getElementById('errorMsg').textContent = "❌ O nome deve ter pelo menos 3 caracteres!";
+        document.getElementById('errorMsg').style.display = "block";
+        document.getElementById('successMsg').style.display = "none";
+        return;
+      }
 
-  // Botão Voltar
-  backBtn.onclick = () => window.location.href = 'home.html';
-});
-</script>
+      if (!auth.currentUser) {
+        document.getElementById('errorMsg').textContent = "❌ Faça login novamente!";
+        document.getElementById('errorMsg').style.display = "block";
+        document.getElementById('successMsg').style.display = "none";
+        return;
+      }
+
+      try {
+        const uid = auth.currentUser.uid;
+
+        // Atualizar no Realtime Database
+        await update(ref(db, "usuarios/" + uid), {
+          nome: newName
+        });
+
+        // Atualizar no Firestore (se existir documento do usuário)
+        try {
+          const userDocRef = doc(firestore, "usuarios", uid);
+          await updateDoc(userDocRef, {
+            nome: newName
+          });
+        } catch (firestoreError) {
+          console.log("Usuário pode não existir no Firestore:", firestoreError);
+        }
+
+        // Atualizar no Authentication (displayName)
+        await updateProfile(auth.currentUser, {
+          displayName: newName
+        });
+
+        // Atualizar UI
+        document.getElementById('currentName').value = newName;
+        document.getElementById('newName').value = '';
+        document.getElementById('successMsg').style.display = "block";
+        document.getElementById('errorMsg').style.display = "none";
+
+        // Esconder mensagem após 3 segundos
+        setTimeout(() => {
+          document.getElementById('successMsg').style.display = "none";
+        }, 3000);
+
+      } catch (error) {
+        console.error("Erro ao atualizar nome:", error);
+        document.getElementById('errorMsg').textContent = `❌ Erro: ${error.message}`;
+        document.getElementById('errorMsg').style.display = "block";
+        document.getElementById('successMsg').style.display = "none";
+      }
+    });
+  </script>
 </body>
 </html>

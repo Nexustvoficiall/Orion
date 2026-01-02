@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Banners de Divulgação - Orion Creator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Poppins", sans-serif;
+      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      color: white;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ESTRELAS ANIMADAS */
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 120s linear infinite;
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      height: 100%;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px;
+      background: linear-gradient(180deg, #1e0b3a, #2e1065, #3b0764);
+      padding-top: 60px;
+      transition: left 0.3s ease;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .sidebar.active { left: 0; }
+
+    .sidebar a {
+      display: block;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      font-size: 1.1em;
+      transition: background 0.2s;
+    }
+
+    .sidebar a:hover { background: rgba(147, 51, 234, 0.2); }
+
+    /* SEÇÃO IMPORTANTE - COMPACTA */
+    .sidebar-importante {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+      margin: 10px 0;
+      padding: 15px 20px;
+    }
+
+    .importante-header {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #a855f7;
+      text-align: center;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .importante-section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+    }
+
+    .importante-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .importante-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 8px;
+    }
+
+    .logo-preview {
+      width: 100%;
+      height: 60px;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px dashed rgba(168, 85, 247, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .btn-upload-logo, .btn-salvar-whatsapp {
+      width: 100%;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-upload-logo:hover, .btn-salvar-whatsapp:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
+    }
+
+    .btn-upload-logo:disabled {
+      background: #555;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .upload-info, .upload-reset {
+      font-size: 0.65rem;
+      color: #d8b4fe;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .upload-info span, .upload-reset span {
+      color: #a855f7;
+      font-weight: 700;
+    }
+
+    .whatsapp-input {
+      width: 100%;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 6px;
+      padding: 8px;
+      color: white;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .whatsapp-input:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .whatsapp-input::placeholder {
+      color: #888;
+      font-size: 0.75rem;
+    }
+    
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sidebar-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #menu-toggle {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 101;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+      transition: all 0.25s ease;
+    }
+
+    #menu-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    }
+
+    /* CONTEÚDO PRINCIPAL */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 80px 20px 40px;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 15px;
+    }
+
+    .page-subtitle {
+      font-size: 1.2rem;
+      color: #c084fc;
+      max-width: 700px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .divulgacao-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .divulgacao-card {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1));
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 15px;
+      padding: 30px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .divulgacao-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(168, 85, 247, 0.3);
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+
+    .divulgacao-icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+    }
+
+    .divulgacao-card h3 {
+      font-size: 1.5rem;
+      color: #a855f7;
+      margin-bottom: 10px;
+    }
+
+    .divulgacao-card p {
+      color: #c084fc;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(168, 85, 247, 0.5);
+    }
+
+    /* FOOTER */
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: #d1d5db;
+      font-size: 0.95em;
+      padding: 25px 10px;
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    /* RESPONSIVO - MOBILE */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 250px;
+        left: -250px;
+      }
+
+      .sidebar-importante {
+        padding: 12px 15px;
+      }
+
+      .importante-header {
+        font-size: 0.8rem;
+      }
+
+      .btn-upload-logo, .btn-salvar-whatsapp {
+        font-size: 0.7rem;
+        padding: 7px;
+      }
+
+      #menu-toggle {
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        padding: 0 !important;
+        font-size: 1.2rem !important;
+        line-height: 44px !important;
+        text-align: center !important;
+        z-index: 1002 !important;
+        border-radius: 12px !important;
+        background: rgba(168, 85, 247, 0.95) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 2px solid rgba(255, 255, 255, 0.15) !important;
+        color: white !important;
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4) !important;
+        cursor: pointer !important;
+      }
+
+      .container {
+        padding: 60px 15px 30px;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+
+      .page-subtitle {
+        font-size: 1rem;
+      }
+
+      .divulgacao-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <button id="menu-toggle">☰</button>
+  
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <!-- MENU NAVEGAÇÃO -->
+    <a href="home.html">🏠 Início</a>
+    
+    <!-- SEÇÃO IMPORTANTE -->
+    <div class="sidebar-importante">
+      <div class="importante-header">⭐ IMPORTANTE</div>
+      
+      <!-- Upload de Logo -->
+      <div class="importante-section">
+        <label class="importante-label">📸 Logo Personalizada</label>
+        <div class="logo-preview" id="logoPreview">
+          <img id="logoPreviewImg" src="" alt="Logo" style="display: none; max-width: 100%; max-height: 60px; object-fit: contain;">
+          <span id="logoPlaceholder" style="color: #888; font-size: 0.8rem;">Nenhuma logo</span>
+        </div>
+        <input type="file" id="logoUpload" accept="image/*" style="display: none;">
+        <button class="btn-upload-logo" id="btnUploadLogo">Enviar Logo</button>
+        <div class="upload-info" id="uploadInfo"><span id="uploadsRestantes">--</span>/2 uploads</div>
+        <div class="upload-reset" id="uploadReset">Reset: <span id="dataReset">--/--</span></div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="importante-section">
+        <label class="importante-label">📱 WhatsApp</label>
+        <input type="tel" id="whatsappInput" class="whatsapp-input" placeholder="(00) 00000-0000" maxlength="15">
+        <button class="btn-salvar-whatsapp" id="btnSalvarWhatsapp">Salvar</button>
+      </div>
+    </div>
+    
+    <a href="futebol.html">⚽ Gerar Esportes</a>
+    <a href="esportes.html">📢 Banners de Divulgação</a>
+    <a href="vods.html">🎬 Filmes & Séries</a>
+    <a href="videos.html">🎥 Vídeos de Vods</a>
+    <a href="programacao.html">📅 Programação Esportiva</a>
+    <a href="perfil.html">👤 Meu Perfil</a>
+    <a href="#" id="sidebar-logout">🚪 Sair</a>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <h1 class="page-title">📢 Banners de Divulgação</h1>
+      <p class="page-subtitle">
+        Crie banners profissionais para promover seus serviços, produtos e eventos nas redes sociais!
+      </p>
+    </div>
+
+    <div class="divulgacao-grid">
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">🎯</div>
+        <h3>Serviços IPTV</h3>
+        <p>Gere banners atraentes para divulgar seus planos de IPTV com preços e benefícios</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">🎉</div>
+        <h3>Eventos</h3>
+        <p>Crie banners de eventos esportivos, shows e outras ocasiões especiais</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">💰</div>
+        <h3>Promoções</h3>
+        <p>Divulgue suas ofertas especiais e promoções com banners chamativos</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">📱</div>
+        <h3>Redes Sociais</h3>
+        <p>Banners otimizados para Instagram, Facebook, WhatsApp e outras plataformas</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">🎨</div>
+        <h3>Personalizados</h3>
+        <p>Crie banners totalmente personalizados com suas cores e informações</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+
+      <div class="divulgacao-card">
+        <div class="divulgacao-icon">⚡</div>
+        <h3>Rápido & Fácil</h3>
+        <p>Gere seus banners em segundos com modelos profissionais prontos para uso</p>
+        <button class="btn-primary">Em Breve</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 Orion Creator. Todos os direitos reservados.</p>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // Configuração Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // ==================== GERENCIAMENTO DE LOGO E WHATSAPP ====================
+    let userLogoUrl = null;
+    let userWhatsapp = null;
+
+    // Função para atualizar contador de uploads
+    async function atualizarContadorUploads(uid) {
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "usuarios/" + uid));
+        
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          const uploadsRestantes = dados.uploads_restantes || 2;
+          const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+          
+          document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
+          
+          if (dataReset) {
+            document.getElementById('dataReset').textContent = dataReset.toLocaleDateString('pt-BR');
+          }
+          
+          // Desabilitar botão se não tiver uploads restantes
+          const btnUpload = document.getElementById('btnUploadLogo');
+          if (uploadsRestantes <= 0) {
+            btnUpload.disabled = true;
+            btnUpload.textContent = 'Limite Atingido';
+          } else {
+            btnUpload.disabled = false;
+            btnUpload.textContent = 'Enviar Logo';
+          }
+          
+          // Carregar logo do usuário (logo_url é o base64)
+          const logoImg = document.getElementById('logoPreviewImg');
+          const logoPlaceholder = document.getElementById('logoPlaceholder');
+          
+          if (dados.logo_url) {
+            userLogoUrl = dados.logo_url;
+            if (logoImg) {
+              logoImg.src = dados.logo_url;
+              logoImg.style.display = 'block';
+            }
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'none';
+            }
+            console.log('✅ Logo carregada do Firebase:', dados.logo_url.substring(0, 50) + '...');
+          } else {
+            // Sem logo personalizada
+            if (logoImg) logoImg.style.display = 'none';
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'block';
+              logoPlaceholder.textContent = 'Nenhuma logo';
+            }
+            console.log('ℹ️ Usuário não possui logo personalizada');
+          }
+          
+          // Mostrar WhatsApp se existir
+          if (dados.whatsapp) {
+            userWhatsapp = dados.whatsapp;
+            document.getElementById('whatsappInput').value = dados.whatsapp;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados do usuário:', error);
+      }
+    }
+
+    // Função para resetar contador mensalmente
+    async function verificarResetMensal(uid) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      
+      if (snapshot.exists()) {
+        const dados = snapshot.val();
+        const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+        const hoje = new Date();
+        
+        // Se não tem data de reset ou passou de 30 dias, reseta
+        if (!dataReset || hoje >= dataReset) {
+          const proximoReset = new Date();
+          proximoReset.setDate(proximoReset.getDate() + 30);
+          
+          await update(ref(db, "usuarios/" + uid), {
+            uploads_restantes: 2,
+            data_reset_logo: proximoReset.toISOString()
+          });
+          
+          atualizarContadorUploads(uid);
+        }
+      }
+    }
+
+    // Upload de logo
+    document.getElementById('btnUploadLogo').addEventListener('click', () => {
+      document.getElementById('logoUpload').click();
+    });
+
+    document.getElementById('logoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const user = auth.currentUser;
+      if (!user) {
+        alert("⚠️ Você precisa estar logado para fazer upload!");
+        return;
+      }
+
+      // Validações
+      if (!file.type.startsWith('image/')) {
+        alert("⚠️ Por favor, selecione uma imagem válida!");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert("⚠️ A imagem deve ter no máximo 5MB!");
+        return;
+      }
+
+      try {
+        // Converter para base64
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Image = event.target.result;
+
+          // Salvar no Firebase Realtime Database
+          await update(ref(db, "usuarios/" + user.uid), {
+            logo_url: base64Image,
+            uploads_restantes: (await get(child(ref(db), "usuarios/" + user.uid))).val().uploads_restantes - 1
+          });
+
+          userLogoUrl = base64Image;
+
+          // Atualizar preview
+          document.getElementById('logoPreviewImg').src = base64Image;
+          document.getElementById('logoPreviewImg').style.display = 'block';
+          document.getElementById('logoPlaceholder').style.display = 'none';
+
+          alert("✅ Logo enviada com sucesso!");
+          await atualizarContadorUploads(user.uid);
+        };
+
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("❌ Erro ao fazer upload:", error);
+        alert("❌ Erro ao enviar logo. Tente novamente!");
+      }
+    });
+
+    // Salvar WhatsApp
+    document.getElementById('btnSalvarWhatsapp').addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("⚠️ Você precisa estar logado!");
+        return;
+      }
+
+      const whatsapp = document.getElementById('whatsappInput').value;
+
+      if (!whatsapp || whatsapp.length < 14) {
+        alert("⚠️ Por favor, insira um número válido!");
+        return;
+      }
+
+      try {
+        await update(ref(db, "usuarios/" + user.uid), {
+          whatsapp: whatsapp
+        });
+
+        userWhatsapp = whatsapp;
+        alert("✅ WhatsApp salvo com sucesso!");
+      } catch (error) {
+        console.error("❌ Erro ao salvar WhatsApp:", error);
+        alert("❌ Erro ao salvar WhatsApp. Tente novamente!");
+      }
+    });
+
+    // Máscara para WhatsApp
+    document.getElementById('whatsappInput').addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      
+      if (value.length <= 11) {
+        if (value.length <= 2) {
+          e.target.value = value;
+        } else if (value.length <= 7) {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+        } else {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+        }
+      }
+    });
+
+    // Verifica autenticação e carrega dados do usuário
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+      
+      // Verificar e resetar contador mensal
+      await verificarResetMensal(user.uid);
+      
+      // Atualizar informações de logo e WhatsApp
+      await atualizarContadorUploads(user.uid);
+    });
+
+    // Logout
+    document.getElementById("sidebar-logout").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "index.html";
+    });
+    
+    // Toggle Menu Sidebar com overlay
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarOverlay = document.getElementById("sidebarOverlay");
+    
+    function toggleMenu() {
+      sidebar.classList.toggle("active");
+      sidebarOverlay.classList.toggle("active");
+      document.body.style.overflow = sidebar.classList.contains("active") ? "hidden" : "";
+    }
+    
+    menuToggle.addEventListener("click", toggleMenu);
+    sidebarOverlay.addEventListener("click", toggleMenu);
+    
+    // Fechar ao clicar em link
+    sidebar.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        if (window.innerWidth <= 768) toggleMenu();
+      });
+    });
+  </script>
+</body>
+</html>

@@ -543,23 +543,43 @@ app.post("/api/upload", verificarAuth, uploadLimiter, upload.single("file"), (re
 
 app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
   try {
+    console.log(`🔍 Buscando banners para UID: ${req.uid}`);
+    
     // Padrão 1 dia (24 horas) - banners expiram automaticamente
     const dias = parseInt(req.query.dias, 10) || 1;
     const limiteMs = dias * 24 * 60 * 60 * 1000;
     const agora = Date.now();
     const bannersRef = db.collection("banners");
-    const query = bannersRef
-      .where("uid", "==", req.uid)
-      .orderBy("criadoEm", "desc");
+    // Remover orderBy para evitar necessidade de índice composto
+    const query = bannersRef.where("uid", "==", req.uid);
     const snap = await query.get();
+    
+    console.log(`📦 Encontrados ${snap.size} documentos no Firestore`);
+    
     const banners = [];
     snap.forEach(doc => {
       const data = doc.data();
       const criadoEmMs = data.criadoEm?.toMillis ? data.criadoEm.toMillis() : data.criadoEm;
+      
+      console.log(`  📄 Doc ID: ${doc.id}, Criado em: ${criadoEmMs}, Idade: ${agora - criadoEmMs}ms (limite: ${limiteMs}ms)`);
+      
       if (criadoEmMs && (agora - criadoEmMs) <= limiteMs) {
-        banners.push({ id: doc.id, ...data });
+        // Normalizar campos para compatibilidade com frontend
+        banners.push({ 
+          id: doc.id, 
+          ...data,
+          criadoEmMs, // Adicionar timestamp para ordenação
+          bannerUrl: data.url || data.bannerUrl,
+          thumbnailUrl: data.url || data.thumbnailUrl || data.bannerUrl,
+          modeloCor: data.modelo && data.cor ? `${data.modelo} ${data.cor}` : (data.modeloCor || 'Banner')
+        });
       }
     });
+    // Ordenar no código (mais recente primeiro)
+    banners.sort((a, b) => b.criadoEmMs - a.criadoEmMs);
+    
+    console.log(`✅ Retornando ${banners.length} banners válidos`);
+    
     // Retornar array direto para compatibilidade com frontend
     res.json(banners);
   } catch (err) {
@@ -1369,6 +1389,8 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
     const safeTitle = titulo.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
     
     // Salvar no Cloudinary e registrar no Firestore para "Últimas Criações"
+    console.log(`💾 Iniciando salvamento: UID=${req.uid}, Título=${titulo}`);
+    
     try {
       const cloudinaryResult = await new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
@@ -1379,15 +1401,20 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
             format: 'png'
           },
           (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
+            if (error) {
+              console.error(`❌ Cloudinary upload FALHOU:`, error);
+              reject(error);
+            } else {
+              console.log(`✅ Cloudinary OK: ${result.public_id}`);
+              resolve(result);
+            }
           }
         );
         uploadStream.end(final);
       });
       
       // Salvar referência no Firestore
-      await db.collection("banners").add({
+      const bannerDoc = await db.collection("banners").add({
         uid: req.uid,
         titulo: titulo,
         url: cloudinaryResult.secure_url,
@@ -1400,10 +1427,11 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
         criadoEm: admin.firestore.FieldValue.serverTimestamp()
       });
       
-      console.log(`📁 Banner salvo no Cloudinary: ${cloudinaryResult.public_id}`);
+      console.log(`✅ Firestore OK: ID=${bannerDoc.id}`);
+      console.log(`✅ URL: ${cloudinaryResult.secure_url}`);
     } catch (saveErr) {
-      console.warn("⚠️ Erro ao salvar banner (não crítico):", saveErr.message);
-      // Continua mesmo se não conseguir salvar - o banner ainda é retornado
+      console.error("❌❌❌ ERRO AO SALVAR BANNER:", saveErr.message, saveErr);
+      // NÃO silenciar - continuar mas logar fortemente
     }
     
     res.setHeader("Content-Disposition", `attachment; filename=banner_${safeTitle}.png`);
@@ -1763,147 +1791,114 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     console.log(`✅ Trailer obtido com sucesso`);
 
 
-    console.log("🎨 4/8 - Buscando logo oficial do filme (TMDB primeiro, Fanart depois)...");
-    let logoUrl = null;
+    console.log("🚀 4/8 - Buscando e processando imagens em paralelo (OTIMIZADO)...");
     
-    // Buscar PRIMEIRO no TMDB
-    const logos = details.images?.logos || [];
-    const findLogo = (langs) => logos.find(l => langs.includes(l.iso_639_1 || "null"));
-    const chosenLogo = findLogo(["pt", "pt-BR"]) || findLogo(["en", "null"]) || logos[0];
-    if (chosenLogo?.file_path) {
-      logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
-      console.log(`✅ Logo oficial encontrada no TMDB (${chosenLogo.iso_639_1 || 'sem idioma'})`);
-    } else {
-      // Se não encontrou no TMDB, buscar no Fanart API
-      console.log("⚠️ Logo não encontrada no TMDB, tentando Fanart API...");
-      try {
-        let fanartData = null;
-        if (tmdbTipo === "movie") {
-          fanartData = await fanartService.getMovieArt(tmdbId);
-        } else if (tmdbTipo === "tv") {
-          fanartData = await fanartService.getTVArt(tmdbId);
+    // PARALELIZAÇÃO: Buscar URLs de logo, poster e backdrop simultaneamente
+    const [logoUrl, posterUrl, backdropUrl] = await Promise.all([
+      // Logo
+      (async () => {
+        const logos = details.images?.logos || [];
+        const findLogo = (langs) => logos.find(l => langs.includes(l.iso_639_1 || "null"));
+        const chosenLogo = findLogo(["pt", "pt-BR"]) || findLogo(["en", "null"]) || logos[0];
+        if (chosenLogo?.file_path) {
+          return `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
         }
-        
-        if (fanartData && fanartData.hdmovielogo && fanartData.hdmovielogo[0]) {
-          logoUrl = fanartData.hdmovielogo[0].url;
-          console.log(`✅ Logo oficial encontrada no Fanart API (HD Movie)`);
-        } else if (fanartData && fanartData.movielogo && fanartData.movielogo[0]) {
-          logoUrl = fanartData.movielogo[0].url;
-          console.log(`✅ Logo oficial encontrada no Fanart API (Movie)`);
-        } else if (fanartData && fanartData.hdtvlogo && fanartData.hdtvlogo[0]) {
-          logoUrl = fanartData.hdtvlogo[0].url;
-          console.log(`✅ Logo oficial encontrada no Fanart API (HD TV)`);
-        } else if (fanartData && fanartData.clearlogo && fanartData.clearlogo[0]) {
-          logoUrl = fanartData.clearlogo[0].url;
-          console.log(`✅ Logo oficial encontrada no Fanart API (Clear TV)`);
-        } else {
-          console.log(`⚠️ Logo oficial não encontrada em nenhuma fonte`);
+        // Fallback: Fanart API
+        try {
+          let fanartData = null;
+          if (tmdbTipo === "movie") {
+            fanartData = await fanartService.getMovieArt(tmdbId);
+          } else if (tmdbTipo === "tv") {
+            fanartData = await fanartService.getTVArt(tmdbId);
+          }
+          if (fanartData?.hdmovielogo?.[0]) return fanartData.hdmovielogo[0].url;
+          if (fanartData?.movielogo?.[0]) return fanartData.movielogo[0].url;
+          if (fanartData?.hdtvlogo?.[0]) return fanartData.hdtvlogo[0].url;
+          if (fanartData?.clearlogo?.[0]) return fanartData.clearlogo[0].url;
+        } catch (err) {
+          console.warn(`⚠️ Fanart: ${err.message}`);
         }
-      } catch (err) {
-        console.warn(`⚠️ Falha ao buscar logo no Fanart: ${err.message}`);
-      }
-    }
-
-    console.log("🖼️ 5/8 - Buscando poster do filme...");
-    let posterUrl = null;
-    const posters = details.images?.posters || [];
-    
-    if (tmdbTipo === "tv" && temporada) {
-      try {
-        const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`, { append_to_response: "images" });
-        const seasonResp = await fetchWithTimeout(seasonUrl);
-        if (seasonResp.ok) {
-          const seasonData = await seasonResp.json();
-          if (seasonData.poster_path) {
-            posterUrl = `https://image.tmdb.org/t/p/original${seasonData.poster_path}`;
-            console.log(`✅ Poster da temporada ${temporada} encontrado`);
+        return null;
+      })(),
+      // Poster
+      (async () => {
+        const posters = details.images?.posters || [];
+        if (tmdbTipo === "tv" && temporada) {
+          try {
+            const seasonUrl = buildTMDBUrl(`/tv/${tmdbId}/season/${temporada}`, { append_to_response: "images" });
+            const seasonResp = await fetchWithTimeout(seasonUrl);
+            if (seasonResp.ok) {
+              const seasonData = await seasonResp.json();
+              if (seasonData.poster_path) {
+                return `https://image.tmdb.org/t/p/original${seasonData.poster_path}`;
+              }
+            }
+          } catch (err) {
+            console.warn(`⚠️ Poster temporada: ${err.message}`);
           }
         }
-      } catch (err) {
-        console.warn(`⚠️ Falha ao buscar poster da temporada: ${err.message}`);
-      }
-    }
-    
-    if (!posterUrl) {
-      const findPoster = (langs) => posters.find(p => langs.includes(p.iso_639_1 || "null"));
-      const chosenPoster = findPoster(["pt", "pt-BR"]) || findPoster(["en", "null"]) || posters[0];
-      if (chosenPoster?.file_path) {
-        posterUrl = `https://image.tmdb.org/t/p/original${chosenPoster.file_path}`;
-      } else if (details.poster_path) {
-        posterUrl = `https://image.tmdb.org/t/p/original${details.poster_path}`;
-      }
-    }
+        const findPoster = (langs) => posters.find(p => langs.includes(p.iso_639_1 || "null"));
+        const chosenPoster = findPoster(["pt", "pt-BR"]) || findPoster(["en", "null"]) || posters[0];
+        if (chosenPoster?.file_path) {
+          return `https://image.tmdb.org/t/p/original${chosenPoster.file_path}`;
+        }
+        if (details.poster_path) {
+          return `https://image.tmdb.org/t/p/original${details.poster_path}`;
+        }
+        return null;
+      })(),
+      // Backdrop
+      (async () => {
+        const backdrops = details.images?.backdrops || [];
+        if (backdrops.length > 0) {
+          const randomIndex = Math.floor(Math.random() * Math.min(backdrops.length, 5));
+          return `https://image.tmdb.org/t/p/original${backdrops[randomIndex].file_path}`;
+        }
+        if (details.backdrop_path) {
+          return `https://image.tmdb.org/t/p/original${details.backdrop_path}`;
+        }
+        return null;
+      })()
+    ]);
 
     if (!posterUrl) {
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
       return res.status(404).json({ error: "Poster não disponível para este título" });
     }
 
-    console.log(`✅ Poster obtido do TMDB`);
+    console.log(`✅ URLs obtidas - Logo: ${!!logoUrl} | Poster: ✓ | Backdrop: ${!!backdropUrl}`);
 
-    console.log("🌌 6/8 - Processando backdrop (1080x1920)...");
+    console.log("⚡ 5/8 - Baixando e processando imagens em paralelo...");
+    
+    // PARALELIZAÇÃO: Baixar e processar todas as imagens simultaneamente
+    const [posterBuffer, logoBuffer, backdropBuffer] = await Promise.all([
+      fetchBuffer(posterUrl),
+      logoUrl ? fetchBuffer(logoUrl).catch(err => { console.warn(`⚠️ Logo fetch: ${err.message}`); return null; }) : null,
+      backdropUrl ? fetchBuffer(backdropUrl).catch(err => { console.warn(`⚠️ Backdrop fetch: ${err.message}`); return null; }) : null
+    ]);
+
+    console.log("🎨 6/8 - Processando imagens com Sharp (ULTRA-RÁPIDO)...");
+    
+    // Processar backdrop com otimização máxima
     let backdropPath = null;
-    const backdrops = details.images?.backdrops || [];
-    
-    console.log(`   Backdrops disponíveis: ${backdrops.length}`);
-    
-    // Tentar usar images.backdrops primeiro, depois backdrop_path do details
-    let backdropUrl = null;
-    if (backdrops.length > 0) {
-      const randomIndex = Math.floor(Math.random() * Math.min(backdrops.length, 5));
-      backdropUrl = `https://image.tmdb.org/t/p/original${backdrops[randomIndex].file_path}`;
-      console.log(`   Usando backdrop do array images (${randomIndex + 1}/${backdrops.length})`);
-    } else if (details.backdrop_path) {
-      backdropUrl = `https://image.tmdb.org/t/p/original${details.backdrop_path}`;
-      console.log(`   Usando backdrop_path do details principal`);
-    }
-    
-    if (backdropUrl) {
-      console.log(`   Baixando backdrop: ${backdropUrl}`);
-      try {
-        const backdropBuffer = await fetchBuffer(backdropUrl);
-        // Processar backdrop e aplicar sombra PRETA por cima
-        const backdropResized = await sharp(backdropBuffer)
-          .resize(1080, 1920, { fit: "cover", position: "center" })
-          .blur(3)
-          .toBuffer();
-        
-        // Criar overlay de sombra preta (70% opacidade)
-        const shadowOverlay = await sharp({
-          create: {
-            width: 1080,
-            height: 1920,
-            channels: 4,
-            background: { r: 0, g: 0, b: 0, alpha: 0.70 }
-          }
-        }).png().toBuffer();
-        
-        // Compor backdrop com sombra preta
-        const backdropProcessed = await sharp(backdropResized)
-          .composite([{ input: shadowOverlay, blend: 'over' }])
-          .toBuffer();
-        
-        backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
-        await sharp(backdropProcessed).toFile(backdropPath);
-        tempFiles.push(backdropPath);
-        console.log(`✅ Backdrop processado (1080x1920, sombra preta 70% aplicada)`);
-      } catch (err) {
-        console.warn("⚠️ Falha ao processar backdrop:", err.message);
-      }
+    if (backdropBuffer) {
+      backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
+      await sharp(backdropBuffer)
+        .resize(1080, 1920, { fit: "cover", position: "center", kernel: 'nearest' })
+        .blur(2) // Reduzido de 3 para 2
+        .linear(0.7, 0) // Escurecer 30% (mais rápido que composite)
+        .png({ compressionLevel: 1, effort: 1 }) // Compressão mínima
+        .toFile(backdropPath);
+      tempFiles.push(backdropPath);
     } else {
-      console.warn("⚠️ Nenhum backdrop disponível no TMDB e no details");
-    }
-
-    if (!backdropPath) {
-      console.log("⚠️ Criando backdrop preto como fallback");
       backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
       await sharp({
         create: { width: 1080, height: 1920, channels: 4, background: { r: 5, g: 5, b: 10, alpha: 1 } }
-      }).png().toFile(backdropPath);
+      }).png({ compressionLevel: 1 }).toFile(backdropPath);
       tempFiles.push(backdropPath);
     }
 
-    console.log("🖌️ 7/8 - Gerando composição visual com NOVO LAYOUT...");
+    console.log("🖌️ 7/8 - Gerando composição visual OTIMIZADA...");
     
     // Buscar logo do usuário
     const userDoc = await db.collection("usuarios").doc(req.uid).get();
@@ -1913,76 +1908,68 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     const videoWidth = 1080;
     const videoHeight = 1920;
     
-    // LAYOUT: Poster DENTRO DO QUADRO NEON (overlay) - DIREITA, vertical
-    // Quadro neon está posicionado na área direita do overlay
-    const posterWidth = 382;  // +1mm maior
-    const posterHeight = 548; // +1mm maior
-    const posterX = 570;      // SUTILMENTE mais à DIREITA
-    const posterY = 880;      // MAIS PARA BAIXO
+    const posterWidth = 382;
+    const posterHeight = 548;
+    const posterX = 570;
+    const posterY = 880;
     
-    // Processar poster do filme COM BORDAS ARREDONDADAS
-    const posterBuffer = await fetchBuffer(posterUrl);
-    const posterResized = await sharp(posterBuffer)
-      .resize(posterWidth, posterHeight, { fit: "cover", position: "center" })
-      .composite([{
-        input: Buffer.from(
-          `<svg width="${posterWidth}" height="${posterHeight}">
-            <rect x="0" y="0" width="${posterWidth}" height="${posterHeight}" rx="20" ry="20" fill="white"/>
-          </svg>`
-        ),
-        blend: 'dest-in'
-      }])
-      .toBuffer();
+    // PARALELIZAÇÃO: Processar poster, logo oficial e logo do cliente simultaneamente
+    const [posterResized, logoProcessed, userLogoResized] = await Promise.all([
+      // Poster com bordas arredondadas (otimizado)
+      sharp(posterBuffer)
+        .resize(posterWidth, posterHeight, { fit: "cover", position: "center", kernel: 'cubic' })
+        .composite([{
+          input: Buffer.from(
+            `<svg width="${posterWidth}" height="${posterHeight}">
+              <rect x="0" y="0" width="${posterWidth}" height="${posterHeight}" rx="20" ry="20" fill="white"/>
+            </svg>`
+          ),
+          blend: 'dest-in'
+        }])
+        .png({ compressionLevel: 1 })
+        .toBuffer(),
+      // Logo oficial
+      logoBuffer ? sharp(logoBuffer)
+        .resize(450, 120, { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
+        .png({ compressionLevel: 1 })
+        .toBuffer()
+        .catch(err => { console.warn(`⚠️ Logo processo: ${err.message}`); return null; }) : null,
+      // Logo do cliente
+      (userLogo && validarURL(userLogo)) ? fetchBuffer(userLogo, false)
+        .then(buf => sharp(buf)
+          .resize(280, 280, { fit: "contain", withoutEnlargement: true, kernel: 'cubic' })
+          .png({ compressionLevel: 1 })
+          .toBuffer()
+        )
+        .catch(err => { console.warn(`⚠️ User logo: ${err.message}`); return null; }) : null
+    ]);
     
     // Preparar composições
     const composites = [];
     
-    // 1. Adicionar poster do filme (direita inferior)
+    // 1. Adicionar poster do filme
     composites.push({
       input: posterResized,
       top: posterY,
       left: posterX
     });
     
-    // 2. Processar e adicionar logo do filme (centro-esquerda, acima da sinopse)
-    let logoProcessed = null;
-    if (logoUrl) {
-      try {
-        const logoBuffer = await fetchBuffer(logoUrl);
-        logoProcessed = await sharp(logoBuffer)
-          .resize(450, 120, { fit: "inside", withoutEnlargement: true })
-          .toBuffer();
-        const { width: logoW, height: logoH } = await sharp(logoProcessed).metadata();
-        
-        composites.push({
-          input: logoProcessed,
-          top: 780, // MAIS BAIXO (era 720)
-          left: 60  // LADO ESQUERDO para ser visível
-        });
-        console.log(`✅ Logo oficial adicionada (${logoW}x${logoH})`);
-      } catch (err) {
-        console.warn("⚠️ Falha ao processar logo oficial:", err.message);
-      }
+    // 2. Logo oficial
+    if (logoProcessed) {
+      composites.push({
+        input: logoProcessed,
+        top: 780,
+        left: 60
+      });
     }
     
-    // 3. Adicionar logo do cliente (topo)
-    if (userLogo && validarURL(userLogo)) {
-      try {
-        const userLogoBuffer = await fetchBuffer(userLogo, false);
-        const userLogoResized = await sharp(userLogoBuffer)
-          .resize(280, 280, { fit: "contain", withoutEnlargement: true })
-          .toBuffer();
-        const { width: userLogoW, height: userLogoH } = await sharp(userLogoResized).metadata();
-        
-        composites.push({
-          input: userLogoResized,
-          top: 1200,
-          left: 120 // LEVEMENTE MAIS À DIREITA
-        });
-        console.log(`✅ Logo do cliente adicionada`);
-      } catch (err) {
-        console.warn("⚠️ Falha ao processar logo do cliente:", err.message);
-      }
+    // 3. Logo do cliente
+    if (userLogoResized) {
+      composites.push({
+        input: userLogoResized,
+        top: 1200,
+        left: 120
+      });
     }
     
     // 4. Criar overlay com textos (título se não houver logo, sinopse, metadados)
@@ -2081,30 +2068,29 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       left: 0
     });
     
-    // Criar frame TRANSPARENTE com todos os elementos (poster, logos, textos)
-    // NÃO usar backdrop como base - ele vai no FFmpeg!
+    // Criar frame TRANSPARENTE (otimizado)
     const framePath = path.join(tempDir, `frame_${tmdbId}.png`);
     await sharp({
       create: {
         width: videoWidth,
         height: videoHeight,
         channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 } // TRANSPARENTE!
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
       }
     })
       .composite(composites)
-      .png()
+      .png({ compressionLevel: 1, effort: 1 }) // Compressão mínima
       .toFile(framePath);
     
     tempFiles.push(framePath);
     console.log(`✅ Frame visual gerado (1080x1920)`);
 
 
-    console.log("✂️ 8/8 - Cortando e processando trailer...");
+    console.log("✂️ 8/8 - Cortando trailer (ULTRA-RÁPIDO)...");
     
     if (requestAborted) {
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
-      return; // Não enviar resposta se já abortou
+      return;
     }
     
     const trimmedPath = path.join(tempDir, `trailer_trimmed_${tmdbId}.mp4`);
@@ -2112,11 +2098,9 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     try {
       const cutStart = Date.now();
-      console.log(`   🛠️ Corte ULTRA-RÁPIDO com stream copy...`);
-      console.log(`   ⏱️ Cortando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
       
       try {
-        // Tentar corte com COPY (instantâneo - nenhuma recodificação)
+        // Tentar corte com COPY (instantâneo)
         await spawnProcess('ffmpeg', [
           '-ss', '0',
           '-i', trailerPath,
@@ -2126,43 +2110,42 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
           '-y', trimmedPath
         ]);
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
-        console.log(`✅ Corte instantâneo com copy (tempo: ${cutTime}s)`);
+        console.log(`✅ Corte instantâneo (${cutTime}s)`);
       } catch (copyErr) {
-        // Fallback: corte ULTRA-RÁPIDO com recodificação
-        console.log(`   ⚠️ Copy falhou, usando recodificação ultrafast...`);
-        
+        // Fallback: ultrafast com CRF agressivo
         await spawnProcess('ffmpeg', [
           '-i', trailerPath,
           '-t', duracaoNum.toString(),
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
-          '-crf', '28',
+          '-crf', '30', // Aumentado de 28 para 30 (mais rápido)
+          '-tune', 'fastdecode',
           '-c:a', 'aac',
-          '-b:a', '96k',
+          '-b:a', '80k', // Reduzido de 96k para 80k
           '-threads', '0',
           '-y', trimmedPath
         ]);
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
-        console.log(`✅ Trailer recodificado ultrafast (tempo: ${cutTime}s)`);
+        console.log(`✅ Recodificado ultrafast (${cutTime}s)`);
       }
     } catch (err) {
-      console.error("❌ Erro ao cortar trailer:", err.message);
+      console.error("❌ Erro ao cortar:", err.message);
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
       return res.status(500).json({ error: "Falha ao processar trailer" });
     }
 
-    console.log("🎬 9/9 - Compondo vídeo final com FFmpeg (Trailer + Frame + Overlay)...");
+    console.log("🎬 9/9 - Composição final ULTRA-RÁPIDA...");
     
     if (requestAborted) {
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
-      return; // Não enviar resposta se já abortou
+      return;
     }
     
     const overlayPath = path.join(__dirname, "public", "images", "videos", "overlay.png");
     
     if (!await fileExists(overlayPath)) {
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
-      return res.status(404).json({ error: "Overlay não encontrado. Certifique-se de que o arquivo existe em public/images/videos/overlay.png" });
+      return res.status(404).json({ error: "Overlay não encontrado" });
     }
 
     const outputFilename = `video_${tmdbId}_${Date.now()}.mp4`;
@@ -2171,68 +2154,47 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     try {
       const compStart = Date.now();
       
-      // QUALIDADE FIXA 720p HD - OTIMIZADO PARA WHATSAPP (<10MB)
-      // Bitrates calculados para máximo 10MB:
-      // 30s: 2000kbps = ~7.5MB | 60s: 1100kbps = ~8.3MB | 90s: 750kbps = ~8.4MB
+      // Bitrates otimizados para WhatsApp
       const targetBitrateVideo = duracaoNum <= 30 ? '2000k' : duracaoNum <= 60 ? '1100k' : '750k';
-      const targetBitrateAudio = '96k';
-      const preset = 'fast'; // Boa qualidade com velocidade razoável
-      const crf = '25'; // CRF equilibrado para 720p HD
+      const targetBitrateAudio = '80k'; // Reduzido de 96k
       
-      console.log(`   ⏱️ Composição 720p HD (WhatsApp <10MB)`);
-      console.log(`   📊 Config: 720p HD, crf=${crf}, video=${targetBitrateVideo}, audio=${targetBitrateAudio}`);
-      console.log(`   💨 Processando... (tempo: ${Math.floor((Date.now() - startTime) / 1000)}s)`);
+      console.log(`   ⚡ Composição 720p (ultrafast, ${targetBitrateVideo})`);
       
-      // Composição FFmpeg SIMPLIFICADA: menos filtros = mais rápido
+      // FFmpeg OTIMIZADO: filtros simplificados, preset ultrafast
       await spawnProcess('ffmpeg', [
-        // Entrada 0: Backdrop escuro (fundo)
-        '-loop', '1',
-        '-framerate', '24',
-        '-i', backdropPath,
-        // Entrada 1: Trailer cortado (vídeo no topo - LARGURA TOTAL)
+        // Entradas
+        '-loop', '1', '-framerate', '24', '-i', backdropPath,
         '-i', trimmedPath,
-        // Entrada 2: Overlay PNG (moldura neon)
-        '-loop', '1',
-        '-framerate', '24',
-        '-i', overlayPath,
-        // Entrada 3: Frame com textos e poster
-        '-loop', '1',
-        '-framerate', '24',
-        '-i', framePath,
-        // Filtros SIMPLIFICADOS para MÁXIMA velocidade
+        '-loop', '1', '-framerate', '24', '-i', overlayPath,
+        '-loop', '1', '-framerate', '24', '-i', framePath,
+        // Filtros simplificados (flags=fast_bilinear para máxima velocidade)
         '-filter_complex',
-        // 1. Backdrop simples (fundo do banner vertical 1080x1920)
-        `[0:v]scale=1080:1920[backdrop];` +
-        // 2. Trailer 1080x607 MAIS PARA CIMA (altura reduzida para caber melhor)
-        `[1:v]scale=1080:607[trailer_scaled];` +
-        // 3. Sobrepor trailer NO TOPO ABSOLUTO (y=-10 para subir ainda mais)
-        `[backdrop][trailer_scaled]overlay=0:-10:shortest=1[with_trailer];` +
-        // 4. Sobrepor overlay PNG - POR CIMA do trailer
-        `[with_trailer][2:v]overlay=0:0:shortest=1[with_overlay];` +
-        // 5. Sobrepor frame com textos/poster - TOPO
-        `[with_overlay][3:v]overlay=0:0:shortest=1,format=yuv420p[final]`,
-        // Mapear video e audio
-        '-map', '[final]',
+        `[0:v]scale=1080:1920:flags=fast_bilinear[backdrop];` +
+        `[1:v]scale=1080:607:flags=fast_bilinear[trailer];` +
+        `[backdrop][trailer]overlay=0:-10:shortest=1[t1];` +
+        `[t1][2:v]overlay=0:0:shortest=1[t2];` +
+        `[t2][3:v]overlay=0:0:shortest=1,format=yuv420p[out]`,
+        '-map', '[out]',
         '-map', '1:a?',
-        // Duração
         '-t', duracaoNum.toString(),
-        // Codecs RÁPIDOS com BOA qualidade
+        // Codec ULTRAFAST
         '-c:v', 'libx264',
-        '-preset', preset,
-        '-crf', crf,
+        '-preset', 'ultrafast', // Mudado de fast para ultrafast (3-5x mais rápido)
+        '-crf', '28', // Aumentado de 25 (qualidade OK, muito mais rápido)
+        '-tune', 'fastdecode',
         '-maxrate', targetBitrateVideo,
         '-bufsize', '2M',
         '-pix_fmt', 'yuv420p',
         '-r', '24',
-        '-g', '48',
-        '-profile:v', 'main',
-        '-level', '4.0',
-        // Áudio com qualidade
+        '-g', '72', // Aumentado de 48 (menos keyframes = mais rápido)
+        '-profile:v', 'baseline', // Mudado de main (encoding mais rápido)
+        '-level', '3.1',
+        // Áudio otimizado
         '-c:a', 'aac',
         '-b:a', targetBitrateAudio,
         '-ar', '44100',
-        '-ac', '2', // Stereo
-        // Velocidade máxima
+        '-ac', '2',
+        // Máxima velocidade
         '-threads', '0',
         '-movflags', '+faststart',
         '-y',
@@ -2240,12 +2202,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       ]);
       const compTime = Math.floor((Date.now() - compStart) / 1000);
       const totalTime = Math.floor((Date.now() - startTime) / 1000);
-      console.log(`✅ Vídeo gerado com sucesso! (composição: ${compTime}s, total: ${totalTime}s)`);
+      console.log(`✅ Vídeo gerado! (comp: ${compTime}s | total: ${totalTime}s)`);
     } catch (err) {
-      console.error("❌ Erro na composição do vídeo:", err.message);
-      if (err.stderr) console.error("FFmpeg stderr:", err.stderr);
+      console.error("❌ Erro:", err.message);
+      if (err.stderr) console.error("stderr:", err.stderr);
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
-      return res.status(500).json({ error: "Falha ao compor vídeo final", details: err.message });
+      return res.status(500).json({ error: "Falha ao compor vídeo", details: err.message });
     }
 
     await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));

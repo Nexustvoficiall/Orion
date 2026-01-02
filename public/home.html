@@ -9,6 +9,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Orion Creator 🚀 - Painel</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/mobile-fixes.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -46,6 +48,279 @@
       to { background-position: -10000px 5000px; }
     }
 
+    /* ==================== HERO SECTION GALÁCTICA ==================== */
+    .hero-galactic {
+      position: relative;
+      width: 100%;
+      max-width: 900px;
+      margin: 1rem auto 2rem;
+      padding: 1.5rem 2rem;
+      background: linear-gradient(135deg, rgba(10, 10, 30, 0.95) 0%, rgba(20, 15, 45, 0.95) 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 60px rgba(168, 85, 247, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: all 0.4s ease;
+    }
+
+    .hero-galactic:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 0 80px rgba(168, 85, 247, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    /* Gradiente animado na borda */
+    .hero-galactic::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 20px;
+      padding: 1px;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #8b5cf6, #a855f7);
+      background-size: 300% 300%;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: gradientRotate 6s ease infinite;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    @keyframes gradientRotate {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    /* Brilho rotativo de fundo */
+    .hero-galactic::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, transparent 60%);
+      animation: rotateGlow 15s linear infinite;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes rotateGlow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .hero-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(168, 85, 247, 0.6);
+      border-radius: 50%;
+      animation: floatParticle 8s ease-in-out infinite;
+      box-shadow: 0 0 6px rgba(168, 85, 247, 0.6);
+    }
+
+    @keyframes floatParticle {
+      0%, 100% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100px) translateX(50px) scale(0);
+        opacity: 0;
+      }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.3rem, 4vw, 2rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #8b5cf6, #a855f7);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradientShift 4s ease infinite;
+      margin: 0 0 0.5rem 0;
+      text-shadow: 0 0 30px rgba(168, 85, 247, 0.4);
+      letter-spacing: 1px;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .hero-subtitle {
+      font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.85);
+      margin: 0 0 1.2rem 0;
+      line-height: 1.4;
+    }
+
+    .hero-question {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.1rem, 3vw, 1.5rem);
+      font-weight: 700;
+      color: #fff;
+      margin: 1rem 0 0.8rem 0;
+      padding: 0.8rem 1.5rem;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3));
+      border-radius: 12px;
+      border: 2px solid rgba(168, 85, 247, 0.5);
+      box-shadow: 
+        0 0 20px rgba(168, 85, 247, 0.4),
+        0 0 40px rgba(99, 102, 241, 0.2),
+        inset 0 0 20px rgba(168, 85, 247, 0.1);
+      position: relative;
+      overflow: hidden;
+      animation: pulseGlow 3s ease-in-out infinite;
+    }
+
+    .hero-question::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transform: rotate(45deg);
+      animation: shine 3s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        box-shadow: 
+          0 0 20px rgba(168, 85, 247, 0.4),
+          0 0 40px rgba(99, 102, 241, 0.2),
+          inset 0 0 20px rgba(168, 85, 247, 0.1);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 
+          0 0 30px rgba(168, 85, 247, 0.6),
+          0 0 60px rgba(99, 102, 241, 0.4),
+          inset 0 0 30px rgba(168, 85, 247, 0.2);
+        transform: scale(1.02);
+      }
+    }
+
+    @keyframes shine {
+      0% {
+        left: -100%;
+      }
+      100% {
+        left: 100%;
+      }
+    }
+
+    .hero-question .emoji {
+      display: inline-block;
+      animation: float 2s ease-in-out infinite;
+      margin-right: 0.3rem;
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    .hero-description {
+      font-size: clamp(0.85rem, 2vw, 0.95rem);
+      font-weight: 300;
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0;
+      line-height: 1.6;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-divider {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #a855f7, transparent);
+      margin: 1rem auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+    }
+
+    .hero-sparkles {
+      display: inline-block;
+      font-size: 1.2rem;
+      animation: sparkle 2s ease-in-out infinite;
+    }
+
+    @keyframes sparkle {
+      0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+      50% { transform: scale(1.3) rotate(180deg); opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+      .hero-galactic {
+        margin: 0.8rem auto 1.5rem;
+        padding: 1.2rem 1rem;
+      }
+      
+      .hero-title {
+        font-size: 1.3rem;
+      }
+      
+      .hero-subtitle {
+        font-size: 0.9rem;
+      }
+
+      .hero-question {
+        font-size: 1rem;
+        padding: 0.6rem 1rem;
+        margin: 0.8rem 0 0.6rem 0;
+      }
+
+      .hero-description {
+        font-size: 0.8rem;
+      }
+    }
+
     .container {
       text-align: center;
       padding: 40px 20px;
@@ -59,43 +334,60 @@
     }
 
     #welcome-user {
-      font-size: 1.4em;
-      margin-bottom: 30px;
+      display: none;
     }
 
-    /* ==================== CARROSSEL 3D ==================== */
+    /* ==================== CARROSSEL HORIZONTAL NETFLIX ==================== */
     .carousel-3d {
       position: relative;
       width: 100%;
       max-width: 1600px;
       margin: 60px auto 80px;
-      height: 600px;
-      perspective: 2000px;
+      padding: 0 60px;
       overflow: visible;
     }
 
     .carousel-3d-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      gap: 20px;
+      overflow-x: auto;
+      overflow-y: visible;
+      scroll-behavior: smooth;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding: 40px 0;
     }
 
-    /* CARD INDIVIDUAL */
+    .carousel-3d-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* CARD INDIVIDUAL - PREMIUM */
     .carousel-3d-item {
-      position: absolute;
-      width: 280px;
-      height: 420px;
-      border-radius: 20px;
+      flex: 0 0 calc(33.333% - 14px);
+      min-width: 320px;
+      height: 480px;
+      border-radius: 24px;
       overflow: hidden;
       cursor: pointer;
-      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 15px 60px rgba(0,0,0,0.7);
-      transform-style: preserve-3d;
-      will-change: transform, opacity;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 
+        0 20px 60px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(168, 85, 247, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      scroll-snap-align: start;
+      position: relative;
+      background: linear-gradient(145deg, rgba(20, 15, 45, 0.5), rgba(10, 10, 30, 0.8));
+    }
+
+    .carousel-3d-item:hover {
+      transform: scale(1.08) translateY(-12px);
+      box-shadow: 
+        0 30px 90px rgba(168, 85, 247, 0.7),
+        0 0 0 2px rgba(168, 85, 247, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      z-index: 10;
     }
 
     .carousel-3d-item .card-bg {
@@ -105,6 +397,15 @@
       height: 100%;
       object-fit: cover;
       object-position: center;
+      transition: all 1.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+      will-change: opacity, transform;
+      backface-visibility: hidden;
+      transform: translateZ(0) scale(1);
+    }
+
+    .carousel-3d-item .card-bg.fade-out {
+      opacity: 0;
+      transform: translateZ(0) scale(1.05);
     }
 
     .carousel-3d-item .card-overlay {
@@ -113,32 +414,52 @@
       background: linear-gradient(
         180deg, 
         rgba(10,1,24,0) 0%,
-        rgba(10,1,24,0.3) 40%,
-        rgba(10,1,24,0.8) 70%,
-        rgba(10,1,24,0.95) 100%
+        rgba(10,1,24,0.2) 35%,
+        rgba(10,1,24,0.85) 65%,
+        rgba(10,1,24,0.98) 100%
       );
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
       padding: 25px 20px;
-      transition: padding 0.35s ease;
+      transition: all 0.4s ease;
+    }
+
+    .carousel-3d-item:hover .card-overlay {
+      background: linear-gradient(
+        180deg, 
+        rgba(10,1,24,0) 0%,
+        rgba(10,1,24,0.3) 35%,
+        rgba(10,1,24,0.9) 65%,
+        rgba(168,85,247,0.15) 100%
+      );
     }
 
     .carousel-3d-item .card-badge {
       position: absolute;
-      top: 15px;
-      left: 15px;
-      background: rgba(162,89,255,0.9);
-      backdrop-filter: blur(10px);
+      top: 18px;
+      left: 18px;
+      background: linear-gradient(135deg, rgba(168,85,247,0.95), rgba(99,102,241,0.95));
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       color: white;
-      padding: 6px 14px;
-      border-radius: 20px;
+      padding: 8px 16px;
+      border-radius: 25px;
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      box-shadow: 0 4px 15px rgba(162,89,255,0.4);
-      transition: all 0.35s ease;
+      letter-spacing: 1px;
+      box-shadow: 
+        0 4px 20px rgba(168,85,247,0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .carousel-3d-item:hover .card-badge {
+      transform: translateY(-3px);
+      box-shadow: 
+        0 8px 30px rgba(168,85,247,0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
     }
 
     .carousel-3d-item .card-title {
@@ -218,79 +539,9 @@
       }
     }
 
-    /* POSIÇÕES DOS CARDS */
-    .carousel-3d-item[data-position="0"] {
-      transform: translateX(0) scale(1) translateZ(100px);
-      opacity: 1;
-      z-index: 100;
-      pointer-events: auto;
-      filter: brightness(1) blur(0px);
-      box-shadow: 0 30px 120px rgba(162,89,255,0.8);
-      width: 360px;
-      height: 540px;
-    }
-
-    .carousel-3d-item[data-position="0"] .led-border {
+    /* Hover effect com LED border */
+    .carousel-3d-item:hover .led-border {
       display: block;
-    }
-
-    .carousel-3d-item[data-position="0"] .card-overlay {
-      padding: 30px 25px;
-    }
-
-    .carousel-3d-item[data-position="0"] .card-badge {
-      font-size: 0.85rem;
-      padding: 8px 16px;
-      top: 20px;
-      left: 20px;
-    }
-
-    .carousel-3d-item[data-position="0"] .card-title {
-      font-size: 1.8rem;
-      margin-bottom: 12px;
-    }
-
-    .carousel-3d-item[data-position="0"] .card-desc {
-      font-size: 0.95rem;
-      margin-bottom: 20px;
-    }
-
-    .carousel-3d-item[data-position="0"] .card-btn {
-      padding: 14px 0;
-      font-size: 1rem;
-      box-shadow: 0 8px 35px rgba(162,89,255,0.7);
-    }
-
-    .carousel-3d-item[data-position="1"] {
-      transform: translateX(380px) scale(0.85) translateZ(-50px) rotateY(-10deg);
-      opacity: 0.7;
-      z-index: 50;
-      pointer-events: auto;
-      filter: brightness(0.7) blur(1px);
-    }
-
-    .carousel-3d-item[data-position="2"] {
-      transform: translateX(680px) scale(0.7) translateZ(-150px) rotateY(-20deg);
-      opacity: 0.4;
-      z-index: 25;
-      pointer-events: auto;
-      filter: brightness(0.5) blur(2px);
-    }
-
-    .carousel-3d-item[data-position="-1"] {
-      transform: translateX(-380px) scale(0.85) translateZ(-50px) rotateY(10deg);
-      opacity: 0.7;
-      z-index: 50;
-      pointer-events: auto;
-      filter: brightness(0.7) blur(1px);
-    }
-
-    .carousel-3d-item[data-position="-2"] {
-      transform: translateX(-680px) scale(0.7) translateZ(-150px) rotateY(20deg);
-      opacity: 0.4;
-      z-index: 25;
-      pointer-events: auto;
-      filter: brightness(0.5) blur(2px);
     }
 
     /* BOTÕES DE NAVEGAÇÃO */
@@ -298,60 +549,37 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      background: rgba(162,89,255,0.2);
+      background: rgba(10, 10, 30, 0.95);
       backdrop-filter: blur(15px);
-      border: 3px solid #a259ff;
+      border: 2px solid rgba(168, 85, 247, 0.5);
       color: #fff;
-      font-size: 2.5rem;
-      width: 70px;
-      height: 70px;
+      font-size: 2rem;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      z-index: 200;
+      z-index: 50;
       transition: all 0.3s ease;
-      box-shadow: 0 8px 30px rgba(162,89,255,0.4);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
       user-select: none;
     }
 
     .carousel-3d-nav:hover {
-      background: rgba(162,89,255,0.5);
-      transform: translateY(-50%) scale(1.15);
-      box-shadow: 0 12px 40px rgba(162,89,255,0.8);
-      border-color: #00f3ff;
+      background: rgba(168, 85, 247, 0.95);
+      transform: translateY(-50%) scale(1.1);
+      box-shadow: 0 12px 40px rgba(168, 85, 247, 0.8);
+      border-color: #a855f7;
     }
 
-    .carousel-3d-nav.prev { left: 20px; }
-    .carousel-3d-nav.next { right: 20px; }
+    .carousel-3d-nav.prev { left: 10px; }
+    .carousel-3d-nav.next { right: 10px; }
 
-    /* INDICADORES */
+    /* INDICADORES - Escondidos no modelo horizontal */
     .carousel-3d-indicators {
-      position: absolute;
-      bottom: -60px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 12px;
-      z-index: 200;
-    }
-
-    .carousel-3d-indicator {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: rgba(162,89,255,0.3);
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-    }
-
-    .carousel-3d-indicator.active {
-      background: #a259ff;
-      border-color: #00f3ff;
-      transform: scale(1.3);
-      box-shadow: 0 0 20px rgba(162,89,255,0.8);
+      display: none;
     }
 
     /* STATUS DA CONTA */
@@ -413,6 +641,16 @@
       font-weight: 700;
       margin-bottom: 5px;
     }
+    
+    .orange {
+      color: #f59e0b !important;
+      font-weight: 700;
+    }
+    
+    .red {
+      color: #ef4444 !important;
+      font-weight: 700;
+    }
 
     /* PLANOS */
     .planos-container {
@@ -470,6 +708,7 @@
       padding-top: 60px;
       transition: left 0.3s ease;
       z-index: 100;
+      overflow-y: auto;
     }
 
     .sidebar.active { left: 0; }
@@ -484,6 +723,136 @@
     }
 
     .sidebar a:hover { background: rgba(147, 51, 234, 0.2); }
+
+    /* SEÇÃO IMPORTANTE - COMPACTA */
+    .sidebar-importante {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+      margin: 10px 0;
+      padding: 15px 20px;
+    }
+
+    .importante-header {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #a855f7;
+      text-align: center;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .importante-section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+    }
+
+    .importante-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .importante-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 8px;
+    }
+
+    .logo-preview {
+      width: 100%;
+      height: 60px;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px dashed rgba(168, 85, 247, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .btn-upload-logo, .btn-salvar-whatsapp {
+      width: 100%;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-upload-logo:hover, .btn-salvar-whatsapp:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
+    }
+
+    .btn-upload-logo:disabled {
+      background: #555;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .upload-info, .upload-reset {
+      font-size: 0.65rem;
+      color: #d8b4fe;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .upload-info span, .upload-reset span {
+      color: #a855f7;
+      font-weight: 700;
+    }
+
+    .whatsapp-input {
+      width: 100%;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 6px;
+      padding: 8px;
+      color: white;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .whatsapp-input:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .whatsapp-input::placeholder {
+      color: #888;
+      font-size: 0.75rem;
+    }
+    
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sidebar-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
     #menu-toggle {
       position: fixed;
@@ -527,45 +896,42 @@
     /* ==================== RESPONSIVO - TABLET ==================== */
     @media (max-width: 1200px) {
       .carousel-3d {
-        height: 500px;
+        padding: 0 50px;
       }
 
       .carousel-3d-item {
-        width: 240px;
-        height: 360px;
-      }
-
-      .carousel-3d-item[data-position="0"] {
-        width: 320px;
-        height: 480px;
-        transform: translateX(0) scale(1) translateZ(80px);
-      }
-
-      .carousel-3d-item[data-position="1"] {
-        transform: translateX(330px) scale(0.82) translateZ(-40px) rotateY(-8deg);
-      }
-
-      .carousel-3d-item[data-position="2"] {
-        transform: translateX(600px) scale(0.68) translateZ(-120px) rotateY(-15deg);
-      }
-
-      .carousel-3d-item[data-position="-1"] {
-        transform: translateX(-330px) scale(0.82) translateZ(-40px) rotateY(8deg);
-      }
-
-      .carousel-3d-item[data-position="-2"] {
-        transform: translateX(-600px) scale(0.68) translateZ(-120px) rotateY(15deg);
+        flex: 0 0 calc(50% - 10px);
+        min-width: 280px;
+        height: 420px;
       }
 
       .carousel-3d-nav {
-        width: 60px;
-        height: 60px;
-        font-size: 2rem;
+        width: 45px;
+        height: 45px;
+        font-size: 1.8rem;
       }
     }
 
     /* ==================== RESPONSIVO - MOBILE ==================== */
     @media (max-width: 768px) {
+      .sidebar {
+        width: 250px;
+        left: -250px;
+      }
+
+      .sidebar-importante {
+        padding: 12px 15px;
+      }
+
+      .importante-header {
+        font-size: 0.8rem;
+      }
+
+      .btn-upload-logo, .btn-salvar-whatsapp {
+        font-size: 0.7rem;
+        padding: 7px;
+      }
+
       /* Header fixo mobile */
       .mobile-header {
         display: flex;
@@ -590,20 +956,31 @@
       }
       
       #menu-toggle {
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        padding: 8px 14px;
-        font-size: 0.95rem;
-        z-index: 102;
-      }
+      position: fixed !important;
+      top: 12px !important;
+      left: 12px !important;
+      width: 44px !important;
+      height: 44px !important;
+      padding: 0 !important;
+      font-size: 1.2rem !important;
+      line-height: 44px !important;
+      text-align: center !important;
+      z-index: 1002 !important;
+      border-radius: 12px !important;
+      background: rgba(168, 85, 247, 0.95) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 2px solid rgba(255, 255, 255, 0.15) !important;
+      color: white !important;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4) !important;
+      cursor: pointer !important;
+    }
       
-      .container { 
-        padding: 80px 15px 20px 15px; 
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
+    .container { 
+      padding: 80px 15px 20px 15px; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
       
       /* Esconder logo do container no mobile (já está no header) */
       .container > .logo { 
@@ -617,90 +994,24 @@
       }
 
       .carousel-3d {
-        height: 420px;
+        padding: 0 50px;
         margin: 25px auto 50px;
       }
 
       .carousel-3d-item {
-        width: 180px;
-        height: 290px;
-        /* Transições mais rápidas */
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      .carousel-3d-item .card-overlay {
-        padding: 18px 12px;
-      }
-
-      .carousel-3d-item[data-position="0"] {
-        width: 240px;
-        height: 380px;
-        transform: translateX(0) scale(1) translateZ(50px);
-      }
-
-      .carousel-3d-item[data-position="0"] .card-overlay {
-        padding: 22px 18px;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-title {
-        font-size: 1.3rem;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-desc {
-        font-size: 0.85rem;
-      }
-
-      .carousel-3d-item[data-position="1"] {
-        transform: translateX(200px) scale(0.75) translateZ(-30px) rotateY(-6deg);
-        opacity: 0.5;
-      }
-
-      .carousel-3d-item[data-position="2"] {
-        transform: translateX(350px) scale(0.6) translateZ(-80px) rotateY(-12deg);
-        opacity: 0.25;
-      }
-
-      .carousel-3d-item[data-position="-1"] {
-        transform: translateX(-200px) scale(0.75) translateZ(-30px) rotateY(6deg);
-        opacity: 0.5;
-      }
-
-      .carousel-3d-item[data-position="-2"] {
-        transform: translateX(-350px) scale(0.6) translateZ(-80px) rotateY(12deg);
-        opacity: 0.25;
-      }
-
-      .carousel-3d-item .card-title {
-        font-size: 1rem;
-      }
-
-      .carousel-3d-item .card-desc {
-        font-size: 0.75rem;
-        -webkit-line-clamp: 2;
-      }
-
-      .carousel-3d-item .card-btn {
-        padding: 9px 0;
-        font-size: 0.8rem;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-btn {
-        padding: 11px 0;
-        font-size: 0.85rem;
+        flex: 0 0 85%;
+        min-width: 260px;
+        height: 400px;
       }
 
       .carousel-3d-nav {
-        width: 48px;
-        height: 48px;
-        font-size: 1.6rem;
+        width: 40px;
+        height: 40px;
+        font-size: 1.5rem;
       }
 
-      .carousel-3d-nav.prev { left: 8px; }
-      .carousel-3d-nav.next { right: 8px; }
-
-      .carousel-3d-indicators {
-        bottom: -40px;
-      }
+      .carousel-3d-nav.prev { left: 5px; }
+      .carousel-3d-nav.next { right: 5px; }
       
       /* Desabilitar animações pesadas em mobile */
       .stars {
@@ -737,83 +1048,24 @@
       }
       
       .carousel-3d {
-        height: 400px;
+        padding: 0 45px;
         margin: 30px auto 50px;
       }
 
       .carousel-3d-item {
-        width: 170px;
-        height: 280px;
-      }
-
-      .carousel-3d-item[data-position="0"] {
-        width: 230px;
+        flex: 0 0 90%;
+        min-width: 240px;
         height: 380px;
-        transform: translateX(0) scale(1) translateZ(50px);
-      }
-
-      .carousel-3d-item[data-position="1"] {
-        transform: translateX(230px) scale(0.75) translateZ(-25px) rotateY(-5deg);
-      }
-
-      .carousel-3d-item[data-position="2"] {
-        transform: translateX(420px) scale(0.62) translateZ(-80px) rotateY(-10deg);
-      }
-
-      .carousel-3d-item[data-position="-1"] {
-        transform: translateX(-230px) scale(0.75) translateZ(-25px) rotateY(5deg);
-      }
-
-      .carousel-3d-item[data-position="-2"] {
-        transform: translateX(-420px) scale(0.62) translateZ(-80px) rotateY(10deg);
-      }
-
-      .carousel-3d-item .card-badge {
-        font-size: 0.7rem;
-        padding: 5px 10px;
-        top: 12px;
-        left: 12px;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-badge {
-        font-size: 0.8rem;
-        padding: 8px 14px;
-      }
-
-      .carousel-3d-item .card-title {
-        font-size: 1rem;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-title {
-        font-size: 1.25rem;
-      }
-
-      .carousel-3d-item .card-desc {
-        font-size: 0.75rem;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-desc {
-        font-size: 0.85rem;
-      }
-
-      .carousel-3d-item .card-btn {
-        padding: 9px 0;
-        font-size: 0.8rem;
-      }
-
-      .carousel-3d-item[data-position="0"] .card-btn {
-        padding: 11px 0;
-        font-size: 0.85rem;
       }
 
       .carousel-3d-nav {
-        width: 50px;
-        height: 50px;
-        font-size: 1.6rem;
+        width: 38px;
+        height: 38px;
+        font-size: 1.4rem;
       }
 
-      .carousel-3d-nav.prev { left: 5px; }
-      .carousel-3d-nav.next { right: 5px; }
+      .carousel-3d-nav.prev { left: 3px; }
+      .carousel-3d-nav.next { right: 3px; }
     }
   </style>
 </head>
@@ -825,12 +1077,40 @@
     <img src="images/logo.png" alt="Logo Orion" class="logo" />
   </header>
   
-  <button id="menu-toggle">☰ Menu</button>
-
+  <button id="menu-toggle">☰</button>
+  
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
   <div class="sidebar" id="sidebar">
+    <!-- MENU NAVEGAÇÃO -->
     <a href="home.html">🏠 Início</a>
-    <a href="futebol.html">⚽ Gerar Futebol</a>
-    <a href="esportes.html">🏀 Outros Esportes</a>
+    
+    <!-- SEÇÃO IMPORTANTE -->
+    <div class="sidebar-importante">
+      <div class="importante-header">⭐ IMPORTANTE</div>
+      
+      <!-- Upload de Logo -->
+      <div class="importante-section">
+        <label class="importante-label">📸 Logo Personalizada</label>
+        <div class="logo-preview" id="logoPreview">
+          <img id="logoPreviewImg" src="" alt="Logo" style="display: none; max-width: 100%; max-height: 60px; object-fit: contain;">
+          <span id="logoPlaceholder" style="color: #888; font-size: 0.8rem;">Nenhuma logo</span>
+        </div>
+        <input type="file" id="logoUpload" accept="image/*" style="display: none;">
+        <button class="btn-upload-logo" id="btnUploadLogo">Enviar Logo</button>
+        <div class="upload-info" id="uploadInfo"><span id="uploadsRestantes">--</span>/2 uploads</div>
+        <div class="upload-reset" id="uploadReset">Reset: <span id="dataReset">--/--</span></div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="importante-section">
+        <label class="importante-label">📱 WhatsApp</label>
+        <input type="tel" id="whatsappInput" class="whatsapp-input" placeholder="(00) 00000-0000" maxlength="15">
+        <button class="btn-salvar-whatsapp" id="btnSalvarWhatsapp">Salvar</button>
+      </div>
+    </div>
+    
+    <a href="futebol.html">⚽ Gerar Esportes</a>
+    <a href="esportes.html">📢 Banners de Divulgação</a>
     <a href="vods.html">🎬 Filmes & Séries</a>
     <a href="videos.html">🎥 Vídeos de Vods</a>
     <a href="programacao.html">📅 Programação Esportiva</a>
@@ -842,45 +1122,65 @@
     <img src="images/logo.png" alt="Logo Orion" class="logo" />
     <h2 id="welcome-user">Olá, <span id="user-name">Carregando...</span> 👋</h2>
 
+    <!-- HERO SECTION GALÁCTICA -->
+    <div class="hero-galactic">
+      <div class="hero-particles" id="heroParticles"></div>
+      <div class="hero-content">
+        <h1 class="hero-title">
+          <span class="hero-sparkles">✨</span>
+          <span id="hero-greeting">OLÁ, </span><span id="hero-user-name">CARREGANDO...</span>, BEM-VINDO AO ORION CREATOR
+          <span class="hero-sparkles">✨</span>
+        </h1>
+        <p class="hero-subtitle">
+          Crie banners profissionais de esportes, filmes, séries e vídeos promocionais em segundos! 
+          Integração com TMDB, logos HD, múltiplos modelos personalizados e export direto para suas redes.
+        </p>
+        <div class="hero-divider"></div>
+        <div class="hero-question">
+          <span class="emoji">🚀</span> O que vamos criar hoje?
+        </div>
+      </div>
+    </div>
+
     <!-- CARROSSEL 3D -->
     <div class="carousel-3d">
       <div class="carousel-3d-container" id="carouselContainer">
-        <!-- Card 1 - Futebol -->
-        <div class="carousel-3d-item" data-index="0" data-position="0">
+        <!-- Card 1 - Banners de Divulgação (CENTRAL) -->
+        <div class="carousel-3d-item" data-index="0" data-images='["https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1626785774625-ddcddc3445e9?w=400&h=600&fit=crop&q=80"]'>
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&h=700&fit=crop" alt="Futebol" class="card-bg">
+          <img src="https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=600&fit=crop&q=80" alt="Divulgação" class="card-bg" loading="eager">
           <div class="card-overlay">
-            <div class="card-badge">⚽ FUTEBOL</div>
-            <div class="card-title">Banners de Futebol</div>
-            <div class="card-desc">Crie banners profissionais para eventos esportivos</div>
-            <button class="card-btn" onclick="window.location.href='futebol.html'">
-              <span>ACESSAR AGORA</span> →
-            </button>
-          </div>
-        </div>
-
-        <!-- Card 2 - Outros Esportes -->
-        <div class="carousel-3d-item" data-index="1" data-position="1">
-          <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=500&h=700&fit=crop" alt="Esportes" class="card-bg">
-          <div class="card-overlay">
-            <div class="card-badge">🏀 ESPORTES</div>
-            <div class="card-title">Outros Esportes</div>
-            <div class="card-desc">Basquete, vôlei, UFC e muito mais</div>
+            <div class="card-badge">📢 DIVULGAÇÃO</div>
+            <div class="card-title">Banners de Divulgação</div>
+            <div class="card-desc">Gere banners para promover serviços, produtos e eventos nas redes sociais.</div>
             <button class="card-btn" onclick="window.location.href='esportes.html'">
               <span>ACESSAR AGORA</span> →
             </button>
           </div>
         </div>
 
-        <!-- Card 3 - VODs -->
-        <div class="carousel-3d-item" data-index="2" data-position="2">
+        <!-- Card 2 - Esportes -->
+        <div class="carousel-3d-item" data-index="1" data-images='["https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=400&h=600&fit=crop&q=80"]'>
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&h=700&fit=crop" alt="VODs" class="card-bg">
+          <img src="https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&h=600&fit=crop&q=80" alt="Esportes" class="card-bg" loading="lazy">
+          <div class="card-overlay">
+            <div class="card-badge">⚽ ESPORTES</div>
+            <div class="card-title">Banners de Esportes</div>
+            <div class="card-desc">Gere banners de futebol, basquete, vôlei e mais! Com placares e estatísticas.</div>
+            <button class="card-btn" onclick="window.location.href='futebol.html'">
+              <span>ACESSAR AGORA</span> →
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 3 - VODs -->
+        <div class="carousel-3d-item" data-index="2" data-images='["https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400&h=600&fit=crop&q=80"]'>
+          <div class="led-border"></div>
+          <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&q=80" alt="VODs" class="card-bg" loading="lazy">
           <div class="card-overlay">
             <div class="card-badge">🎬 STREAMING</div>
             <div class="card-title">Banners de VODs</div>
-            <div class="card-desc">Filmes e séries com visual impactante</div>
+            <div class="card-desc">Gere banners de filmes e séries do TMDB com 3 modelos exclusivos!</div>
             <button class="card-btn" onclick="window.location.href='vods.html'">
               <span>ACESSAR AGORA</span> →
             </button>
@@ -888,13 +1188,13 @@
         </div>
 
         <!-- Card 4 - Vídeos -->
-        <div class="carousel-3d-item" data-index="3" data-position="-2">
+        <div class="carousel-3d-item" data-index="3" data-images='["https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=600&fit=crop&q=80"]'>
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=500&h=700&fit=crop" alt="Vídeos" class="card-bg">
+          <img src="https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400&h=600&fit=crop&q=80" alt="Vídeos" class="card-bg" loading="lazy">
           <div class="card-overlay">
             <div class="card-badge">🎥 VÍDEOS</div>
             <div class="card-title">Vídeos de VODs</div>
-            <div class="card-desc">Crie vídeos promocionais épicos</div>
+            <div class="card-desc">Gere vídeos promocionais verticais de filmes e séries com efeitos profissionais!</div>
             <button class="card-btn" onclick="window.location.href='videos.html'">
               <span>ACESSAR AGORA</span> →
             </button>
@@ -902,13 +1202,13 @@
         </div>
 
         <!-- Card 5 - Programação -->
-        <div class="carousel-3d-item" data-index="4" data-position="-1">
+        <div class="carousel-3d-item" data-index="4" data-images='["https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=600&fit=crop&q=80"]'>
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&h=700&fit=crop" alt="Programação" class="card-bg">
+          <img src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&h=600&fit=crop&q=80" alt="Programação" class="card-bg" loading="lazy">
           <div class="card-overlay">
             <div class="card-badge">📅 AGENDA</div>
-            <div class="card-title">Programação</div>
-            <div class="card-desc">Confira os jogos e eventos do dia</div>
+            <div class="card-title">Programação Esportiva</div>
+            <div class="card-desc">Tenha acesso à programação diária de esportes em texto para copiar e mandar em seus grupos!</div>
             <button class="card-btn" onclick="window.location.href='programacao.html'">
               <span>ACESSAR AGORA</span> →
             </button>
@@ -999,29 +1299,314 @@
       return hoje.toISOString();
     }
 
-    // Verifica autenticação e carrega dados do usuário
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    // ==================== GERENCIAMENTO DE LOGO E WHATSAPP ====================
+    let userLogoUrl = null;
+    let userWhatsapp = null;
+
+    // Função para atualizar contador de uploads
+    async function atualizarContadorUploads(uid) {
+      try {
         const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, "usuarios/" + user.uid));
+        const snapshot = await get(child(dbRef, "usuarios/" + uid));
+        
         if (snapshot.exists()) {
           const dados = snapshot.val();
-          document.getElementById("user-name").innerText = dados.nome || "Usuário";
+          const uploadsRestantes = dados.uploads_restantes || 2;
+          const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+          
+          document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
+          
+          if (dataReset) {
+            document.getElementById('dataReset').textContent = dataReset.toLocaleDateString('pt-BR');
+          }
+          
+          // Desabilitar botão se não tiver uploads restantes
+          const btnUpload = document.getElementById('btnUploadLogo');
+          if (uploadsRestantes <= 0) {
+            btnUpload.disabled = true;
+            btnUpload.textContent = 'Limite Atingido';
+          } else {
+            btnUpload.disabled = false;
+            btnUpload.textContent = 'Enviar Logo';
+          }
+          
+          // Carregar logo do usuário (logo ou logo_url - ambos são base64)
+          const logoImg = document.getElementById('logoPreviewImg');
+          const logoPlaceholder = document.getElementById('logoPlaceholder');
+          
+          // Verificar ambos os campos (logo e logo_url)
+          const logoData = dados.logo_url || dados.logo;
+          console.log('🔍 Verificando campos de logo:', {
+            'logo_url': dados.logo_url ? 'Existe' : 'Não existe',
+            'logo': dados.logo ? 'Existe' : 'Não existe'
+          });
+          
+          if (logoData) {
+            userLogoUrl = logoData;
+            if (logoImg) {
+              logoImg.src = logoData;
+              logoImg.style.display = 'block';
+              logoImg.style.maxWidth = '100%';
+              logoImg.style.maxHeight = '60px';
+              logoImg.style.objectFit = 'contain';
+              console.log('✅ Logo carregada do Firebase (primeiros 50 chars):', logoData.substring(0, 50) + '...');
+            } else {
+              console.error('❌ Elemento logoPreviewImg não encontrado!');
+            }
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'none';
+            }
+          } else {
+            // Sem logo personalizada
+            console.log('ℹ️ Usuário não possui logo personalizada (campos logo e logo_url estão vazios)');
+            if (logoImg) {
+              logoImg.style.display = 'none';
+            }
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'block';
+              logoPlaceholder.textContent = 'Nenhuma logo';
+            }
+          }
+          
+          // Mostrar WhatsApp se existir
+          if (dados.whatsapp) {
+            userWhatsapp = dados.whatsapp;
+            document.getElementById('whatsappInput').value = dados.whatsapp;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados do usuário:', error);
+      }
+    }
+
+    // Função para resetar contador mensalmente
+    async function verificarResetMensal(uid) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      
+      if (snapshot.exists()) {
+        const dados = snapshot.val();
+        const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+        const hoje = new Date();
+        
+        // Se não tem data de reset ou passou de 30 dias, reseta
+        if (!dataReset || hoje >= dataReset) {
+          const proximoReset = new Date();
+          proximoReset.setDate(proximoReset.getDate() + 30);
+          
+          await update(ref(db, "usuarios/" + uid), {
+            uploads_restantes: 2,
+            data_reset_logo: proximoReset.toISOString()
+          });
+          
+          atualizarContadorUploads(uid);
+        }
+      }
+    }
+
+    // Upload de logo
+    document.getElementById('btnUploadLogo').addEventListener('click', () => {
+      document.getElementById('logoUpload').click();
+    });
+
+    document.getElementById('logoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      if (!auth.currentUser) {
+        alert('Faça login novamente!');
+        return;
+      }
+      
+      const uid = auth.currentUser.uid;
+      
+      // Verificar uploads restantes
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      const dados = snapshot.val();
+      const uploadsRestantes = dados.uploads_restantes || 2;
+      
+      if (uploadsRestantes <= 0) {
+        alert('Você atingiu o limite de 2 uploads por mês. Aguarde o reset em ' + new Date(dados.data_reset_logo).toLocaleDateString('pt-BR'));
+        return;
+      }
+      
+      // Validar arquivo
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor, envie apenas imagens!');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('A imagem deve ter no máximo 5MB!');
+        return;
+      }
+      
+      // Converter para base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const logoBase64 = event.target.result;
+        
+        try {
+          // Salvar no Firebase Database (ambos os campos para compatibilidade)
+          await update(ref(db, "usuarios/" + uid), {
+            logo: logoBase64,
+            logo_url: logoBase64,
+            uploads_restantes: uploadsRestantes - 1
+          });
+          
+          // Atualizar preview
+          const logoImg = document.getElementById('logoPreviewImg');
+          const logoPlaceholder = document.getElementById('logoPlaceholder');
+          
+          logoImg.src = logoBase64;
+          logoImg.style.display = 'block';
+          if (logoPlaceholder) {
+            logoPlaceholder.style.display = 'none';
+          }
+          userLogoUrl = logoBase64;
+          
+          alert('Logo enviada com sucesso! Uploads restantes: ' + (uploadsRestantes - 1));
+          atualizarContadorUploads(uid);
+        } catch (error) {
+          console.error('Erro ao salvar logo:', error);
+          alert('Erro ao salvar logo. Tente novamente.');
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Salvar WhatsApp
+    document.getElementById('btnSalvarWhatsapp').addEventListener('click', async () => {
+      if (!auth.currentUser) {
+        alert('Faça login novamente!');
+        return;
+      }
+      
+      const whatsapp = document.getElementById('whatsappInput').value.trim();
+      
+      if (!whatsapp) {
+        alert('Por favor, insira um número de WhatsApp!');
+        return;
+      }
+      
+      // Validação básica
+      const whatsappLimpo = whatsapp.replace(/\D/g, '');
+      if (whatsappLimpo.length < 10 || whatsappLimpo.length > 11) {
+        alert('Número de WhatsApp inválido! Use o formato: (00) 00000-0000');
+        return;
+      }
+      
+      try {
+        const uid = auth.currentUser.uid;
+        await update(ref(db, "usuarios/" + uid), {
+          whatsapp: whatsapp
+        });
+        
+        userWhatsapp = whatsapp;
+        alert('WhatsApp salvo com sucesso!');
+      } catch (error) {
+        console.error('Erro ao salvar WhatsApp:', error);
+        alert('Erro ao salvar WhatsApp. Tente novamente.');
+      }
+    });
+
+    // Máscara para WhatsApp
+    document.getElementById('whatsappInput').addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      
+      if (value.length <= 11) {
+        if (value.length <= 2) {
+          e.target.value = value;
+        } else if (value.length <= 7) {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+        } else {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+        }
+      }
+    });
+
+    // Verifica autenticação e carrega dados do usuário
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+      
+      // Verificar e resetar contador mensal
+      await verificarResetMensal(user.uid);
+      
+      // Atualizar informações de logo e WhatsApp
+      console.log('🔄 Carregando dados do usuário:', user.uid);
+      await atualizarContadorUploads(user.uid);
+      
+      // Debug: verificar se a logo foi carregada
+      setTimeout(() => {
+        const logoImg = document.getElementById('logoPreviewImg');
+        if (logoImg && logoImg.src && logoImg.style.display === 'block') {
+          console.log('✅ Logo carregada e visível na sidebar');
+        } else {
+          console.log('⚠️ Logo não está visível. Verifique os dados no Firebase.');
+        }
+      }, 500);
+      
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "usuarios/" + user.uid));
+        
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          const userName = dados.nome || "USUÁRIO";
+          
+          // Atualizar nome no hero title (maiúsculas)
+          document.getElementById("hero-user-name").innerText = userName.toUpperCase();
+          
           const dataExp = new Date(dados.data_expiracao);
           const hoje = new Date();
           const diffTime = dataExp - hoje;
           const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          // Atualizar elementos
           document.getElementById("dias-restantes").textContent = diasRestantes;
           document.getElementById("data-vencimento").textContent = dataExp.toLocaleDateString("pt-BR");
+          
           const statusElem = document.getElementById("status-atual");
-          statusElem.textContent = diasRestantes > 0 ? "✅ Ativo" : "❌ Expirado";
-          if (diasRestantes <= 5) {
-            document.getElementById("dias-restantes").classList.add("red");
+          const statusMsg = document.getElementById("status-msg");
+          
+          // Mensagens personalizadas baseadas no status
+          if (diasRestantes > 7) {
+            statusElem.textContent = "✅ Ativo";
+            statusElem.classList.remove("red");
+            statusElem.classList.add("status-ok");
+            statusMsg.textContent = "🎉 Sua conta está ativa e funcionando perfeitamente!";
+            statusMsg.style.color = "#10b981";
+          } else if (diasRestantes > 0 && diasRestantes <= 7) {
+            statusElem.textContent = "⚠️ Ativo";
+            statusElem.classList.add("orange");
+            statusMsg.textContent = `⚠️ Atenção: Seu plano vence em ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}! Renove agora para não perder o acesso.`;
+            statusMsg.style.color = "#f59e0b";
+            document.getElementById("planos").style.display = "flex";
+          } else {
+            statusElem.textContent = "❌ Expirado";
+            statusElem.classList.add("red");
+            statusMsg.textContent = "❌ Sua conta expirou! Renove seu plano para continuar utilizando a plataforma.";
+            statusMsg.style.color = "#ef4444";
             document.getElementById("planos").style.display = "flex";
           }
+          
+          if (diasRestantes <= 5) {
+            document.getElementById("dias-restantes").classList.add("red");
+          }
         } else {
-          document.getElementById("user-name").innerText = "Usuário não encontrado";
+          document.getElementById("hero-user-name").innerText = "USUÁRIO NÃO ENCONTRADO";
+          document.getElementById("status-msg").textContent = "⚠️ Dados do usuário não encontrados. Entre em contato com o suporte.";
+          document.getElementById("status-msg").style.color = "#ef4444";
         }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+        document.getElementById("hero-user-name").innerText = "ERRO";
+        document.getElementById("status-msg").textContent = "⚠️ Erro ao carregar informações. Tente atualizar a página.";
+        document.getElementById("status-msg").style.color = "#ef4444";
       }
     });
 
@@ -1030,10 +1615,26 @@
       await signOut(auth);
       window.location.href = "index.html";
     });
-
-    // Toggle Menu Sidebar
-    document.getElementById("menu-toggle").addEventListener("click", () => {
-      document.getElementById("sidebar").classList.toggle("active");
+    
+    // Toggle Menu Sidebar com overlay
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarOverlay = document.getElementById("sidebarOverlay");
+    
+    function toggleMenu() {
+      sidebar.classList.toggle("active");
+      sidebarOverlay.classList.toggle("active");
+      document.body.style.overflow = sidebar.classList.contains("active") ? "hidden" : "";
+    }
+    
+    menuToggle.addEventListener("click", toggleMenu);
+    sidebarOverlay.addEventListener("click", toggleMenu);
+    
+    // Fechar ao clicar em link
+    sidebar.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        if (window.innerWidth <= 768) toggleMenu();
+      });
     });
 
     // Renovação de planos
@@ -1055,166 +1656,201 @@
       location.reload();
     });
 
-    // ==================== CARROSSEL 3D COM 5 ITENS ====================
-    class Carousel3D {
+    // ==================== PARTÍCULAS DO HERO SECTION ====================
+    function createHeroParticles() {
+      const container = document.getElementById('heroParticles');
+      const particleCount = 15;
+      
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        
+        // Posição inicial aleatória
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        
+        // Delay aleatório para animação
+        particle.style.animationDelay = Math.random() * 8 + 's';
+        
+        // Duração aleatória
+        particle.style.animationDuration = (6 + Math.random() * 4) + 's';
+        
+        container.appendChild(particle);
+      }
+    }
+
+    // Criar partículas ao carregar
+    createHeroParticles();
+
+    // ==================== SLIDESHOW PREMIUM COM CROSSFADE ====================
+    class CardSlideshow {
       constructor() {
-        this.items = Array.from(document.querySelectorAll('.carousel-3d-item'));
-        this.totalItems = this.items.length; // 5 itens
-        this.currentIndex = 0;
-        
-        this.prevBtn = document.getElementById('prevBtn');
-        this.nextBtn = document.getElementById('nextBtn');
-        this.indicatorsContainer = document.getElementById('indicators');
-        
-        // Inicialização
-        this.createIndicators();
-        this.updateCarousel();
-        this.attachEvents();
+        this.cards = document.querySelectorAll('.carousel-3d-item[data-images]');
+        this.intervals = new Map();
+        this.init();
       }
 
-      // Cria os indicadores (bolinhas)
-      createIndicators() {
-        for (let i = 0; i < this.totalItems; i++) {
-          const indicator = document.createElement('div');
-          indicator.classList.add('carousel-3d-indicator');
-          if (i === 0) indicator.classList.add('active');
-          indicator.addEventListener('click', () => this.goToSlide(i));
-          this.indicatorsContainer.appendChild(indicator);
+      init() {
+        this.cards.forEach(card => {
+          try {
+            const images = JSON.parse(card.getAttribute('data-images'));
+            if (images && images.length === 2) {
+              // Preload das 2 imagens
+              images.forEach(src => {
+                const img = new Image();
+                img.src = src;
+              });
+              
+              let currentImageIndex = 0;
+              let isTransitioning = false;
+              const cardBg = card.querySelector('.card-bg');
+              
+              // Transição crossfade moderna e suave
+              const interval = setInterval(() => {
+                if (isTransitioning) return;
+                isTransitioning = true;
+                
+                currentImageIndex = (currentImageIndex + 1) % images.length;
+                
+                // Adiciona classe de fade out com zoom
+                cardBg.classList.add('fade-out');
+                
+                // Trocar imagem após transição completa
+                setTimeout(() => {
+                  cardBg.src = images[currentImageIndex];
+                  cardBg.classList.remove('fade-out');
+                  
+                  setTimeout(() => {
+                    isTransitioning = false;
+                  }, 1200);
+                }, 1200);
+              }, 5000); // Troca a cada 5 segundos
+              
+              this.intervals.set(card, interval);
+            }
+          } catch (e) {
+            console.warn('Erro ao processar imagens do card:', e);
+          }
+        });
+      }
+
+      destroy() {
+        this.intervals.forEach(interval => clearInterval(interval));
+        this.intervals.clear();
+      }
+    }
+
+    // ==================== CARROSSEL HORIZONTAL INFINITO ====================
+    class Carousel3D {
+      constructor() {
+        this.container = document.querySelector('.carousel-3d-container');
+        this.items = document.querySelectorAll('.carousel-3d-item');
+        this.prevBtn = document.getElementById('prevBtn');
+        this.nextBtn = document.getElementById('nextBtn');
+        this.isScrolling = false;
+        
+        this.cloneItems();
+        this.centerFirstItem();
+        this.attachEvents();
+        this.setupInfiniteScroll();
+      }
+
+      // Clona itens para scroll infinito
+      cloneItems() {
+        // Clona todos os cards no início e no fim
+        this.items.forEach(item => {
+          const cloneBefore = item.cloneNode(true);
+          const cloneAfter = item.cloneNode(true);
+          this.container.insertBefore(cloneBefore, this.container.firstChild);
+          this.container.appendChild(cloneAfter);
+        });
+      }
+
+      // Centraliza o primeiro item (esportes) ao carregar
+      centerFirstItem() {
+        const firstOriginalItem = this.container.children[this.items.length];
+        if (firstOriginalItem) {
+          setTimeout(() => {
+            firstOriginalItem.scrollIntoView({
+              behavior: 'instant',
+              block: 'nearest',
+              inline: 'start'
+            });
+          }, 100);
         }
       }
 
-      // Atualiza a posição dos cards
-      updateCarousel() {
-        this.items.forEach((item, index) => {
-          // Calcula a posição relativa ao item central
-          let position = index - this.currentIndex;
-          
-          // Ajusta para o comportamento circular
-          // Se a diferença for maior que metade do total, significa que é mais próximo pelo outro lado
-          if (position > this.totalItems / 2) {
-            position -= this.totalItems;
-          } else if (position < -this.totalItems / 2) {
-            position += this.totalItems;
+      // Navega para a esquerda
+      prev() {
+        if (this.isScrolling) return;
+        this.isScrolling = true;
+        
+        const scrollAmount = this.container.offsetWidth * 0.8;
+        this.container.scrollBy({
+          left: -scrollAmount,
+          behavior: 'smooth'
+        });
+        
+        setTimeout(() => {
+          this.isScrolling = false;
+        }, 500);
+      }
+
+      // Navega para a direita
+      next() {
+        if (this.isScrolling) return;
+        this.isScrolling = true;
+        
+        const scrollAmount = this.container.offsetWidth * 0.8;
+        this.container.scrollBy({
+          left: scrollAmount,
+          behavior: 'smooth'
+        });
+        
+        setTimeout(() => {
+          this.isScrolling = false;
+        }, 500);
+      }
+
+      // Configura scroll infinito
+      setupInfiniteScroll() {
+        this.container.addEventListener('scroll', () => {
+          const scrollLeft = this.container.scrollLeft;
+          const scrollWidth = this.container.scrollWidth;
+          const clientWidth = this.container.clientWidth;
+          const itemsWidth = this.items.length * (this.items[0].offsetWidth + 20);
+
+          // Se chegou no início (clones da esquerda)
+          if (scrollLeft < 100) {
+            this.container.scrollLeft = itemsWidth + scrollLeft;
           }
           
-          // Limita as posições visíveis: -2, -1, 0, 1, 2
-          if (position > 2) position = 2;
-          if (position < -2) position = -2;
-          
-          item.setAttribute('data-position', position);
-        });
-
-        // Atualiza os indicadores
-        this.updateIndicators();
-      }
-
-      // Atualiza o indicador ativo
-      updateIndicators() {
-        const indicators = this.indicatorsContainer.querySelectorAll('.carousel-3d-indicator');
-        indicators.forEach((indicator, index) => {
-          indicator.classList.toggle('active', index === this.currentIndex);
+          // Se chegou no fim (clones da direita)
+          if (scrollLeft + clientWidth > scrollWidth - 100) {
+            this.container.scrollLeft = itemsWidth - (scrollWidth - scrollLeft - clientWidth);
+          }
         });
       }
 
-      // Navega para o próximo item
-      next() {
-        this.currentIndex = (this.currentIndex + 1) % this.totalItems;
-        this.updateCarousel();
-      }
-
-      // Navega para o item anterior
-      prev() {
-        this.currentIndex = (this.currentIndex - 1 + this.totalItems) % this.totalItems;
-        this.updateCarousel();
-      }
-
-      // Vai para um slide específico
-      goToSlide(index) {
-        this.currentIndex = index;
-        this.updateCarousel();
-      }
-
-      // Anexa eventos de clique e teclado
+      // Anexa eventos de navegação
       attachEvents() {
-        // Botões de navegação
-        this.nextBtn.addEventListener('click', () => this.next());
         this.prevBtn.addEventListener('click', () => this.prev());
-
-        // Clique nos cards
-        this.items.forEach((item, index) => {
-          item.addEventListener('click', (e) => {
-            // Se não for o card ativo, navega para ele
-            if (index !== this.currentIndex) {
-              e.preventDefault();
-              e.stopPropagation();
-              this.goToSlide(index);
-            }
-          });
-        });
+        this.nextBtn.addEventListener('click', () => this.next());
 
         // Navegação por teclado
         document.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowLeft') {
-            this.prev();
-          } else if (e.key === 'ArrowRight') {
-            this.next();
-          }
-        });
-
-        // Suporte a touch/swipe em mobile
-        this.setupTouchEvents();
-      }
-
-      // Configura eventos de touch para mobile
-      setupTouchEvents() {
-        let touchStartX = null;
-        let touchStartY = null;
-        const container = document.getElementById('carouselContainer');
-
-        container.addEventListener('touchstart', (e) => {
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-        });
-
-        container.addEventListener('touchmove', (e) => {
-          if (!touchStartX || !touchStartY) return;
-          
-          const touchEndX = e.touches[0].clientX;
-          const touchEndY = e.touches[0].clientY;
-          
-          const diffX = touchStartX - touchEndX;
-          const diffY = touchStartY - touchEndY;
-          
-          // Previne scroll vertical se o movimento for mais horizontal
-          if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 10) {
-            e.preventDefault();
-          }
-        }, { passive: false });
-
-        container.addEventListener('touchend', (e) => {
-          if (!touchStartX || !touchStartY) return;
-          
-          const touchEndX = e.changedTouches[0].clientX;
-          const diffX = touchStartX - touchEndX;
-          
-          // Se o swipe foi maior que 50px
-          if (Math.abs(diffX) > 50) {
-            if (diffX > 0) {
-              this.next(); // Swipe para esquerda = próximo
-            } else {
-              this.prev(); // Swipe para direita = anterior
-            }
-          }
-          
-          touchStartX = null;
-          touchStartY = null;
+          if (e.key === 'ArrowLeft') this.prev();
+          else if (e.key === 'ArrowRight') this.next();
         });
       }
     }
 
-    // Inicializa o carrossel quando o DOM estiver pronto
+    // Inicializa o carrossel e slideshow quando o DOM estiver pronto
     document.addEventListener('DOMContentLoaded', () => {
       const carousel = new Carousel3D();
+      const slideshow = new CardSlideshow();
+      
+      console.log('✨ Carrossel 3D e Slideshow inicializados!');
     });
   </script>
 </body>

@@ -1,0 +1,462 @@
+/* 📱 CORREÇÕES MOBILE - ORION CREATOR */
+/* Sistema de Design Tokens */
+:root {
+  /* Cores Premium */
+  --orion-primary: #a855f7;
+  --orion-secondary: #c084fc;
+  --orion-dark: #6b21a8;
+  --orion-accent: #9333ea;
+  --orion-light: #e9d5ff;
+  
+  /* Gradientes */
+  --gradient-primary: linear-gradient(135deg, #6b21a8, #a855f7, #9333ea);
+  --gradient-glass: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(192, 132, 252, 0.05));
+  
+  /* Sombras */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 8px 32px rgba(107, 33, 168, 0.4);
+  --shadow-glow: 0 0 30px rgba(168, 85, 247, 0.5);
+  
+  /* Espaçamentos */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  
+  /* Tipografia */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  
+  /* Touch Targets */
+  --touch-min: 48px;
+  
+  /* Transições */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-smooth: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* CORREÇÃO GERAL DE OVERFLOW */
+html,
+body {
+  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
+}
+
+body * {
+  max-width: 100%;
+}
+
+/* OTIMIZAÇÃO DE ANIMAÇÕES - Usar transform ao invés de background-position */
+.stars {
+  will-change: transform;
+  animation: moveStarsOptimized 140s linear infinite;
+}
+
+@keyframes moveStarsOptimized {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-1200px, 600px, 0); }
+}
+
+.nebula {
+  will-change: transform;
+  animation: nebulaOptimized 60s linear infinite;
+}
+
+@keyframes nebulaOptimized {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-120px, 0, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+/* Desabilitar animações pesadas em dispositivos de baixa performance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* TOUCH TARGETS PADRONIZADOS (mínimo 48px) */
+button,
+.btn,
+a.btn,
+input[type="button"],
+input[type="submit"],
+.touch-target {
+  min-height: var(--touch-min) !important;
+  min-width: var(--touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Aumentar área de toque para ícones pequenos */
+.icon-btn,
+.close-btn,
+.show-pass {
+  position: relative;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* CORREÇÕES MODAIS MOBILE */
+@media (max-width: 768px) {
+  .modal {
+    padding: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .modal-content {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .modal-left,
+  .modal-right {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .modal-left {
+    max-height: 40vh !important;
+    min-height: 250px !important;
+    flex-shrink: 0;
+  }
+  
+  .modal-right {
+    flex: 1;
+    max-height: none !important;
+    padding-bottom: 60px !important;
+  }
+  
+  /* Botão fechar fixo e grande */
+  .close-btn {
+    position: fixed !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 9999 !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 28px !important;
+    background: rgba(168, 85, 247, 0.9) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+  }
+  
+  /* Progress tracking visível */
+  .progress-section,
+  #progressContainer {
+    position: sticky !important;
+    top: 70px !important;
+    z-index: 100 !important;
+    background: rgba(10, 1, 24, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    padding: 15px !important;
+    margin: 0 -15px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  }
+}
+
+/* MENU MOBILE CORRIGIDO (HOME.HTML) */
+@media (max-width: 768px) {
+  /* Botão menu pequeno no canto */
+  #menu-toggle {
+    position: fixed !important;
+    top: 12px !important;
+    left: 12px !important;
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    font-size: 1.3rem !important;
+    line-height: 44px !important;
+    text-align: center !important;
+    z-index: 1002 !important;
+    border-radius: 12px !important;
+    background: rgba(168, 85, 247, 0.9) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 2px solid rgba(255, 255, 255, 0.15) !important;
+    color: white !important;
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4) !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  #menu-toggle:active {
+    transform: scale(0.95) !important;
+  }
+  
+  /* Sidebar com overlay */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-normal);
+  }
+  
+  .sidebar-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  .sidebar {
+    transform: translateX(-100%) !important;
+    transition: transform var(--transition-smooth) !important;
+  }
+  
+  .sidebar.active {
+    transform: translateX(0) !important;
+  }
+}
+
+/* SCROLL ROWS OTIMIZADOS */
+.scroll-row {
+  display: flex !important;
+  gap: 15px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-snap-type: x mandatory !important;
+  scroll-padding: 0 20px !important;
+  padding: 10px 5px !important;
+  margin: 0 -5px !important;
+}
+
+.scroll-row::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scroll-row::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.scroll-row::-webkit-scrollbar-thumb {
+  background: var(--orion-primary);
+  border-radius: 10px;
+}
+
+.scroll-row > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* CARDS RESPONSIVOS */
+.movie-card,
+.carousel-3d-item {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+
+.movie-card:active,
+.carousel-3d-item:active {
+  transform: scale(0.98);
+}
+
+/* INPUTS E FORMS MOBILE */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important; /* Previne zoom no iOS */
+    padding: 12px 15px !important;
+    min-height: 48px !important;
+  }
+  
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px !important;
+    min-height: 24px !important;
+    margin: 8px !important;
+  }
+}
+
+/* BOTÕES MOBILE OTIMIZADOS */
+@media (max-width: 768px) {
+  .btn,
+  button {
+    padding: 14px 24px !important;
+    font-size: var(--text-base) !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+  }
+  
+  .btn-primary {
+    background: var(--gradient-primary) !important;
+    box-shadow: var(--shadow-lg) !important;
+  }
+  
+  .btn-primary:active {
+    transform: translateY(2px) scale(0.98) !important;
+    box-shadow: var(--shadow-md) !important;
+  }
+}
+
+/* TABELAS RESPONSIVAS */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table-wrapper {
+    position: relative;
+  }
+  
+  /* Indicador de scroll */
+  .table-wrapper::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to left, rgba(10, 1, 24, 0.9), transparent);
+    pointer-events: none;
+  }
+}
+
+/* CARROSSEL 3D MOBILE MELHORADO */
+@media (max-width: 768px) {
+  .carousel-3d {
+    perspective: 1200px !important;
+    overflow: hidden !important;
+  }
+  
+  .carousel-3d-item {
+    transition: all var(--transition-smooth) !important;
+  }
+  
+  .carousel-3d-nav {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.5rem !important;
+    backdrop-filter: blur(10px) !important;
+  }
+  
+  /* Pausar animações LED em cards não ativos */
+  .carousel-3d-item:not([data-position="0"]) .led-border {
+    animation-play-state: paused !important;
+    opacity: 0.5 !important;
+  }
+}
+
+/* MOBILE MUITO PEQUENO (<480px) */
+@media (max-width: 480px) {
+  :root {
+    --text-xs: 0.7rem;
+    --text-sm: 0.8rem;
+    --text-base: 0.9rem;
+  }
+  
+  .container {
+    padding: 60px 12px 20px 12px !important;
+  }
+  
+  /* Stars menos intensas */
+  .stars {
+    opacity: 0.12 !important;
+    animation-play-state: paused !important;
+  }
+  
+  .nebula {
+    opacity: 0.3 !important;
+  }
+}
+
+/* PERFORMANCE - Lazy Loading Images */
+img[loading="lazy"] {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
+img[loading="lazy"].loaded,
+img[loading="lazy"][src] {
+  opacity: 1;
+}
+
+/* ACESSIBILIDADE */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus visível para teclado */
+*:focus-visible {
+  outline: 3px solid var(--orion-primary);
+  outline-offset: 2px;
+}
+
+/* ESTADOS DE LOADING PREMIUM */
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn.loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn.loading::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
