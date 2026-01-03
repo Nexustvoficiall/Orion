@@ -2008,7 +2008,6 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         downloadSuccess = true;
         console.log(`   ✅ Sucesso com yt-dlp (${qualidadeNum}p ${qualityConfig.name})`);
       }
-      }
     } catch (err) {
       lastError = err;
       console.log(`   ⚠️ Falhou com yt-dlp: ${err.message}`);
