@@ -2073,18 +2073,7 @@
       
       const uid = auth.currentUser.uid;
       
-      // Verificar uploads restantes
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
-      const dados = snapshot.val();
-      const uploadsRestantes = dados.uploads_restantes || 2;
-      
-      if (uploadsRestantes <= 0) {
-        alert('Você atingiu o limite de 2 uploads por mês. Aguarde o reset em ' + new Date(dados.data_reset_logo).toLocaleDateString('pt-BR'));
-        return;
-      }
-      
-      // Validar arquivo
+      // Validar arquivo localmente primeiro
       if (!file.type.startsWith('image/')) {
         alert('Por favor, envie apenas imagens!');
         return;
@@ -2095,37 +2084,58 @@
         return;
       }
       
-      // Converter para base64
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const logoBase64 = event.target.result;
+      const btnUpload = document.getElementById('btnUploadLogo');
+      const originalText = btnUpload.textContent;
+      btnUpload.textContent = 'Enviando...';
+      btnUpload.disabled = true;
+      
+      try {
+        // Obter token Firebase para autenticação
+        const token = await auth.currentUser.getIdToken();
         
-        try {
-          // Salvar no Firebase Database
-          await update(ref(db, "usuarios/" + uid), {
-            logo_url: logoBase64,
-            uploads_restantes: uploadsRestantes - 1
-          });
-          
-          // Atualizar preview
-          const logoImg = document.getElementById('logoPreviewImg');
-          const logoPlaceholder = document.getElementById('logoPlaceholder');
-          
-          logoImg.src = logoBase64;
-          logoImg.style.display = 'block';
-          if (logoPlaceholder) {
-            logoPlaceholder.style.display = 'none';
+        // Enviar para API Cloudinary
+        const formData = new FormData();
+        formData.append('logo', file);
+        
+        const response = await fetch('/api/upload-logo', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          if (response.status === 429) {
+            const dataReset = result.dataReset ? new Date(result.dataReset).toLocaleDateString('pt-BR') : 'próximo mês';
+            throw new Error(`Limite de uploads atingido. Reset em: ${dataReset}`);
           }
-          userLogoUrl = logoBase64;
-          
-          alert('Logo enviada com sucesso! Uploads restantes: ' + (uploadsRestantes - 1));
-          atualizarContadorUploads(uid);
-        } catch (error) {
-          console.error('Erro ao salvar logo:', error);
-          alert('Erro ao salvar logo. Tente novamente.');
+          throw new Error(result.error || 'Erro no upload');
         }
-      };
-      reader.readAsDataURL(file);
+        
+        // Atualizar preview com URL do Cloudinary
+        const logoImg = document.getElementById('logoPreviewImg');
+        const logoPlaceholder = document.getElementById('logoPlaceholder');
+        
+        logoImg.src = result.logoUrl;
+        logoImg.style.display = 'block';
+        if (logoPlaceholder) {
+          logoPlaceholder.style.display = 'none';
+        }
+        userLogoUrl = result.logoUrl;
+        
+        alert(`Logo enviada com sucesso! Uploads restantes: ${result.uploadsRestantes}`);
+        atualizarContadorUploads(uid);
+        
+      } catch (error) {
+        console.error('Erro ao salvar logo:', error);
+        alert('Erro ao salvar logo: ' + error.message);
+      } finally {
+        btnUpload.textContent = originalText;
+        btnUpload.disabled = false;
+      }
     });
 
     // Salvar WhatsApp
@@ -2361,7 +2371,16 @@
               <p style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 Dica: Vídeos mais curtos são melhores para redes sociais</p>
             </div>
             
-            <!-- Qualidade fixa 720p HD - otimizado para WhatsApp (<10MB) -->
+            <!-- Seleção de Qualidade -->
+            <div id="qualitySelectorContainer" style="margin-top:20px;">
+              <label style="color:#e8e3ff; font-size:15px; font-weight:600; display:block; margin-bottom:12px;">📺 Qualidade do Vídeo:</label>
+              <select id="selectQuality" class="filtro-tipo" style="background:#2a1f3d; color:#e8e3ff; border:1px solid rgba(192, 132, 252, 0.3); padding:12px; border-radius:8px; font-size:14px;">
+                <option value="480p" style="color:#e8e3ff; background:#2a1f3d;">📱 480p SD (Rápido, arquivo menor)</option>
+                <option value="720p" selected style="color:#e8e3ff; background:#2a1f3d;">📺 720p HD (Recomendado)</option>
+                <option value="1080p" style="color:#e8e3ff; background:#2a1f3d;">🎬 1080p Full HD (Maior qualidade)</option>
+              </select>
+              <p id="qualityHint" style="color:#a0a0c0; font-size:12px; margin-top:8px; line-height:1.4;">💡 720p HD é ideal para WhatsApp e redes sociais</p>
+            </div>
 
             <!-- Botão Gerar -->
             <div style="margin-top:30px; display:flex; gap:10px; justify-content:center;">
@@ -2541,6 +2560,19 @@
       filmesPopularesGrid: document.getElementById('filmesPopularesGrid'),
       seriesPopularesGrid: document.getElementById('seriesPopularesGrid')
     };
+    
+    // Função debounce para evitar requisições excessivas
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
     
     console.log('✅ Elementos carregados:', {
       lancamentosGrid: !!els.lancamentosGrid,
@@ -2982,7 +3014,15 @@
       }
       
       const duracao = parseInt(selectDuration.value);
-      const qualidade = selectQuality ? parseInt(selectQuality.value) : 720;
+      const qualidade = selectQuality ? selectQuality.value : '720p';
+      
+      // Mapeamento de qualidade para resolução de exibição
+      const qualityLabels = {
+        '480p': { short: '480p SD', resolution: '480x854', label: '📱 480p SD' },
+        '720p': { short: '720p HD', resolution: '720x1280', label: '📺 720p HD' },
+        '1080p': { short: '1080p FHD', resolution: '1080x1920', label: '🎬 1080p Full HD' }
+      };
+      const qInfo = qualityLabels[qualidade] || qualityLabels['720p'];
       
       if (!duracao || duracao <= 0) {
         alert('Selecione a duração do vídeo!');
@@ -3006,8 +3046,8 @@
           <div style="position:absolute; inset:0; background: radial-gradient(circle at 30% 40%, rgba(192, 132, 252, 0.15), transparent 60%); pointer-events:none; animation: nebulaMove 8s ease-in-out infinite;"></div>
           <div class="loader" style="position:relative; z-index:2;"></div>
           <h3 style="color:var(--accent); font-size:24px; margin:0; text-align:center; position:relative; z-index:2; text-shadow: 0 0 20px rgba(192, 132, 252, 0.6);">🎬 Gerando seu vídeo...</h3>
-          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | 720p HD</p>
-          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical 720x1280</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">Duração: ${duracao}s | ${qInfo.short}</p>
+          <p class="text-muted" style="text-align:center; position:relative; z-index:2;">📱 Formato Vertical ${qInfo.resolution}</p>
           
           <!-- Cronômetro em Tempo Real -->
           <div style="text-align:center; margin:20px 0;">
@@ -3103,15 +3143,15 @@
           .replace(/[^a-zA-Z0-9]/g, '_')
           .substring(0, 30);
         const seasonSuffix = currentData.selectedSeason ? `_T${currentData.selectedSeason}` : '';
-        const fileName = `Video_${safeTitle}_${duracao}s_720p${seasonSuffix}.mp4`;
+        const fileName = `Video_${safeTitle}_${duracao}s_${qualidade}${seasonSuffix}.mp4`;
         
         // Mostrar resultado - Controles no lado esquerdo
         els.leftPanel.innerHTML = `
           <div style="display:flex; flex-direction:column; gap:24px; align-items:center; justify-content:center; padding:40px; width:100%; height:100%;">
             <div style="text-align:center;">
               <h3 style="color:var(--accent); font-size:32px; margin:0 0 10px; text-shadow: 0 0 30px rgba(192, 132, 252, 0.6);">✨ Vídeo Pronto!</h3>
-              <p class="text-muted" style="font-size:14px; margin:0;">Duração: ${duracao}s | 720p HD</p>
-              <p class="text-muted" style="font-size:14px; margin:0;">📱 720x1280 (Vertical)</p>
+              <p class="text-muted" style="font-size:14px; margin:0;">Duração: ${duracao}s | ${qInfo.short}</p>
+              <p class="text-muted" style="font-size:14px; margin:0;">📱 ${qInfo.resolution} (Vertical)</p>
               <p style="font-size:12px; color:#9ca3af; margin-top:8px;">🎬 Trailer + Overlay + Textos</p>
             </div>
             
@@ -3234,6 +3274,16 @@
     els.searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') performSearch();
     });
+    
+    // Busca em tempo real com debounce (300ms)
+    const debouncedSearch = debounce(async () => {
+      const query = els.searchInput.value.trim();
+      if (query.length >= 3) {
+        performSearch();
+      }
+    }, 300);
+    els.searchInput.addEventListener('input', debouncedSearch);
+    
     els.clearButton.onclick = () => location.reload();
 
     async function init() {
@@ -3272,12 +3322,12 @@
         card.style.position = 'relative';
         
         card.innerHTML = `
-          <img src="${posterUrl}" loading="lazy">
+          <img src="${posterUrl}" alt="Poster de ${titulo}" loading="lazy">
           <div class="movie-info">
             <h3 title="${titulo}">${titulo}</h3>
             <span>${ano}</span>
           </div>
-          <button class="card-action-btn" data-item-id="${item.id}" data-item-type="${tipo}">
+          <button class="card-action-btn" data-item-id="${item.id}" data-item-type="${tipo}" aria-label="Ver detalhes de ${titulo}">
             👁️ Ver
           </button>`;
         
@@ -3447,6 +3497,8 @@
     
     function openMassModal() {
       document.getElementById('massModal').style.display = 'flex';
+      document.getElementById('massModal').classList.add('open');
+      document.body.classList.add('modal-open'); // Bloquear scroll do body
       document.getElementById('massStep1').style.display = 'block';
       document.getElementById('massStep2').style.display = 'none';
       document.getElementById('massSelectedInfo').textContent = `${selectedItems.length} ${selectedItems.length === 1 ? 'item selecionado' : 'itens selecionados'}`;
@@ -3533,6 +3585,8 @@
     
     function closeMassModal() {
       document.getElementById('massModal').style.display = 'none';
+      document.getElementById('massModal').classList.remove('open');
+      document.body.classList.remove('modal-open'); // Liberar scroll do body
       // Limpar seleção após fechar modal
       selectedItems = [];
       updateSelectionUI();
@@ -3885,6 +3939,22 @@
       // Atualizar inicialmente sem delay
       if (window.innerWidth <= 768) {
         requestAnimationFrame(updateCenteredCard);
+      }
+      
+      // Listener para seletor de qualidade - atualizar dica
+      const selectQuality = document.getElementById('selectQuality');
+      const qualityHint = document.getElementById('qualityHint');
+      
+      if (selectQuality && qualityHint) {
+        const qualityHints = {
+          '480p': '💡 480p é mais rápido e ideal para conexões lentas',
+          '720p': '💡 720p HD é ideal para WhatsApp e redes sociais',
+          '1080p': '💡 1080p oferece máxima qualidade, arquivo maior'
+        };
+        
+        selectQuality.addEventListener('change', () => {
+          qualityHint.textContent = qualityHints[selectQuality.value] || qualityHints['720p'];
+        });
       }
     });
 

@@ -1609,7 +1609,7 @@
   </style>
 </head>
 
-<body>
+<body class="vods-page">
 
   <button id="menu-toggle">☰ Menu</button>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -1945,18 +1945,7 @@
       
       const uid = auth.currentUser.uid;
       
-      // Verificar uploads restantes
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
-      const dados = snapshot.val();
-      const uploadsRestantes = dados.uploads_restantes || 2;
-      
-      if (uploadsRestantes <= 0) {
-        alert('Você atingiu o limite de 2 uploads por mês. Aguarde o reset em ' + new Date(dados.data_reset_logo).toLocaleDateString('pt-BR'));
-        return;
-      }
-      
-      // Validar arquivo
+      // Validar arquivo localmente primeiro
       if (!file.type.startsWith('image/')) {
         alert('Por favor, envie apenas imagens!');
         return;
@@ -1967,37 +1956,58 @@
         return;
       }
       
-      // Converter para base64
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const logoBase64 = event.target.result;
+      const btnUpload = document.getElementById('btnUploadLogo');
+      const originalText = btnUpload.textContent;
+      btnUpload.textContent = 'Enviando...';
+      btnUpload.disabled = true;
+      
+      try {
+        // Obter token Firebase para autenticação
+        const token = await auth.currentUser.getIdToken();
         
-        try {
-          // Salvar no Firebase Database
-          await update(ref(db, "usuarios/" + uid), {
-            logo_url: logoBase64,
-            uploads_restantes: uploadsRestantes - 1
-          });
-          
-          // Atualizar preview
-          const logoImg = document.getElementById('logoPreviewImg');
-          const logoPlaceholder = document.getElementById('logoPlaceholder');
-          
-          logoImg.src = logoBase64;
-          logoImg.style.display = 'block';
-          if (logoPlaceholder) {
-            logoPlaceholder.style.display = 'none';
+        // Enviar para API Cloudinary
+        const formData = new FormData();
+        formData.append('logo', file);
+        
+        const response = await fetch('/api/upload-logo', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          if (response.status === 429) {
+            const dataReset = result.dataReset ? new Date(result.dataReset).toLocaleDateString('pt-BR') : 'próximo mês';
+            throw new Error(`Limite de uploads atingido. Reset em: ${dataReset}`);
           }
-          userLogoUrl = logoBase64;
-          
-          alert('Logo enviada com sucesso! Uploads restantes: ' + (uploadsRestantes - 1));
-          atualizarContadorUploads(uid);
-        } catch (error) {
-          console.error('Erro ao salvar logo:', error);
-          alert('Erro ao salvar logo. Tente novamente.');
+          throw new Error(result.error || 'Erro no upload');
         }
-      };
-      reader.readAsDataURL(file);
+        
+        // Atualizar preview com URL do Cloudinary
+        const logoImg = document.getElementById('logoPreviewImg');
+        const logoPlaceholder = document.getElementById('logoPlaceholder');
+        
+        logoImg.src = result.logoUrl;
+        logoImg.style.display = 'block';
+        if (logoPlaceholder) {
+          logoPlaceholder.style.display = 'none';
+        }
+        userLogoUrl = result.logoUrl;
+        
+        alert(`Logo enviada com sucesso! Uploads restantes: ${result.uploadsRestantes}`);
+        atualizarContadorUploads(uid);
+        
+      } catch (error) {
+        console.error('Erro ao salvar logo:', error);
+        alert('Erro ao salvar logo: ' + error.message);
+      } finally {
+        btnUpload.textContent = originalText;
+        btnUpload.disabled = false;
+      }
     });
 
     // Salvar WhatsApp
@@ -2158,6 +2168,20 @@
           atualizarContadorUploads(uid);
         }
       }
+    }
+
+    // ====== UTILIDADES ======
+    // Função debounce para evitar requisições excessivas
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
     }
 
     const orionXBanners = {
@@ -2402,6 +2426,7 @@
       els.modal.classList.add('open');
       els.modal.style.display = 'flex';
       els.modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open'); // Bloquear scroll do body
 
       // Loading inicial
       els.title.innerText = "Carregando...";
@@ -2461,6 +2486,7 @@
       els.modal.classList.remove('open');
       els.modal.style.display = 'none';
       els.modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open'); // Liberar scroll do body
       
       // Reset completo
       config = { orientation: 'vertical', modelId: null, colorKey: null };
@@ -2801,6 +2827,15 @@
       if (e.key === 'Enter') performSearch();
     });
     
+    // Busca em tempo real com debounce (300ms)
+    const debouncedSearch = debounce(async () => {
+      const query = els.searchInput.value.trim();
+      if (query.length >= 3) {
+        performSearch();
+      }
+    }, 300);
+    els.searchInput.addEventListener('input', debouncedSearch);
+    
     // Limpar filtros SEM perder itens selecionados
     els.clearButton.onclick = () => {
       // Limpar campo de busca
@@ -2974,12 +3009,12 @@
         card.style.position = 'relative';
         
         card.innerHTML = `
-          <img src="${posterUrl}" loading="lazy">
+          <img src="${posterUrl}" alt="Poster de ${titulo}" loading="lazy">
           <div class="movie-info">
             <h3 title="${titulo}">${titulo}</h3>
             <span>${ano}</span>
           </div>
-          <button class="card-action-btn" data-item-id="${item.id}" data-item-type="${tipo}">
+          <button class="card-action-btn" data-item-id="${item.id}" data-item-type="${tipo}" aria-label="Ver detalhes de ${titulo}">
             👁️ Ver
           </button>`;
         
@@ -3123,6 +3158,8 @@
     
     function openMassModal() {
       document.getElementById('massModal').style.display = 'flex';
+      document.getElementById('massModal').classList.add('open');
+      document.body.classList.add('modal-open'); // Bloquear scroll do body
       document.getElementById('massStep1').style.display = 'block';
       document.getElementById('massStep2').style.display = 'none';
       document.getElementById('massSelectModelo').value = '';
@@ -3159,6 +3196,8 @@
     
     function closeMassModal() {
       document.getElementById('massModal').style.display = 'none';
+      document.getElementById('massModal').classList.remove('open');
+      document.body.classList.remove('modal-open'); // Liberar scroll do body
       // Limpar seleção após fechar modal
       selectedItems = [];
       updateSelectionUI();

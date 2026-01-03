@@ -42,7 +42,10 @@ const requiredEnvVars = [
   "FIREBASE_PROJECT_ID",
   "FIREBASE_PRIVATE_KEY",
   "FIREBASE_CLIENT_EMAIL",
-  "FANART_API_KEY"
+  "FANART_API_KEY",
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET"
 ];
 
 for (const varName of requiredEnvVars) {
@@ -79,6 +82,27 @@ console.log("✅ Fanart.tv Service inicializado");
 
 // Map para gerenciar conexões SSE de progresso
 const progressConnections = new Map();
+
+// Cleanup de conexões SSE mortas (previne memory leak)
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, entry] of progressConnections.entries()) {
+    // Remove conexões mais antigas que 10 minutos
+    if (entry.createdAt && now - entry.createdAt > 10 * 60 * 1000) {
+      try {
+        if (entry.res && !entry.res.writableEnded) {
+          entry.res.end();
+        }
+      } catch (e) { /* ignorar */ }
+      progressConnections.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`🧹 Cleanup SSE: ${cleaned} conexões removidas`);
+  }
+}, 60 * 1000); // Verifica a cada 1 minuto
 
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -297,13 +321,17 @@ async function fetchBuffer(url, useCache = true) {
   if (!resp.ok) throw new Error(`Falha HTTP ${resp.status}`);
 
   const arrayBuf = await resp.arrayBuffer();
-  const buffer = Buffer.from(arrayBuf);
+  let buffer = Buffer.from(arrayBuf);
   const meta = await sharp(buffer).metadata();
   if (!meta.format) throw new Error("Conteúdo não é imagem válida");
-  const pngBuf = await sharp(buffer).png().toBuffer();
+  
+  // Só converter para PNG se não for PNG (otimização de performance)
+  if (meta.format !== 'png') {
+    buffer = await sharp(buffer).png().toBuffer();
+  }
 
-  if (useCache) imageCache.set(url, pngBuf);
-  return pngBuf;
+  if (useCache) imageCache.set(url, buffer);
+  return buffer;
 }
 
 function wrapText(text, maxChars) {
@@ -341,19 +369,19 @@ function safeXml(str) {
 
 async function spawnProcess(command, args) {
   return new Promise((resolve, reject) => {
-    const process = spawn(command, args);
+    const childProc = spawn(command, args);
     let stdout = '';
     let stderr = '';
     
-    process.stdout.on('data', (data) => {
+    childProc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
     
-    process.stderr.on('data', (data) => {
+    childProc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
     
-    process.on('close', (code) => {
+    childProc.on('close', (code) => {
       if (code === 0) {
         resolve({ stdout, stderr });
       } else {
@@ -364,7 +392,7 @@ async function spawnProcess(command, args) {
       }
     });
     
-    process.on('error', (err) => {
+    childProc.on('error', (err) => {
       const error = new Error(`Falha ao executar ${command}: ${err.message}`);
       error.originalError = err;
       reject(error);
@@ -549,6 +577,161 @@ app.post("/api/upload", verificarAuth, uploadLimiter, upload.single("file"), (re
   }
 });
 
+// ============================================================================
+// 🎨 UPLOAD DE LOGO DO CLIENTE - CLOUDINARY + FIRESTORE
+// ============================================================================
+const logoStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "orion_creator/logos",
+    allowed_formats: ["jpg", "png", "jpeg", "webp", "gif"],
+    transformation: [
+      { width: 500, height: 500, crop: "limit" },
+      { quality: "auto:good" },
+      { fetch_format: "auto" }
+    ],
+    public_id: (req, file) => `logo_${req.uid}_${Date.now()}`
+  }
+});
+
+const logoUpload = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Formato de imagem não permitido. Use: PNG, JPG, WebP ou GIF"));
+    }
+  }
+});
+
+/**
+ * Endpoint para upload de logo do cliente
+ * - Faz upload para Cloudinary (pasta: orion_creator/logos/{uid})
+ * - Salva URL no Firestore vinculada ao UID
+ * - Controla limite de uploads por mês
+ * - Retorna URL segura para uso em banners/vídeos
+ */
+app.post("/api/upload-logo", verificarAuth, uploadLimiter, logoUpload.single("logo"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    const uid = req.uid;
+    const userRef = db.collection("usuarios").doc(uid);
+    const userDoc = await userRef.get();
+    
+    // Verificar limite de uploads
+    let uploadsRestantes = 2;
+    let dataReset = null;
+    
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      uploadsRestantes = userData.uploads_restantes ?? 2;
+      dataReset = userData.data_reset_logo ? new Date(userData.data_reset_logo) : null;
+      
+      // Verificar se precisa resetar o contador (mensal)
+      const agora = new Date();
+      if (dataReset && agora >= dataReset) {
+        // Reset mensal
+        uploadsRestantes = 2;
+        dataReset = new Date(agora.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
+      
+      if (uploadsRestantes <= 0) {
+        // Remover imagem do Cloudinary (já foi feito upload)
+        if (req.file.filename) {
+          try {
+            await cloudinary.uploader.destroy(`orion_creator/logos/${req.file.filename}`);
+          } catch (e) {
+            console.warn("Falha ao remover logo do Cloudinary:", e.message);
+          }
+        }
+        return res.status(429).json({ 
+          error: "Limite de uploads atingido",
+          dataReset: dataReset?.toISOString()
+        });
+      }
+    }
+
+    // URL segura do Cloudinary
+    const logoUrl = req.file.path || req.file.secure_url || req.file.url;
+    
+    if (!logoUrl) {
+      return res.status(500).json({ error: "Erro ao obter URL da imagem" });
+    }
+
+    // Calcular próximo reset se não existir
+    if (!dataReset) {
+      dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Atualizar Firestore
+    await userRef.set({
+      logo_url: logoUrl,
+      logo: logoUrl, // Manter compatibilidade com código legado
+      uploads_restantes: uploadsRestantes - 1,
+      data_reset_logo: dataReset.toISOString(),
+      logo_updated_at: new Date().toISOString()
+    }, { merge: true });
+
+    console.log(`✅ Logo enviada para Cloudinary: uid=${uid} url=${logoUrl.substring(0, 60)}...`);
+
+    res.json({
+      success: true,
+      logoUrl: logoUrl,
+      uploadsRestantes: uploadsRestantes - 1,
+      dataReset: dataReset.toISOString()
+    });
+
+  } catch (err) {
+    console.error("❌ Upload de logo erro:", err.message);
+    res.status(500).json({ error: err.message || "Erro no upload da logo" });
+  }
+});
+
+/**
+ * Função utilitária para buscar logo do usuário com fallback
+ * @param {string} uid - UID do usuário
+ * @returns {Promise<string|null>} URL da logo ou null
+ */
+async function getUserLogoUrl(uid) {
+  const DEFAULT_LOGO = "https://res.cloudinary.com/dxbu3zk6i/image/upload/v1/orion_creator/logo-default.png";
+  
+  if (!uid) return DEFAULT_LOGO;
+  
+  try {
+    const userDoc = await db.collection("usuarios").doc(uid).get();
+    
+    if (!userDoc.exists) return DEFAULT_LOGO;
+    
+    const userData = userDoc.data();
+    const logoUrl = userData.logo_url || userData.logo;
+    
+    // Validar URL (não aceitar base64)
+    if (logoUrl && typeof logoUrl === 'string' && !logoUrl.startsWith('data:')) {
+      // Verificar se é URL válida
+      try {
+        const url = new URL(logoUrl);
+        if (['http:', 'https:'].includes(url.protocol)) {
+          return logoUrl;
+        }
+      } catch {
+        console.warn(`⚠️ Logo inválida para uid=${uid}: ${logoUrl.substring(0, 50)}...`);
+      }
+    }
+    
+    return DEFAULT_LOGO;
+    
+  } catch (error) {
+    console.error(`❌ Erro ao buscar logo do usuário ${uid}:`, error.message);
+    return DEFAULT_LOGO;
+  }
+}
+
 app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
   try {
     console.log(`🔍 Buscando banners para UID: ${req.uid}`);
@@ -622,6 +805,14 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
     if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
     if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
     if (backdropUrl && !validarURL(backdropUrl)) return res.status(400).json({ error: "backdropUrl inválida" });
+    
+    // Validações de segurança para parâmetros numéricos
+    if (tmdbId && !/^\d+$/.test(String(tmdbId))) {
+      return res.status(400).json({ error: "tmdbId deve ser numérico" });
+    }
+    if (temporada && (isNaN(parseInt(temporada, 10)) || parseInt(temporada, 10) < 0)) {
+      return res.status(400).json({ error: "temporada deve ser um número válido" });
+    }
 
     const tipoNorm = (tipo || "vertical").toLowerCase();
     if (!TIPOS_BANNER_VALIDOS.includes(tipoNorm)) {
@@ -1093,8 +1284,8 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       let secondaryLogoLayer = null;
       
       try {
-        const userDoc = await db.collection("usuarios").doc(req.uid).get();
-        const userLogo = userDoc.exists ? userDoc.data().logo : null;
+        // Usar função centralizada com fallback
+        const userLogo = await getUserLogoUrl(req.uid);
         
         if (userLogo && validarURL(userLogo)) {
           let lb = await fetchBuffer(userLogo, false);
@@ -1364,8 +1555,8 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 
     let userLogoLayer = null;
     try {
-      const userDoc = await db.collection("usuarios").doc(req.uid).get();
-      const userLogo = userDoc.exists ? userDoc.data().logo : null;
+      // Usar função centralizada com fallback
+      const userLogo = await getUserLogoUrl(req.uid);
       if (userLogo && validarURL(userLogo)) {
         let lb = await fetchBuffer(userLogo, false);
         lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
@@ -1560,12 +1751,100 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     console.log(`==========================================\n`);
 
     if (!tmdbId) return res.status(400).json({ error: "tmdbId obrigatório" });
+    
+    // Validações de segurança para parâmetros numéricos
+    if (!/^\d+$/.test(String(tmdbId))) {
+      return res.status(400).json({ error: "tmdbId deve ser numérico" });
+    }
+    if (temporada && (isNaN(parseInt(temporada, 10)) || parseInt(temporada, 10) < 0)) {
+      return res.status(400).json({ error: "temporada deve ser um número válido" });
+    }
+    
     if (!tmdbTipo || !["movie", "tv"].includes(tmdbTipo)) {
       return res.status(400).json({ error: "tmdbTipo deve ser 'movie' ou 'tv'" });
     }
     if (![30, 60, 90].includes(parseInt(duracao))) {
       return res.status(400).json({ error: "Duração deve ser 30, 60 ou 90 segundos" });
     }
+
+    // Validar qualidade (480, 720, 1080)
+    const qualidadeNum = parseInt(qualidade) || 720;
+    if (![480, 720, 1080].includes(qualidadeNum)) {
+      return res.status(400).json({ error: "Qualidade deve ser 480, 720 ou 1080" });
+    }
+
+    // ====== CONFIGURAÇÃO DE QUALIDADE (OTIMIZADA PARA PERFORMANCE) ======
+    const QUALITY_PRESETS = {
+      480: {
+        name: 'SD',
+        width: 854,
+        height: 480,
+        // Para formato vertical 9:16
+        verticalWidth: 480,
+        verticalHeight: 854,
+        // FFmpeg settings
+        crf: 28,
+        preset: 'veryfast',
+        tune: 'fastdecode',
+        profile: 'baseline',
+        level: '3.0',
+        // Bitrates por duração
+        bitrates: {
+          30: { video: '1200k', audio: '64k', bufsize: '1500k' },
+          60: { video: '900k', audio: '64k', bufsize: '1200k' },
+          90: { video: '700k', audio: '64k', bufsize: '1000k' }
+        },
+        // Download quality
+        ytdlpFormat: 'best[height<=480]',
+        estimatedTime: '~30 segundos'
+      },
+      720: {
+        name: 'HD',
+        width: 1280,
+        height: 720,
+        verticalWidth: 720,
+        verticalHeight: 1280,
+        crf: 26,
+        preset: 'fast',
+        tune: 'film',
+        profile: 'main',
+        level: '3.1',
+        bitrates: {
+          30: { video: '2500k', audio: '96k', bufsize: '3000k' },
+          60: { video: '1800k', audio: '96k', bufsize: '2500k' },
+          90: { video: '1200k', audio: '96k', bufsize: '1800k' }
+        },
+        ytdlpFormat: 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]',
+        estimatedTime: '~1 minuto'
+      },
+      1080: {
+        name: 'Full HD',
+        width: 1920,
+        height: 1080,
+        verticalWidth: 1080,
+        verticalHeight: 1920,
+        crf: 23,
+        preset: 'medium',
+        tune: 'film',
+        profile: 'high',
+        level: '4.1',
+        bitrates: {
+          30: { video: '6000k', audio: '128k', bufsize: '8000k' },
+          60: { video: '4500k', audio: '128k', bufsize: '6000k' },
+          90: { video: '3500k', audio: '128k', bufsize: '5000k' }
+        },
+        ytdlpFormat: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]',
+        estimatedTime: '~2 minutos'
+      }
+    };
+
+    const qualityConfig = QUALITY_PRESETS[qualidadeNum];
+    const bitrateConfig = qualityConfig.bitrates[parseInt(duracao)];
+    const quality = `${qualidadeNum}p`; // "480p", "720p", ou "1080p"
+
+    console.log(`📊 Configuração de qualidade: ${qualidadeNum}p (${qualityConfig.name})`);
+    console.log(`   Resolução final: ${qualityConfig.verticalWidth}x${qualityConfig.verticalHeight}`);
+    console.log(`   Bitrate: ${bitrateConfig.video} | CRF: ${qualityConfig.crf} | Preset: ${qualityConfig.preset}`);
 
     const duracaoNum = parseInt(duracao);
     const tempDir = path.join(__dirname, "temp");
@@ -1655,11 +1934,17 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     let trailerKey = null;
     let useCreatedVideo = false;
     
-    if (trailer && trailer.site === "YouTube") {
+    // Regex para validar ID do YouTube (11 caracteres alfanuméricos, hífens e underscores)
+    const youtubeIdRegex = /^[a-zA-Z0-9_-]{11}$/;
+    
+    if (trailer && trailer.site === "YouTube" && youtubeIdRegex.test(trailer.key)) {
       trailerKey = trailer.key;
       console.log(`✅ Vídeo encontrado no YouTube: ${trailerKey} (${trailer.iso_639_1 || 'sem idioma'})`);
     } else {
       // Criar vídeo placeholder com backdrop animado
+      if (trailer && trailer.site === "YouTube") {
+        console.log(`⚠️ ID do YouTube inválido: ${trailer.key}`);
+      }
       console.log("⚠️ Nenhum vídeo disponível - criando vídeo placeholder com backdrop animado");
       useCreatedVideo = true;
       trailerKey = `placeholder_${tmdbId}`;
@@ -1699,14 +1984,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       console.log(`   URL: https://www.youtube.com/watch?v=${trailerKey}`);
       console.log(`   Destino: ${trailerPath}`);
 
-      // Qualidade fixa 720p para otimização de tamanho
-      const trailerQuality = '720';
+      // Usar qualidade configurada pelo usuário
+      const formatString = qualityConfig.ytdlpFormat;
 
-      // ESTRATÉGIA 1: yt-dlp 720p HD (otimizado para WhatsApp)
+      // ESTRATÉGIA 1: yt-dlp com qualidade escolhida
       try {
-        console.log(`   Tentativa 1: yt-dlp 720p HD...`);
-        // 720p = bom equilíbrio entre qualidade e tamanho
-        const formatString = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]';
+        console.log(`   Tentativa 1: yt-dlp ${qualidadeNum}p ${qualityConfig.name}...`);
         
         await spawnProcess('yt-dlp', [
           '-f', formatString,
@@ -1723,7 +2006,8 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
       if (fileExists) {
         downloadSuccess = true;
-        console.log(`   ✅ Sucesso com yt-dlp (720p HD)`);
+        console.log(`   ✅ Sucesso com yt-dlp (${qualidadeNum}p ${qualityConfig.name})`);
+      }
       }
     } catch (err) {
       lastError = err;
@@ -1887,12 +2171,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     console.log("🎨 6/8 - Processando imagens com Sharp (ULTRA-RÁPIDO)...");
     
-    // Processar backdrop com otimização máxima
+    // Processar backdrop com otimização máxima - usando resolução da qualidade escolhida
     let backdropPath = null;
     if (backdropBuffer) {
       backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
       await sharp(backdropBuffer)
-        .resize(1080, 1920, { fit: "cover", position: "center", kernel: 'nearest' })
+        .resize(qualityConfig.verticalWidth, qualityConfig.verticalHeight, { fit: "cover", position: "center", kernel: 'nearest' })
         .blur(2) // Reduzido de 3 para 2
         .linear(0.7, 0) // Escurecer 30% (mais rápido que composite)
         .png({ compressionLevel: 1, effort: 1 }) // Compressão mínima
@@ -1901,25 +2185,26 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     } else {
       backdropPath = path.join(tempDir, `backdrop_${tmdbId}.png`);
       await sharp({
-        create: { width: 1080, height: 1920, channels: 4, background: { r: 5, g: 5, b: 10, alpha: 1 } }
+        create: { width: qualityConfig.verticalWidth, height: qualityConfig.verticalHeight, channels: 4, background: { r: 5, g: 5, b: 10, alpha: 1 } }
       }).png({ compressionLevel: 1 }).toFile(backdropPath);
       tempFiles.push(backdropPath);
     }
 
     console.log("🖌️ 7/8 - Gerando composição visual OTIMIZADA...");
     
-    // Buscar logo do usuário
-    const userDoc = await db.collection("usuarios").doc(req.uid).get();
-    const userLogo = userDoc.exists ? userDoc.data().logo : null;
+    // Buscar logo do usuário com fallback
+    const userLogo = await getUserLogoUrl(req.uid);
     
-    // Dimensões do vídeo final (vertical)
-    const videoWidth = 1080;
-    const videoHeight = 1920;
+    // Dimensões do vídeo final (vertical) - baseado na qualidade escolhida
+    const videoWidth = qualityConfig.verticalWidth;
+    const videoHeight = qualityConfig.verticalHeight;
     
-    const posterWidth = 382;
-    const posterHeight = 548;
-    const posterX = 570;
-    const posterY = 880;
+    // Escalar elementos proporcionalmente à resolução
+    const scaleFactor = videoWidth / 1080;
+    const posterWidth = Math.round(382 * scaleFactor);
+    const posterHeight = Math.round(548 * scaleFactor);
+    const posterX = Math.round(570 * scaleFactor);
+    const posterY = Math.round(880 * scaleFactor);
     
     // PARALELIZAÇÃO: Processar poster, logo oficial e logo do cliente simultaneamente
     const [posterResized, logoProcessed, userLogoResized] = await Promise.all([
@@ -1936,16 +2221,16 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         }])
         .png({ compressionLevel: 1 })
         .toBuffer(),
-      // Logo oficial
+      // Logo oficial - escalar proporcionalmente
       logoBuffer ? sharp(logoBuffer)
-        .resize(450, 120, { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
+        .resize(Math.round(450 * scaleFactor), Math.round(120 * scaleFactor), { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
         .png({ compressionLevel: 1 })
         .toBuffer()
         .catch(err => { console.warn(`⚠️ Logo processo: ${err.message}`); return null; }) : null,
-      // Logo do cliente
+      // Logo do cliente - escalar proporcionalmente
       (userLogo && validarURL(userLogo)) ? fetchBuffer(userLogo, false)
         .then(buf => sharp(buf)
-          .resize(280, 280, { fit: "contain", withoutEnlargement: true, kernel: 'cubic' })
+          .resize(Math.round(280 * scaleFactor), Math.round(280 * scaleFactor), { fit: "contain", withoutEnlargement: true, kernel: 'cubic' })
           .png({ compressionLevel: 1 })
           .toBuffer()
         )
@@ -1962,32 +2247,35 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       left: posterX
     });
     
-    // 2. Logo oficial
+    // 2. Logo oficial - posição escalada
     if (logoProcessed) {
       composites.push({
         input: logoProcessed,
-        top: 780,
-        left: 60
+        top: Math.round(780 * scaleFactor),
+        left: Math.round(60 * scaleFactor)
       });
     }
     
-    // 3. Logo do cliente
+    // 3. Logo do cliente - posição escalada
     if (userLogoResized) {
       composites.push({
         input: userLogoResized,
-        top: 1200,
-        left: 120
+        top: Math.round(1200 * scaleFactor),
+        left: Math.round(120 * scaleFactor)
       });
     }
     
     // 4. Criar overlay com textos (título se não houver logo, sinopse, metadados)
     // Título abaixo do trailer/backdrop
-    const titleLines = logoUrl ? [] : wrapText(titulo.toUpperCase(), 22);
-    const titleFontSize = titulo.length > 30 ? 38 : titulo.length > 20 ? 44 : 50;
+    const wrapChars = Math.round(22 / scaleFactor); // Ajustar wrap para resolução
+    const titleLines = logoUrl ? [] : wrapText(titulo.toUpperCase(), Math.max(15, wrapChars));
+    const baseTitleFontSize = titulo.length > 30 ? 38 : titulo.length > 20 ? 44 : 50;
+    const titleFontSize = Math.round(baseTitleFontSize * scaleFactor);
     
     // Sinopse MAIS COMPRIDA HORIZONTALMENTE, MENOS quebras
-    const synopLines = wrapText(sinopse, 50).slice(0, 4); // 50 chars = MENOS quebra
-    const synopFontSize = 24; // Maior para mais nitidez
+    const synopWrapChars = Math.round(50 / scaleFactor);
+    const synopLines = wrapText(sinopse, Math.max(30, synopWrapChars)).slice(0, 4);
+    const synopFontSize = Math.round(24 * scaleFactor);
     
     // Metadados em caixinhas
     const metaItems = [];
@@ -1999,11 +2287,24 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       metaItems.push(...generosSplit.slice(0, 2));
     }
     
+    // Dimensões escaladas para SVG
+    const svgPadding = Math.round(60 * scaleFactor);
+    const titleY = Math.round(740 * scaleFactor);
+    const synopY = Math.round(1500 * scaleFactor);
+    const synopLineHeight = Math.round(36 * scaleFactor);
+    const metaBoxY = Math.round(1650 * scaleFactor);
+    const metaBoxWidth = Math.round(150 * scaleFactor);
+    const metaBoxHeight = Math.round(45 * scaleFactor);
+    const metaBoxGap = Math.round(160 * scaleFactor);
+    const metaFontSize = Math.round(18 * scaleFactor);
+    const strokeWidth = Math.max(1, Math.round(2 * scaleFactor));
+    const borderRadius = Math.round(15 * scaleFactor);
+    
     const svgOverlay = `
       <svg width="${videoWidth}" height="${videoHeight}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="textShadow">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.8"/>
+            <feDropShadow dx="0" dy="${Math.round(2 * scaleFactor)}" stdDeviation="${Math.round(3 * scaleFactor)}" flood-opacity="0.8"/>
           </filter>
           <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
@@ -2019,27 +2320,27 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
             font-size: ${titleFontSize}px;
             text-anchor: start;
             filter: url(#textShadow);
-            letter-spacing: 1px;
+            letter-spacing: ${Math.max(0.5, scaleFactor)}px;
           }
           .synop {
             fill: #ffffff;
             font-family: Arial, sans-serif;
             font-weight: 500;
-            font-size: 24px;
+            font-size: ${synopFontSize}px;
             text-anchor: start;
             filter: url(#textShadow);
           }
           .meta-box {
             fill: rgba(255, 255, 255, 0.1);
             stroke: #ffffff;
-            stroke-width: 2;
-            rx: 15;
+            stroke-width: ${strokeWidth};
+            rx: ${borderRadius};
           }
           .meta-text {
             fill: #ffffff;
             font-family: Arial, sans-serif;
             font-weight: 700;
-            font-size: 18px;
+            font-size: ${metaFontSize}px;
             text-anchor: middle;
             filter: url(#textShadow);
           }
@@ -2047,20 +2348,20 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         
         <!-- Título ABAIXO do trailer/backdrop (se não houver logo) -->
         ${!logoUrl && titleLines.length > 0 ? titleLines.map((line, i) => 
-          `<text x="60" y="${740 + i * (titleFontSize + 10)}" class="title" text-anchor="start">${safeXml(line)}</text>`
+          `<text x="${svgPadding}" y="${titleY + i * (titleFontSize + Math.round(10 * scaleFactor))}" class="title" text-anchor="start">${safeXml(line)}</text>`
         ).join("") : ''}
         
         <!-- Sinopse PRIMEIRO (subiu) -->
         ${synopLines.map((line, i) => 
-          `<text x="60" y="${1500 + i * 36}" class="synop">${safeXml(line)}</text>`
+          `<text x="${svgPadding}" y="${synopY + i * synopLineHeight}" class="synop">${safeXml(line)}</text>`
         ).join("")}
         
         <!-- Metadados MAIS PERTO da sinopse, alinhados à esquerda -->
         ${metaItems.slice(0, 3).map((item, i) => {
-          const boxX = 60 + (i * 160); // Alinhado com sinopse (x=60)
-          const boxY = 1650; // MAIS PERTO (era 1670)
-          const boxWidth = 150;
-          const boxHeight = 45;
+          const boxX = svgPadding + (i * metaBoxGap);
+          const boxY = metaBoxY;
+          const boxWidth = metaBoxWidth;
+          const boxHeight = metaBoxHeight;
           return `
             <rect class="meta-box" x="${boxX}" y="${boxY}" width="${boxWidth}" height="${boxHeight}"/>
             <text class="meta-text" x="${boxX + boxWidth/2}" y="${boxY + boxHeight/2 + 6}">${safeXml(item)}</text>
@@ -2091,7 +2392,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       .toFile(framePath);
     
     tempFiles.push(framePath);
-    console.log(`✅ Frame visual gerado (1080x1920)`);
+    console.log(`✅ Frame visual gerado (${videoWidth}x${videoHeight})`);
 
 
     console.log("✂️ 8/8 - Cortando trailer (ULTRA-RÁPIDO)...");
@@ -2120,21 +2421,21 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
         console.log(`✅ Corte instantâneo (${cutTime}s)`);
       } catch (copyErr) {
-        // Fallback: ultrafast com CRF agressivo
+        // Fallback: preset baseado na qualidade
         await spawnProcess('ffmpeg', [
           '-i', trailerPath,
           '-t', duracaoNum.toString(),
           '-c:v', 'libx264',
-          '-preset', 'ultrafast',
-          '-crf', '30', // Aumentado de 28 para 30 (mais rápido)
+          '-preset', qualityConfig.preset,
+          '-crf', String(qualityConfig.crf + 2), // CRF um pouco maior no corte
           '-tune', 'fastdecode',
           '-c:a', 'aac',
-          '-b:a', '80k', // Reduzido de 96k para 80k
+          '-b:a', '80k',
           '-threads', '0',
           '-y', trimmedPath
         ]);
         const cutTime = Math.floor((Date.now() - cutStart) / 1000);
-        console.log(`✅ Recodificado ultrafast (${cutTime}s)`);
+        console.log(`✅ Recodificado ${qualityConfig.preset} (${cutTime}s)`);
       }
     } catch (err) {
       console.error("❌ Erro ao cortar:", err.message);
@@ -2142,7 +2443,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       return res.status(500).json({ error: "Falha ao processar trailer" });
     }
 
-    console.log("🎬 9/9 - Composição final ULTRA-RÁPIDA...");
+    console.log(`🎬 9/9 - Composição final (${quality})...`);
     
     if (requestAborted) {
       await Promise.all(tempFiles.map(f => fsPromises.unlink(f).catch(() => {})));
@@ -2156,47 +2457,51 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       return res.status(404).json({ error: "Overlay não encontrado" });
     }
 
-    const outputFilename = `video_${tmdbId}_${Date.now()}.mp4`;
+    const outputFilename = `video_${tmdbId}_${quality}_${Date.now()}.mp4`;
     const outputPath = path.join(outputDir, outputFilename);
 
     try {
       const compStart = Date.now();
       
-      // Bitrates otimizados para WhatsApp
-      const targetBitrateVideo = duracaoNum <= 30 ? '2000k' : duracaoNum <= 60 ? '1100k' : '750k';
-      const targetBitrateAudio = '80k'; // Reduzido de 96k
+      // Bitrates otimizados por qualidade e duração (já calculado em bitrateConfig)
+      const targetBitrateVideo = bitrateConfig.video;
+      const targetBitrateAudio = bitrateConfig.audio;
       
-      console.log(`   ⚡ Composição 720p (ultrafast, ${targetBitrateVideo})`);
+      // Trailer height baseado na proporção (trailer ocupa ~32% do vídeo vertical)
+      const trailerHeight = Math.round(videoHeight * 0.316); // ~607 para 1920
       
-      // FFmpeg OTIMIZADO: filtros simplificados, preset ultrafast
+      console.log(`   ⚡ Composição ${quality} (${qualityConfig.preset}, ${targetBitrateVideo})`);
+      
+      // FFmpeg OTIMIZADO com parâmetros dinâmicos por qualidade
       await spawnProcess('ffmpeg', [
         // Entradas
         '-loop', '1', '-framerate', '24', '-i', backdropPath,
         '-i', trimmedPath,
         '-loop', '1', '-framerate', '24', '-i', overlayPath,
         '-loop', '1', '-framerate', '24', '-i', framePath,
-        // Filtros simplificados (flags=fast_bilinear para máxima velocidade)
+        // Filtros com dimensões dinâmicas
         '-filter_complex',
-        `[0:v]scale=1080:1920:flags=fast_bilinear[backdrop];` +
-        `[1:v]scale=1080:607:flags=fast_bilinear[trailer];` +
+        `[0:v]scale=${videoWidth}:${videoHeight}:flags=fast_bilinear[backdrop];` +
+        `[1:v]scale=${videoWidth}:${trailerHeight}:flags=fast_bilinear[trailer];` +
+        `[2:v]scale=${videoWidth}:${videoHeight}:flags=fast_bilinear[overlay_scaled];` +
         `[backdrop][trailer]overlay=0:-10:shortest=1[t1];` +
-        `[t1][2:v]overlay=0:0:shortest=1[t2];` +
+        `[t1][overlay_scaled]overlay=0:0:shortest=1[t2];` +
         `[t2][3:v]overlay=0:0:shortest=1,format=yuv420p[out]`,
         '-map', '[out]',
         '-map', '1:a?',
         '-t', duracaoNum.toString(),
-        // Codec ULTRAFAST
+        // Codec com parâmetros de qualidade
         '-c:v', 'libx264',
-        '-preset', 'ultrafast', // Mudado de fast para ultrafast (3-5x mais rápido)
-        '-crf', '30', // ⚡ OTIMIZADO: 30 = mais rápido
-        '-tune', 'zerolatency', // ⚡ OTIMIZADO: encoding instantâneo
+        '-preset', qualityConfig.preset,
+        '-crf', String(qualityConfig.crf),
+        '-tune', 'zerolatency',
         '-maxrate', targetBitrateVideo,
-        '-bufsize', '1M', // ⚡ Reduzido para menor latência
+        '-bufsize', bitrateConfig.bufsize,
         '-pix_fmt', 'yuv420p',
         '-r', '24',
-        '-g', '96', // ⚡ Menos keyframes = muito mais rápido
-        '-profile:v', 'baseline', // Encoding rápido
-        '-level', '3.1',
+        '-g', '96',
+        '-profile:v', quality === '480p' ? 'baseline' : 'main',
+        '-level', quality === '1080p' ? '4.0' : '3.1',
         // Áudio otimizado
         '-c:a', 'aac',
         '-b:a', targetBitrateAudio,
@@ -2232,7 +2537,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     console.log("\n✅ ==========================================");
     console.log(`   VÍDEO GERADO COM SUCESSO!`);
     console.log(`   Arquivo: ${outputFilename}`);
-    console.log(`   Resolução: 1080x1920 (vertical)`);
+    console.log(`   Qualidade: ${quality} (${videoWidth}x${videoHeight})`);
     console.log(`   Duração: ${duracaoNum}s`);
     console.log(`   📦 Tamanho: ${fileSizeMB}MB ${fileSizeMB <= 10 ? '✅ (WhatsApp OK)' : '⚠️ (>10MB)'}`);
     console.log(`   ⏱️ Tempo total de processamento: ${timeStr}`);

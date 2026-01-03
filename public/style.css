@@ -1,8 +1,3 @@
-.carousel-card:first-child {
-  opacity: 1;
-  z-index: 3;
-  pointer-events: auto;
-}
 /* =========================
    CARROSSEL HOME
 ========================= */
@@ -78,13 +73,7 @@
     min-height: 180px;
   }
 }
-.carousel-card.active {
-  opacity: 1 !important;
-  z-index: 3 !important;
-  pointer-events: auto !important;
-  box-shadow: 0 0 0 4px #a259ff, 0 6px 32px 0 rgba(0,0,0,0.25);
-  transform: scale(1.04);
-}
+/* .carousel-card.active movido para regra única acima */
 .carousel-card .banner-img {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;

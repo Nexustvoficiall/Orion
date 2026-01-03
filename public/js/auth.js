@@ -86,11 +86,11 @@ if (registerBtn) {
       await updateProfile(user, { displayName: username });
 
       // ===== ESTRUTURA COMPLETA DO USUÁRIO (EDITADO POR ORION) =====
+      // ⚠️ NUNCA armazenar senhas em texto puro - Firebase Auth já gerencia isso de forma segura
       const userData = {
         uid: user.uid,
         nome: username,
         email: email,
-        senha: password, // ⚠️ visível no painel admin (somente você)
         criado_em: new Date().toISOString(),
         plano: "Teste Gratuito",
         status: "ativo",

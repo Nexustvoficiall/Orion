@@ -1069,7 +1069,7 @@
     }
   </style>
 </head>
-<body>
+<body class="home-page">
   <div class="stars"></div>
   
   <!-- HEADER MOBILE COM LOGO CENTRALIZADA -->
@@ -1420,18 +1420,7 @@
       
       const uid = auth.currentUser.uid;
       
-      // Verificar uploads restantes
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
-      const dados = snapshot.val();
-      const uploadsRestantes = dados.uploads_restantes || 2;
-      
-      if (uploadsRestantes <= 0) {
-        alert('Você atingiu o limite de 2 uploads por mês. Aguarde o reset em ' + new Date(dados.data_reset_logo).toLocaleDateString('pt-BR'));
-        return;
-      }
-      
-      // Validar arquivo
+      // Validar arquivo localmente primeiro
       if (!file.type.startsWith('image/')) {
         alert('Por favor, envie apenas imagens!');
         return;
@@ -1442,38 +1431,58 @@
         return;
       }
       
-      // Converter para base64
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const logoBase64 = event.target.result;
+      const btnUpload = document.getElementById('btnUploadLogo');
+      const originalText = btnUpload.textContent;
+      btnUpload.textContent = 'Enviando...';
+      btnUpload.disabled = true;
+      
+      try {
+        // Obter token Firebase para autenticação
+        const token = await auth.currentUser.getIdToken();
         
-        try {
-          // Salvar no Firebase Database (ambos os campos para compatibilidade)
-          await update(ref(db, "usuarios/" + uid), {
-            logo: logoBase64,
-            logo_url: logoBase64,
-            uploads_restantes: uploadsRestantes - 1
-          });
-          
-          // Atualizar preview
-          const logoImg = document.getElementById('logoPreviewImg');
-          const logoPlaceholder = document.getElementById('logoPlaceholder');
-          
-          logoImg.src = logoBase64;
-          logoImg.style.display = 'block';
-          if (logoPlaceholder) {
-            logoPlaceholder.style.display = 'none';
+        // Enviar para API Cloudinary
+        const formData = new FormData();
+        formData.append('logo', file);
+        
+        const response = await fetch('/api/upload-logo', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          if (response.status === 429) {
+            const dataReset = result.dataReset ? new Date(result.dataReset).toLocaleDateString('pt-BR') : 'próximo mês';
+            throw new Error(`Limite de uploads atingido. Reset em: ${dataReset}`);
           }
-          userLogoUrl = logoBase64;
-          
-          alert('Logo enviada com sucesso! Uploads restantes: ' + (uploadsRestantes - 1));
-          atualizarContadorUploads(uid);
-        } catch (error) {
-          console.error('Erro ao salvar logo:', error);
-          alert('Erro ao salvar logo. Tente novamente.');
+          throw new Error(result.error || 'Erro no upload');
         }
-      };
-      reader.readAsDataURL(file);
+        
+        // Atualizar preview com URL do Cloudinary
+        const logoImg = document.getElementById('logoPreviewImg');
+        const logoPlaceholder = document.getElementById('logoPlaceholder');
+        
+        logoImg.src = result.logoUrl;
+        logoImg.style.display = 'block';
+        if (logoPlaceholder) {
+          logoPlaceholder.style.display = 'none';
+        }
+        userLogoUrl = result.logoUrl;
+        
+        alert(`Logo enviada com sucesso! Uploads restantes: ${result.uploadsRestantes}`);
+        atualizarContadorUploads(uid);
+        
+      } catch (error) {
+        console.error('Erro ao salvar logo:', error);
+        alert('Erro ao salvar logo: ' + error.message);
+      } finally {
+        btnUpload.textContent = originalText;
+        btnUpload.disabled = false;
+      }
     });
 
     // Salvar WhatsApp
@@ -1748,14 +1757,37 @@
         this.prevBtn = document.getElementById('prevBtn');
         this.nextBtn = document.getElementById('nextBtn');
         this.isScrolling = false;
+        this.isMobile = window.innerWidth <= 768;
         
-        this.cloneItems();
-        this.centerFirstItem();
+        // No mobile, não clonar itens nem configurar scroll infinito
+        if (!this.isMobile) {
+          this.cloneItems();
+          this.centerFirstItem();
+          this.setupInfiniteScroll();
+        }
+        
         this.attachEvents();
-        this.setupInfiniteScroll();
+        this.setupResizeHandler();
       }
 
-      // Clona itens para scroll infinito
+      // Detecta mudança de tamanho de tela e recarrega se necessário
+      setupResizeHandler() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            const wasMobile = this.isMobile;
+            this.isMobile = window.innerWidth <= 768;
+            
+            // Recarrega a página se mudou de mobile para desktop ou vice-versa
+            if (wasMobile !== this.isMobile) {
+              window.location.reload();
+            }
+          }, 250);
+        });
+      }
+
+      // Clona itens para scroll infinito (apenas desktop)
       cloneItems() {
         // Clona todos os cards no início e no fim
         this.items.forEach(item => {
@@ -1832,13 +1864,17 @@
         });
       }
 
-      // Anexa eventos de navegação
+      // Anexa eventos de navegação (apenas desktop)
       attachEvents() {
+        // No mobile, não precisa de navegação por botões
+        if (this.isMobile) return;
+        
         this.prevBtn.addEventListener('click', () => this.prev());
         this.nextBtn.addEventListener('click', () => this.next());
 
-        // Navegação por teclado
+        // Navegação por teclado (apenas desktop)
         document.addEventListener('keydown', (e) => {
+          if (this.isMobile) return;
           if (e.key === 'ArrowLeft') this.prev();
           else if (e.key === 'ArrowRight') this.next();
         });
