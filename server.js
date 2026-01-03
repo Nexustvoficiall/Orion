@@ -18,6 +18,7 @@ import helmet from "helmet";
 import validator from "validator";
 import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { getDatabase } from "firebase-admin/database";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
@@ -64,7 +65,8 @@ if (!admin.apps.length) {
         project_id: process.env.FIREBASE_PROJECT_ID,
         private_key: firebasePrivateKey,
         client_email: process.env.FIREBASE_CLIENT_EMAIL
-      })
+      }),
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com"
     });
     console.log("✅ Firebase inicializado");
   } catch (err) {
@@ -73,6 +75,7 @@ if (!admin.apps.length) {
   }
 }
 const db = getFirestore();
+const rtdb = getDatabase();
 
 const app = express();
 const PORT = process.env.PORT || 8080; // Fly.io e outras plataformas usam portas variáveis
@@ -133,8 +136,8 @@ const authLimiter = rateLimit({
 });
 
 const bannerLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 20,
+  windowMs: 15 * 60 * 1000,
+  max: 999999,
   message: { error: "Limite de geração de banners atingido. Aguarde alguns minutos." }
 });
 
@@ -146,7 +149,7 @@ const uploadLimiter = rateLimit({
 
 const videoLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 999999,
   message: { error: "Limite de geração de vídeos atingido. Tente novamente em 1 hora." }
 });
 
@@ -669,16 +672,41 @@ app.post("/api/upload-logo", verificarAuth, uploadLimiter, logoUpload.single("lo
       dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Atualizar Firestore
-    await userRef.set({
+    // Preparar dados
+    const userData = {
       logo_url: logoUrl,
       logo: logoUrl, // Manter compatibilidade com código legado
       uploads_restantes: uploadsRestantes - 1,
       data_reset_logo: dataReset.toISOString(),
       logo_updated_at: new Date().toISOString()
-    }, { merge: true });
+    };
 
-    console.log(`✅ Logo enviada para Cloudinary: uid=${uid} url=${logoUrl.substring(0, 60)}...`);
+    // Salvar em AMBOS: Firestore E Realtime Database
+    console.log(`📝 Salvando logo para usuário: ${uid}`);
+    console.log(`   Dados:`, userData);
+    
+    try {
+      // Firestore
+      console.log(`   Salvando no Firestore...`);
+      await userRef.set(userData, { merge: true });
+      console.log(`   ✅ Firestore: salvo com sucesso`);
+    } catch (err) {
+      console.error(`   ❌ Firestore: erro ao salvar:`, err.message);
+      throw err;
+    }
+    
+    try {
+      // Realtime Database
+      console.log(`   Salvando no Realtime Database...`);
+      await rtdb.ref(`usuarios/${uid}`).update(userData);
+      console.log(`   ✅ Realtime DB: salvo com sucesso`);
+    } catch (err) {
+      console.error(`   ❌ Realtime DB: erro ao salvar:`, err.message);
+      throw err;
+    }
+
+    console.log(`✅ Logo enviada para Cloudinary e salva em AMBOS os bancos`);
+    console.log(`   URL: ${logoUrl.substring(0, 70)}...`);
 
     res.json({
       success: true,
