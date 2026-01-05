@@ -100,6 +100,19 @@
       filter: drop-shadow(0 8px 30px rgba(168, 85, 247, 0.12));
     }
 
+    /* 📱 LOGO MOBILE - REDUZIDA */
+    @media (max-width: 768px) {
+      .logo {
+        width: 110px;
+        max-height: 40px;
+        object-fit: contain;
+      }
+      
+      header {
+        padding: 16px 12px;
+      }
+    }
+
     h1.site-title {
       margin: 10px 0 0;
       font-family: 'Bebas Neue', sans-serif;
@@ -392,20 +405,356 @@
       max-height: 90vh;
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       📱 MOBILE-FIRST: MODAIS COM ESTADOS E UX PERCEPTIVO
+       ═══════════════════════════════════════════════════════════ */
     @media (max-width: 768px) {
+      .modal {
+        padding: 12px;
+        align-items: flex-end;
+      }
+      
       .modal-content {
         grid-template-columns: 1fr;
-        max-width: 95vw;
-        border-radius: 16px;
+        max-width: 100%;
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        max-height: 92vh;
+        /* 🚨 CRÍTICO: min-height para NUNCA ficar vazio */
+        min-height: 450px;
+        display: flex;
+        flex-direction: column;
       }
       
       .modal-left {
         display: none;
       }
       
-      .modal-content.full-step {
-        max-width: 95vw;
+      .modal-right {
+        padding: 24px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        min-height: 400px;
       }
+      
+      .modal-content.full-step {
+        max-width: 100%;
+        min-height: 500px;
+      }
+      
+      .modal-title {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      
+      .modal-synopsis {
+        font-size: 13px;
+        line-height: 1.6;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       🎨 SPINNER E LOADING MOBILE
+       ═══════════════════════════════════════════════════════════ */
+    .modal-loading-state {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 40px 20px;
+      text-align: center;
+      min-height: 350px;
+    }
+
+    .spinner-mobile {
+      width: 64px;
+      height: 64px;
+      border: 5px solid rgba(138, 43, 226, 0.2);
+      border-top-color: #8a2be2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text-main {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      text-shadow: 0 0 15px rgba(192, 132, 252, 0.6);
+    }
+
+    .loading-progress-bar {
+      width: 100%;
+      max-width: 280px;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .loading-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #8a2be2, #ff00ff, #8a2be2);
+      background-size: 200% 100%;
+      border-radius: 5px;
+      transition: width 0.4s ease;
+      animation: shimmerProgress 2s linear infinite;
+      box-shadow: 0 0 10px rgba(138, 43, 226, 0.8);
+    }
+
+    @keyframes shimmerProgress {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .loading-text-secondary {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      margin: 0;
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    .loading-warning {
+      font-size: 12px;
+      color: #ffd700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      animation: blink 3s ease infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       ✅ ESTADO SUCCESS MOBILE
+       ═══════════════════════════════════════════════════════════ */
+    .modal-success-state {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .success-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes successPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .success-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 20px 0;
+      text-shadow: 0 0 20px rgba(192, 132, 252, 0.8);
+    }
+
+    .banner-preview-mobile {
+      width: 100%;
+      max-width: 320px;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 20px 0;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6),
+                  0 0 30px rgba(138, 43, 226, 0.4);
+      animation: fadeInUp 0.6s ease;
+    }
+
+    .banner-preview-mobile img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       ❌ ESTADO ERROR MOBILE
+       ═══════════════════════════════════════════════════════════ */
+    .modal-error-state {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .error-icon {
+      font-size: 56px;
+      margin-bottom: 16px;
+      animation: errorShake 0.6s ease;
+    }
+
+    @keyframes errorShake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+      20%, 40%, 60%, 80% { transform: translateX(10px); }
+    }
+
+    .error-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ff4444;
+      margin: 0 0 12px 0;
+      text-shadow: 0 0 15px rgba(255, 68, 68, 0.6);
+    }
+
+    .error-message {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.6;
+      margin: 0 0 28px 0;
+      max-width: 300px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       🔘 BOTÕES MOBILE-OPTIMIZED
+       ═══════════════════════════════════════════════════════════ */
+    .btn-mobile-primary {
+      width: 100%;
+      min-height: 52px;
+      padding: 14px 24px;
+      border-radius: 14px;
+      border: none;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #8a2be2, #ff00ff);
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(138, 43, 226, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-mobile-primary:active {
+      transform: scale(0.98);
+      box-shadow: 0 3px 12px rgba(138, 43, 226, 0.4);
+    }
+
+    .btn-mobile-secondary {
+      width: 100%;
+      min-height: 52px;
+      padding: 14px 24px;
+      border-radius: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-mobile-secondary:active {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-mobile-primary:disabled,
+    .btn-mobile-secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       📊 PROGRESS PERCENTAGE
+       ═══════════════════════════════════════════════════════════ */
+    .progress-percentage {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+      text-shadow: 0 0 20px rgba(192, 132, 252, 0.8);
+      font-family: 'Bebas Neue', sans-serif;
+      letter-spacing: 2px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       💀 SKELETON LOADING (FAKE PREVIEW)
+       ═══════════════════════════════════════════════════════════ */
+    .skeleton-preview {
+      width: 100%;
+      max-width: 320px;
+      height: 480px;
+      background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.03) 0%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.03) 100%
+      );
+      background-size: 200% 100%;
+      animation: shimmer 1.8s infinite;
+      border-radius: 12px;
+      margin: 20px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .skeleton-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        circle at center,
+        rgba(138, 43, 226, 0.15),
+        transparent 70%
+      );
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
     }
 
     .modal-left {
@@ -1866,7 +2215,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
@@ -1880,7 +2229,7 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getDatabase(app);
+    const db = getFirestore(app);
     let userToken = null;
     let userLogoUrl = null;
     let userWhatsapp = null;
@@ -2033,7 +2382,8 @@
       
       try {
         const uid = auth.currentUser.uid;
-        await update(ref(db, "usuarios/" + uid), {
+        const userRef = doc(db, "usuarios", uid);
+        await updateDoc(userRef, {
           whatsapp: whatsapp
         });
         
@@ -2086,12 +2436,12 @@
     // Função para atualizar contador de uploads
     async function atualizarContadorUploads(uid) {
       try {
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, "usuarios/" + uid));
+        const userRef = doc(db, "usuarios", uid);
+        const userDoc = await getDoc(userRef);
         
-        if (snapshot.exists()) {
-          const dados = snapshot.val();
-          const uploadsRestantes = dados.uploads_restantes || 2;
+        if (userDoc.exists()) {
+          const dados = userDoc.data();
+          const uploadsRestantes = dados.uploads_restantes ?? 2;
           const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
           
           document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
@@ -2110,20 +2460,21 @@
             btnUpload.textContent = 'Enviar Logo';
           }
           
-          // Carregar logo do usuário (logo_url é o base64)
+          // Carregar logo do usuário (URL do Cloudinary)
           const logoImg = document.getElementById('logoPreviewImg');
           const logoPlaceholder = document.getElementById('logoPlaceholder');
           
-          if (dados.logo_url) {
-            userLogoUrl = dados.logo_url;
+          const logoUrl = dados.logo_url;
+          if (logoUrl && logoUrl.includes('cloudinary.com')) {
+            userLogoUrl = logoUrl;
             if (logoImg) {
-              logoImg.src = dados.logo_url;
+              logoImg.src = logoUrl;
               logoImg.style.display = 'block';
             }
             if (logoPlaceholder) {
               logoPlaceholder.style.display = 'none';
             }
-            console.log('✅ Logo carregada do Firebase:', dados.logo_url.substring(0, 50) + '...');
+            console.log('✅ Logo carregada do Cloudinary:', logoUrl);
           } else {
             // Sem logo personalizada
             if (logoImg) logoImg.style.display = 'none';
@@ -2147,11 +2498,11 @@
 
     // Função para resetar contador mensalmente
     async function verificarResetMensal(uid) {
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      const userRef = doc(db, "usuarios", uid);
+      const userDoc = await getDoc(userRef);
       
-      if (snapshot.exists()) {
-        const dados = snapshot.val();
+      if (userDoc.exists()) {
+        const dados = userDoc.data();
         const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
         const hoje = new Date();
         
@@ -2160,7 +2511,7 @@
           const proximoReset = new Date();
           proximoReset.setDate(proximoReset.getDate() + 30);
           
-          await update(ref(db, "usuarios/" + uid), {
+          await updateDoc(userRef, {
             uploads_restantes: 2,
             data_reset_logo: proximoReset.toISOString()
           });

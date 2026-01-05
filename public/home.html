@@ -319,6 +319,39 @@
       .hero-description {
         font-size: 0.8rem;
       }
+      
+      /* 📱 LOGO MOBILE - REDUZIDA E HIERARQUIA */
+      .logo {
+        width: 100px !important;
+        max-height: 36px !important;
+        object-fit: contain;
+        margin-bottom: 12px !important;
+      }
+
+      /* Welcome user mobile - MENOR */
+      #welcome-user {
+        font-size: 13px !important;
+        color: rgba(255, 255, 255, 0.65) !important;
+        margin: 6px 0 !important;
+        font-weight: 400 !important;
+      }
+
+      /* Hero título mobile - HIERARQUIA CLARA */
+      #hero-greeting {
+        font-size: 0.85rem;
+        font-weight: 400;
+        opacity: 0.8;
+      }
+
+      #hero-user-name {
+        font-size: 1rem;
+        font-weight: 900;
+        display: inline-block;
+      }
+
+      .hero-sparkles {
+        font-size: 0.9rem;
+      }
     }
 
     .container {
@@ -1274,7 +1307,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     // Configuração Firebase
@@ -1290,7 +1323,7 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getDatabase(app);
+    const db = getFirestore(app);
 
     // Função para gerar data de expiração
     function gerarDataExpiracao(dias) {
@@ -1306,12 +1339,12 @@
     // Função para atualizar contador de uploads
     async function atualizarContadorUploads(uid) {
       try {
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, "usuarios/" + uid));
+        const userRef = doc(db, "usuarios", uid);
+        const userDoc = await getDoc(userRef);
         
-        if (snapshot.exists()) {
-          const dados = snapshot.val();
-          const uploadsRestantes = dados.uploads_restantes || 2;
+        if (userDoc.exists()) {
+          const dados = userDoc.data();
+          const uploadsRestantes = dados.uploads_restantes ?? 2;
           const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
           
           document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
@@ -1330,26 +1363,23 @@
             btnUpload.textContent = 'Enviar Logo';
           }
           
-          // Carregar logo do usuário (logo ou logo_url - ambos são base64)
+          // Carregar logo do usuário (URL do Cloudinary)
           const logoImg = document.getElementById('logoPreviewImg');
           const logoPlaceholder = document.getElementById('logoPlaceholder');
           
-          // Verificar ambos os campos (logo e logo_url)
-          const logoData = dados.logo_url || dados.logo;
-          console.log('🔍 Verificando campos de logo:', {
-            'logo_url': dados.logo_url ? 'Existe' : 'Não existe',
-            'logo': dados.logo ? 'Existe' : 'Não existe'
-          });
+          // Usar logo_url que contém a URL do Cloudinary
+          const logoUrl = dados.logo_url;
+          console.log('🔍 Verificando logo_url:', logoUrl ? 'Existe' : 'Não existe');
           
-          if (logoData) {
-            userLogoUrl = logoData;
+          if (logoUrl && logoUrl.includes('cloudinary.com')) {
+            userLogoUrl = logoUrl;
             if (logoImg) {
-              logoImg.src = logoData;
+              logoImg.src = logoUrl;
               logoImg.style.display = 'block';
               logoImg.style.maxWidth = '100%';
               logoImg.style.maxHeight = '60px';
               logoImg.style.objectFit = 'contain';
-              console.log('✅ Logo carregada do Firebase (primeiros 50 chars):', logoData.substring(0, 50) + '...');
+              console.log('✅ Logo carregada do Cloudinary:', logoUrl);
             } else {
               console.error('❌ Elemento logoPreviewImg não encontrado!');
             }
@@ -1381,11 +1411,11 @@
 
     // Função para resetar contador mensalmente
     async function verificarResetMensal(uid) {
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      const userRef = doc(db, "usuarios", uid);
+      const userDoc = await getDoc(userRef);
       
-      if (snapshot.exists()) {
-        const dados = snapshot.val();
+      if (userDoc.exists()) {
+        const dados = userDoc.data();
         const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
         const hoje = new Date();
         
@@ -1394,7 +1424,7 @@
           const proximoReset = new Date();
           proximoReset.setDate(proximoReset.getDate() + 30);
           
-          await update(ref(db, "usuarios/" + uid), {
+          await updateDoc(userRef, {
             uploads_restantes: 2,
             data_reset_logo: proximoReset.toISOString()
           });
@@ -1508,7 +1538,8 @@
       
       try {
         const uid = auth.currentUser.uid;
-        await update(ref(db, "usuarios/" + uid), {
+        const userRef = doc(db, "usuarios", uid);
+        await updateDoc(userRef, {
           whatsapp: whatsapp
         });
         
@@ -1560,11 +1591,11 @@
       }, 500);
       
       try {
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, "usuarios/" + user.uid));
+        const userRef = doc(db, "usuarios", user.uid);
+        const userDoc = await getDoc(userRef);
         
-        if (snapshot.exists()) {
-          const dados = snapshot.val();
+        if (userDoc.exists()) {
+          const dados = userDoc.data();
           const userName = dados.nome || "USUÁRIO";
           
           // Atualizar nome no hero title (maiúsculas)
@@ -1651,7 +1682,8 @@
       if (!auth.currentUser) return alert("Faça login novamente!");
       const uid = auth.currentUser.uid;
       const novaData = gerarDataExpiracao(15);
-      await update(ref(db, "usuarios/" + uid), { data_expiracao: novaData });
+      const userRef = doc(db, "usuarios", uid);
+      await updateDoc(userRef, { data_expiracao: novaData });
       alert("Plano de 15 dias renovado com sucesso!");
       location.reload();
     });
@@ -1660,7 +1692,8 @@
       if (!auth.currentUser) return alert("Faça login novamente!");
       const uid = auth.currentUser.uid;
       const novaData = gerarDataExpiracao(30);
-      await update(ref(db, "usuarios/" + uid), { data_expiracao: novaData });
+      const userRef = doc(db, "usuarios", uid);
+      await updateDoc(userRef, { data_expiracao: novaData });
       alert("Plano de 30 dias renovado com sucesso!");
       location.reload();
     });

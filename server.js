@@ -672,41 +672,27 @@ app.post("/api/upload-logo", verificarAuth, uploadLimiter, logoUpload.single("lo
       dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Preparar dados
+    // Preparar dados - apenas logo_url (formato Cloudinary)
     const userData = {
       logo_url: logoUrl,
-      logo: logoUrl, // Manter compatibilidade com código legado
       uploads_restantes: uploadsRestantes - 1,
       data_reset_logo: dataReset.toISOString(),
       logo_updated_at: new Date().toISOString()
     };
 
-    // Salvar em AMBOS: Firestore E Realtime Database
+    // Salvar APENAS no Firestore
     console.log(`📝 Salvando logo para usuário: ${uid}`);
-    console.log(`   Dados:`, userData);
+    console.log(`   URL Cloudinary: ${logoUrl}`);
     
     try {
-      // Firestore
-      console.log(`   Salvando no Firestore...`);
       await userRef.set(userData, { merge: true });
       console.log(`   ✅ Firestore: salvo com sucesso`);
     } catch (err) {
       console.error(`   ❌ Firestore: erro ao salvar:`, err.message);
       throw err;
     }
-    
-    try {
-      // Realtime Database
-      console.log(`   Salvando no Realtime Database...`);
-      await rtdb.ref(`usuarios/${uid}`).update(userData);
-      console.log(`   ✅ Realtime DB: salvo com sucesso`);
-    } catch (err) {
-      console.error(`   ❌ Realtime DB: erro ao salvar:`, err.message);
-      throw err;
-    }
 
-    console.log(`✅ Logo enviada para Cloudinary e salva em AMBOS os bancos`);
-    console.log(`   URL: ${logoUrl.substring(0, 70)}...`);
+    console.log(`✅ Logo enviada para Cloudinary e URL salva no Firestore`);
 
     res.json({
       success: true,
