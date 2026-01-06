@@ -14,5 +14,10 @@
   "problems.decorations.enabled": true,
   "typescript.surveys.enabled": false,
   "problems.showCurrentInStatus": true,
-  "typescript.updateImportsOnFileMove.enabled": "never"
+  "typescript.updateImportsOnFileMove.enabled": "never",
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "typescript.tsserver.maxTsServerMemory": 4096,
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  }
 }

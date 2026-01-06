@@ -370,57 +370,87 @@
       display: none;
     }
 
-    /* ==================== CARROSSEL HORIZONTAL NETFLIX ==================== */
+    /* ==================== CARROSSEL NETFLIX - 3 CARDS FIXOS ==================== */
     .carousel-3d {
       position: relative;
       width: 100%;
-      max-width: 1600px;
-      margin: 60px auto 80px;
-      padding: 0 60px;
+      max-width: 1400px;
+      margin: 40px auto 60px;
+      padding: 0 80px;
       overflow: visible;
+      z-index: 1;
     }
 
     .carousel-3d-container {
       display: flex;
-      gap: 20px;
-      overflow-x: auto;
-      overflow-y: visible;
-      scroll-behavior: smooth;
-      scroll-snap-type: x mandatory;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      justify-content: center;
+      align-items: center;
+      gap: 30px;
       padding: 40px 0;
+      perspective: 1200px;
+      height: 580px;
+      position: relative;
     }
 
-    .carousel-3d-container::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* CARD INDIVIDUAL - PREMIUM */
+    /* CARD INDIVIDUAL */
     .carousel-3d-item {
-      flex: 0 0 calc(33.333% - 14px);
-      min-width: 320px;
-      height: 480px;
-      border-radius: 24px;
+      position: absolute;
+      width: 340px;
+      height: 500px;
+      border-radius: 20px;
       overflow: hidden;
       cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-      box-shadow: 
-        0 20px 60px rgba(0,0,0,0.8),
-        0 0 0 1px rgba(168, 85, 247, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      scroll-snap-align: start;
-      position: relative;
-      background: linear-gradient(145deg, rgba(20, 15, 45, 0.5), rgba(10, 10, 30, 0.8));
+      transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+      background: #0a0a1e;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.7) translateX(0);
     }
 
-    .carousel-3d-item:hover {
-      transform: scale(1.08) translateY(-12px);
-      box-shadow: 
-        0 30px 90px rgba(168, 85, 247, 0.7),
-        0 0 0 2px rgba(168, 85, 247, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    /* Card da esquerda */
+    .carousel-3d-item.pos-left {
+      opacity: 0.7;
+      pointer-events: auto;
+      transform: scale(0.85) translateX(-380px) rotateY(8deg);
+      filter: brightness(0.6);
+      z-index: 1;
+    }
+
+    /* Card central (ativo) */
+    .carousel-3d-item.pos-center {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1) translateX(0) rotateY(0);
+      filter: brightness(1);
       z-index: 10;
+      box-shadow: 
+        0 30px 80px rgba(0,0,0,0.7),
+        0 0 50px rgba(168, 85, 247, 0.25);
+    }
+
+    /* Card da direita */
+    .carousel-3d-item.pos-right {
+      opacity: 0.7;
+      pointer-events: auto;
+      transform: scale(0.85) translateX(380px) rotateY(-8deg);
+      filter: brightness(0.6);
+      z-index: 1;
+    }
+
+    /* Hover nos cards laterais */
+    .carousel-3d-item.pos-left:hover,
+    .carousel-3d-item.pos-right:hover {
+      opacity: 0.9;
+      filter: brightness(0.8);
+    }
+
+    /* Hover no card central */
+    .carousel-3d-item.pos-center:hover {
+      transform: scale(1.05) translateY(-10px);
+      box-shadow: 
+        0 40px 100px rgba(0,0,0,0.8),
+        0 0 80px rgba(168, 85, 247, 0.4);
     }
 
     .carousel-3d-item .card-bg {
@@ -609,6 +639,59 @@
 
     .carousel-3d-nav.prev { left: 10px; }
     .carousel-3d-nav.next { right: 10px; }
+
+    /* CARROSSEL MOBILE */
+    @media (max-width: 768px) {
+      .carousel-3d {
+        margin: 20px auto 40px;
+        padding: 0 20px;
+      }
+      
+      .carousel-3d-container {
+        height: 420px;
+      }
+      
+      .carousel-3d-item {
+        width: 260px;
+        height: 380px;
+      }
+      
+      .carousel-3d-item.pos-left {
+        transform: scale(0.75) translateX(-200px) rotateY(10deg);
+        opacity: 0.5;
+      }
+      
+      .carousel-3d-item.pos-center {
+        transform: scale(0.95) translateX(0);
+      }
+      
+      .carousel-3d-item.pos-right {
+        transform: scale(0.75) translateX(200px) rotateY(-10deg);
+        opacity: 0.5;
+      }
+      
+      .carousel-3d-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 1.5rem;
+      }
+      
+      .carousel-3d-nav.prev { left: 5px; }
+      .carousel-3d-nav.next { right: 5px; }
+      
+      .carousel-3d-item .card-title {
+        font-size: 1.2rem;
+      }
+      
+      .carousel-3d-item .card-subtitle {
+        font-size: 0.8rem;
+      }
+      
+      .carousel-3d-item .card-btn {
+        padding: 10px 0;
+        font-size: 0.8rem;
+      }
+    }
 
     /* INDICADORES - Escondidos no modelo horizontal */
     .carousel-3d-indicators {
@@ -1179,9 +1262,9 @@
     <div class="carousel-3d">
       <div class="carousel-3d-container" id="carouselContainer">
         <!-- Card 1 - Banners de Divulgação (CENTRAL) -->
-        <div class="carousel-3d-item" data-index="0" data-images='["https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1626785774625-ddcddc3445e9?w=400&h=600&fit=crop&q=80"]'>
+        <div class="carousel-3d-item" data-index="0">
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=600&fit=crop&q=80" alt="Divulgação" class="card-bg" loading="eager">
+          <img src="https://res.cloudinary.com/dxbu3zk6i/image/upload/v1767728934/gpt-image-1.5_Banner_publicit%C3%A1rio_profissional_em_formato_quadrado_1_1_estilo_streaming_premi-0_golpwd.jpg" alt="Divulgação" class="card-bg" loading="eager">
           <div class="card-overlay">
             <div class="card-badge">📢 DIVULGAÇÃO</div>
             <div class="card-title">Banners de Divulgação</div>
@@ -1207,9 +1290,9 @@
         </div>
 
         <!-- Card 3 - VODs -->
-        <div class="carousel-3d-item" data-index="2" data-images='["https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400&h=600&fit=crop&q=80"]'>
+        <div class="carousel-3d-item" data-index="2" data-images='["https://res.cloudinary.com/dxbu3zk6i/image/upload/v1767728745/Banner_Avatar__Fogo_e_Cinzas_ROXO_vcahn4.png","https://res.cloudinary.com/dxbu3zk6i/image/upload/v1767728743/Banner_Zootopia_2_ROXO_llos0e.png","https://res.cloudinary.com/dxbu3zk6i/image/upload/v1767728742/Banner_Stranger_Things_ROXO_T5_tv7ozk.png"]'>
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=600&fit=crop&q=80" alt="VODs" class="card-bg" loading="lazy">
+          <img src="https://res.cloudinary.com/dxbu3zk6i/image/upload/v1767728745/Banner_Avatar__Fogo_e_Cinzas_ROXO_vcahn4.png" alt="VODs" class="card-bg" loading="lazy">
           <div class="card-overlay">
             <div class="card-badge">🎬 STREAMING</div>
             <div class="card-title">Banners de VODs</div>
@@ -1221,9 +1304,11 @@
         </div>
 
         <!-- Card 4 - Vídeos -->
-        <div class="carousel-3d-item" data-index="3" data-images='["https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400&h=600&fit=crop&q=80","https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=600&fit=crop&q=80"]'>
+        <div class="carousel-3d-item" data-index="3">
           <div class="led-border"></div>
-          <img src="https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?w=400&h=600&fit=crop&q=80" alt="Vídeos" class="card-bg" loading="lazy">
+          <video class="card-bg" autoplay loop muted playsinline style="object-fit: cover; width: 100%; height: 100%;">
+            <source src="https://res.cloudinary.com/dxbu3zk6i/video/upload/v1767728235/Video_Stranger_Things_90s_720p_T5_d9geob.mp4" type="video/mp4">
+          </video>
           <div class="card-overlay">
             <div class="card-badge">🎥 VÍDEOS</div>
             <div class="card-title">Vídeos de VODs</div>
@@ -1363,13 +1448,17 @@
             btnUpload.textContent = 'Enviar Logo';
           }
           
-          // Carregar logo do usuário (URL do Cloudinary)
+          // Carregar logo do usuário do Cloudinary (campo 'logo' é o principal)
           const logoImg = document.getElementById('logoPreviewImg');
           const logoPlaceholder = document.getElementById('logoPlaceholder');
           
-          // Usar logo_url que contém a URL do Cloudinary
-          const logoUrl = dados.logo_url;
-          console.log('🔍 Verificando logo_url:', logoUrl ? 'Existe' : 'Não existe');
+          // Campo 'logo' é o principal (link do Cloudinary), logo_url é fallback
+          const logoUrl = dados.logo || dados.logo_url;
+          console.log('🔍 Verificando logo nos dados do usuário:');
+          console.log('   - logo (principal):', dados.logo ? dados.logo.substring(0, 80) : 'Não existe');
+          console.log('   - logo_url (fallback):', dados.logo_url ? 'Existe' : 'Não existe');
+          console.log('   - Logo selecionada:', logoUrl ? logoUrl.substring(0, 80) : 'Nenhuma');
+          console.log('   - É Cloudinary?:', logoUrl && logoUrl.includes('cloudinary.com') ? '✅ Sim' : '❌ Não');
           
           if (logoUrl && logoUrl.includes('cloudinary.com')) {
             userLogoUrl = logoUrl;
@@ -1483,6 +1572,13 @@
         });
         
         const result = await response.json();
+        
+        console.log('📥 Resposta do servidor após upload:');
+        console.log('   - success:', result.success);
+        console.log('   - logoUrl:', result.logoUrl);
+        console.log('   - É Cloudinary?:', result.logoUrl && result.logoUrl.includes('cloudinary.com') ? '✅ Sim' : '❌ Não');
+        console.log('   - uploadsRestantes:', result.uploadsRestantes);
+        console.log('   - Campo salvo: "logo" (principal) e "logo_url" (compatibilidade)');
         
         if (!response.ok) {
           if (response.status === 429) {
@@ -1736,8 +1832,8 @@
         this.cards.forEach(card => {
           try {
             const images = JSON.parse(card.getAttribute('data-images'));
-            if (images && images.length === 2) {
-              // Preload das 2 imagens
+            if (images && images.length >= 2) {
+              // Preload das imagens
               images.forEach(src => {
                 const img = new Image();
                 img.src = src;
@@ -1782,134 +1878,95 @@
       }
     }
 
-    // ==================== CARROSSEL HORIZONTAL INFINITO ====================
+    // ==================== CARROSSEL NETFLIX - 3 CARDS FIXOS ====================
     class Carousel3D {
       constructor() {
         this.container = document.querySelector('.carousel-3d-container');
-        this.items = document.querySelectorAll('.carousel-3d-item');
+        this.items = Array.from(document.querySelectorAll('.carousel-3d-item'));
         this.prevBtn = document.getElementById('prevBtn');
         this.nextBtn = document.getElementById('nextBtn');
-        this.isScrolling = false;
-        this.isMobile = window.innerWidth <= 768;
+        this.total = this.items.length;
+        this.currentIndex = 0;
+        this.isAnimating = false;
         
-        // No mobile, não clonar itens nem configurar scroll infinito
-        if (!this.isMobile) {
-          this.cloneItems();
-          this.centerFirstItem();
-          this.setupInfiniteScroll();
-        }
-        
+        this.updatePositions();
         this.attachEvents();
-        this.setupResizeHandler();
       }
 
-      // Detecta mudança de tamanho de tela e recarrega se necessário
-      setupResizeHandler() {
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-          clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(() => {
-            const wasMobile = this.isMobile;
-            this.isMobile = window.innerWidth <= 768;
-            
-            // Recarrega a página se mudou de mobile para desktop ou vice-versa
-            if (wasMobile !== this.isMobile) {
-              window.location.reload();
-            }
-          }, 250);
-        });
+      // Calcula os índices dos 3 cards visíveis
+      getVisibleIndices() {
+        const left = (this.currentIndex - 1 + this.total) % this.total;
+        const center = this.currentIndex;
+        const right = (this.currentIndex + 1) % this.total;
+        return { left, center, right };
       }
 
-      // Clona itens para scroll infinito (apenas desktop)
-      cloneItems() {
-        // Clona todos os cards no início e no fim
-        this.items.forEach(item => {
-          const cloneBefore = item.cloneNode(true);
-          const cloneAfter = item.cloneNode(true);
-          this.container.insertBefore(cloneBefore, this.container.firstChild);
-          this.container.appendChild(cloneAfter);
-        });
-      }
-
-      // Centraliza o primeiro item (esportes) ao carregar
-      centerFirstItem() {
-        const firstOriginalItem = this.container.children[this.items.length];
-        if (firstOriginalItem) {
-          setTimeout(() => {
-            firstOriginalItem.scrollIntoView({
-              behavior: 'instant',
-              block: 'nearest',
-              inline: 'start'
-            });
-          }, 100);
-        }
-      }
-
-      // Navega para a esquerda
-      prev() {
-        if (this.isScrolling) return;
-        this.isScrolling = true;
+      updatePositions() {
+        const { left, center, right } = this.getVisibleIndices();
         
-        const scrollAmount = this.container.offsetWidth * 0.8;
-        this.container.scrollBy({
-          left: -scrollAmount,
-          behavior: 'smooth'
-        });
-        
-        setTimeout(() => {
-          this.isScrolling = false;
-        }, 500);
-      }
-
-      // Navega para a direita
-      next() {
-        if (this.isScrolling) return;
-        this.isScrolling = true;
-        
-        const scrollAmount = this.container.offsetWidth * 0.8;
-        this.container.scrollBy({
-          left: scrollAmount,
-          behavior: 'smooth'
-        });
-        
-        setTimeout(() => {
-          this.isScrolling = false;
-        }, 500);
-      }
-
-      // Configura scroll infinito
-      setupInfiniteScroll() {
-        this.container.addEventListener('scroll', () => {
-          const scrollLeft = this.container.scrollLeft;
-          const scrollWidth = this.container.scrollWidth;
-          const clientWidth = this.container.clientWidth;
-          const itemsWidth = this.items.length * (this.items[0].offsetWidth + 20);
-
-          // Se chegou no início (clones da esquerda)
-          if (scrollLeft < 100) {
-            this.container.scrollLeft = itemsWidth + scrollLeft;
-          }
+        this.items.forEach((item, i) => {
+          // Remove todas as classes de posição
+          item.classList.remove('pos-left', 'pos-center', 'pos-right');
           
-          // Se chegou no fim (clones da direita)
-          if (scrollLeft + clientWidth > scrollWidth - 100) {
-            this.container.scrollLeft = itemsWidth - (scrollWidth - scrollLeft - clientWidth);
+          // Aplica a classe correta
+          if (i === left) {
+            item.classList.add('pos-left');
+          } else if (i === center) {
+            item.classList.add('pos-center');
+          } else if (i === right) {
+            item.classList.add('pos-right');
           }
         });
       }
 
-      // Anexa eventos de navegação (apenas desktop)
-      attachEvents() {
-        // No mobile, não precisa de navegação por botões
-        if (this.isMobile) return;
+      prev() {
+        if (this.isAnimating) return;
+        this.isAnimating = true;
         
-        this.prevBtn.addEventListener('click', () => this.prev());
-        this.nextBtn.addEventListener('click', () => this.next());
+        this.currentIndex = (this.currentIndex - 1 + this.total) % this.total;
+        this.updatePositions();
+        
+        setTimeout(() => {
+          this.isAnimating = false;
+        }, 600);
+      }
 
-        // Navegação por teclado (apenas desktop)
+      next() {
+        if (this.isAnimating) return;
+        this.isAnimating = true;
+        
+        this.currentIndex = (this.currentIndex + 1) % this.total;
+        this.updatePositions();
+        
+        setTimeout(() => {
+          this.isAnimating = false;
+        }, 600);
+      }
+
+      attachEvents() {
+        this.prevBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.prev();
+        });
+        
+        this.nextBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          this.next();
+        });
+
+        // Setas do teclado
         document.addEventListener('keydown', (e) => {
-          if (this.isMobile) return;
           if (e.key === 'ArrowLeft') this.prev();
           else if (e.key === 'ArrowRight') this.next();
+        });
+        
+        // Click nos cards laterais para navegar
+        this.items.forEach((item, i) => {
+          item.addEventListener('click', () => {
+            const { left, right } = this.getVisibleIndices();
+            if (i === left) this.prev();
+            else if (i === right) this.next();
+          });
         });
       }
     }

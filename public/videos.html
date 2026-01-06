@@ -317,10 +317,13 @@
     .scroll-row {
       display: flex;
       overflow-x: auto;
+      overflow-y: hidden;
       gap: 16px;
       padding: 18px 8px 22px;
       scroll-behavior: smooth;
       scroll-snap-type: x mandatory;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: auto;
     }
 
     .scroll-row > * {
@@ -982,6 +985,8 @@
         overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
         scroll-padding: 0 20px;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
       }
     }
     
@@ -1080,6 +1085,8 @@
         scroll-padding: 0 calc(50vw - 140px);
         padding: 25px 0 35px;
         gap: 20px;
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
       }
       
       .scroll-row::-webkit-scrollbar {
@@ -1091,7 +1098,7 @@
         max-width: 280px;
         flex-shrink: 0;
         scroll-snap-align: center;
-        touch-action: pan-x;
+        touch-action: pan-x pan-y;
         transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
         opacity: 0.4;
         transform: scale(0.85) translateY(20px);
@@ -1477,6 +1484,8 @@
     .scroll-row {
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: auto;
     }
     
     /* Área de toque maior para botões pequenos */
@@ -2342,7 +2351,7 @@
         <div id="step1Container">
           <div class="modal-header">
             <div class="modal-title" id="modalTitle">Carregando...</div>
-            <div class="modal-synopsis" id="sinopseDetalhesBanner">...</div>
+            <div class="modal-synopsis" id="sinopseDetalhesBanner" style="word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">...</div>
           </div>
 
           <div class="step-1-controls" style="margin-top: 24px;">
@@ -2467,11 +2476,11 @@
       import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     // Usar a instância do Firebase já inicializada no primeiro script
-    const app = getApp();
-    const auth = getAuth(app);
+    const videoApp = getApp();
+    const videoAuth = getAuth(videoApp);
     let userToken = null;
 
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(videoAuth, async (user) => {
       if (user) {
         userToken = await user.getIdToken();
         console.log("✅ Usuário autenticado:", user.uid);
@@ -3174,9 +3183,44 @@
         const modalRight = document.getElementById('modalRight');
         modalRight.innerHTML = `
           <div style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; padding:20px; background: linear-gradient(180deg, rgba(15, 5, 30, 0.8), rgba(0, 0, 0, 0.9));">
-            <video src="${url}" controls autoplay loop style="width:100%; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);"></video>
+            <video 
+              id="videoPlayer"
+              controls 
+              preload="auto"
+              playsinline
+              style="width:100%; max-width:600px; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8); background:#000;">
+              <source src="${url}" type="video/mp4">
+              Seu navegador não suporta reprodução de vídeo.
+            </video>
           </div>
         `;
+        
+        // Garantir que o vídeo carregue corretamente
+        setTimeout(() => {
+          const videoPlayer = document.getElementById('videoPlayer');
+          if (videoPlayer) {
+            videoPlayer.load(); // Forçar reload do vídeo
+            
+            // Tentar reproduzir automaticamente (pode falhar em alguns navegadores)
+            videoPlayer.play().catch(err => {
+              console.log('⚠️ Autoplay bloqueado pelo navegador:', err);
+              // Não é erro crítico - usuário pode clicar play manualmente
+            });
+            
+            // Log de eventos do vídeo para debug
+            videoPlayer.addEventListener('loadeddata', () => {
+              console.log('✅ Vídeo carregado com sucesso!');
+              console.log('📊 Duração:', videoPlayer.duration, 'segundos');
+              console.log('📐 Dimensões:', videoPlayer.videoWidth, 'x', videoPlayer.videoHeight);
+            });
+            
+            videoPlayer.addEventListener('error', (e) => {
+              console.error('❌ Erro ao carregar vídeo:', e);
+              console.error('Código do erro:', videoPlayer.error?.code);
+              console.error('Mensagem:', videoPlayer.error?.message);
+            });
+          }
+        }, 100);
         
         document.getElementById('btnNewVideo').onclick = () => {
           URL.revokeObjectURL(url);
@@ -3935,6 +3979,32 @@
       scrollRows.forEach(scrollRow => {
         scrollRow.addEventListener('scroll', updateCenteredCard, { passive: true });
       });
+      
+      // SOLUÇÃO ROBUSTA: Permitir scroll vertical em qualquer lugar
+      document.body.addEventListener('wheel', (e) => {
+        const target = e.target.closest('.scroll-row, .movie-card');
+        
+        if (target) {
+          const scrollRow = target.closest('.scroll-row') || target.parentElement;
+          
+          // Se scroll vertical predominante
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX) * 1.5) {
+            // Não prevenir - deixar scroll da página funcionar naturalmente
+            return;
+          }
+          
+          // Se scroll horizontal, verificar se pode rolar
+          if (scrollRow && scrollRow.classList.contains('scroll-row')) {
+            const isAtStart = scrollRow.scrollLeft <= 0;
+            const isAtEnd = scrollRow.scrollLeft + scrollRow.clientWidth >= scrollRow.scrollWidth - 1;
+            
+            // Se chegou no limite horizontal, permitir scroll vertical
+            if ((e.deltaX < 0 && isAtStart) || (e.deltaX > 0 && isAtEnd)) {
+              return;
+            }
+          }
+        }
+      }, { passive: true });
       
       // Atualizar inicialmente sem delay
       if (window.innerWidth <= 768) {

@@ -296,10 +296,13 @@
     .scroll-row {
       display: flex;
       overflow-x: auto;
+      overflow-y: hidden;
       gap: 16px;
       padding: 18px 8px 22px;
       scroll-behavior: smooth;
       scroll-snap-type: x mandatory;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: auto;
     }
 
     .scroll-row > * {
@@ -2167,7 +2170,7 @@
         <div id="step1Container">
           <div class="modal-header">
             <div class="modal-title" id="modalTitle">Carregando...</div>
-            <div class="modal-synopsis" id="sinopseDetalhesBanner">...</div>
+            <div class="modal-synopsis" id="sinopseDetalhesBanner" style="word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">...</div>
           </div>
 
           <div class="step-1-controls" style="margin-top: 24px;">
@@ -3892,6 +3895,7 @@
         alert('Erro ao criar arquivo ZIP. Baixe os banners individualmente.');
       }
     };
+    
     
   </script>
   

@@ -672,27 +672,40 @@ app.post("/api/upload-logo", verificarAuth, uploadLimiter, logoUpload.single("lo
       dataReset = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     }
 
-    // Preparar dados - apenas logo_url (formato Cloudinary)
+    // Preparar dados - campo 'logo' como principal (link do Cloudinary)
     const userData = {
-      logo_url: logoUrl,
+      logo: logoUrl, // Campo principal com URL do Cloudinary
+      logo_url: logoUrl, // Mantido para compatibilidade retroativa
       uploads_restantes: uploadsRestantes - 1,
       data_reset_logo: dataReset.toISOString(),
       logo_updated_at: new Date().toISOString()
     };
 
-    // Salvar APENAS no Firestore
+    // Salvar em AMBOS: Firestore E Realtime Database
     console.log(`📝 Salvando logo para usuário: ${uid}`);
     console.log(`   URL Cloudinary: ${logoUrl}`);
+    console.log(`   Formato: ${logoUrl.includes('cloudinary.com') ? '✅ Cloudinary válido' : '❌ URL inválida'}`);
     
     try {
+      // Salvar no Firestore
       await userRef.set(userData, { merge: true });
-      console.log(`   ✅ Firestore: salvo com sucesso`);
+      console.log(`   ✅ Firestore: campo 'logo' salvo com sucesso`);
     } catch (err) {
       console.error(`   ❌ Firestore: erro ao salvar:`, err.message);
       throw err;
     }
 
-    console.log(`✅ Logo enviada para Cloudinary e URL salva no Firestore`);
+    try {
+      // Salvar no Realtime Database também
+      const rtdbUserRef = rtdb.ref(`usuarios/${uid}`);
+      await rtdbUserRef.update(userData);
+      console.log(`   ✅ Realtime Database: campo 'logo' salvo com sucesso`);
+    } catch (err) {
+      console.error(`   ⚠️ Realtime Database: erro ao salvar (não crítico):`, err.message);
+      // Não lançar erro - Firestore é a fonte principal de verdade
+    }
+
+    console.log(`✅ Logo salva no Cloudinary e link salvo no campo 'logo' de ambos os bancos`);
 
     res.json({
       success: true,
@@ -709,6 +722,7 @@ app.post("/api/upload-logo", verificarAuth, uploadLimiter, logoUpload.single("lo
 
 /**
  * Função utilitária para buscar logo do usuário com fallback
+ * Tenta Firestore primeiro, depois Realtime Database
  * @param {string} uid - UID do usuário
  * @returns {Promise<string|null>} URL da logo ou null
  */
@@ -718,24 +732,50 @@ async function getUserLogoUrl(uid) {
   if (!uid) return DEFAULT_LOGO;
   
   try {
+    // Tentar Firestore primeiro
     const userDoc = await db.collection("usuarios").doc(uid).get();
     
-    if (!userDoc.exists) return DEFAULT_LOGO;
-    
-    const userData = userDoc.data();
-    const logoUrl = userData.logo_url || userData.logo;
-    
-    // Validar URL (não aceitar base64)
-    if (logoUrl && typeof logoUrl === 'string' && !logoUrl.startsWith('data:')) {
-      // Verificar se é URL válida
-      try {
-        const url = new URL(logoUrl);
-        if (['http:', 'https:'].includes(url.protocol)) {
-          return logoUrl;
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      // Buscar campo 'logo' primeiro (principal), depois logo_url (legacy)
+      const logoUrl = userData.logo || userData.logo_url;
+      
+      // Validar URL (não aceitar base64, deve ser URL do Cloudinary)
+      if (logoUrl && typeof logoUrl === 'string' && !logoUrl.startsWith('data:')) {
+        try {
+          const url = new URL(logoUrl);
+          if (['http:', 'https:'].includes(url.protocol) && logoUrl.includes('cloudinary.com')) {
+            return logoUrl;
+          }
+        } catch {
+          console.warn(`⚠️ Logo inválida no Firestore para uid=${uid}`);
         }
-      } catch {
-        console.warn(`⚠️ Logo inválida para uid=${uid}: ${logoUrl.substring(0, 50)}...`);
       }
+    }
+    
+    // Fallback: tentar Realtime Database
+    try {
+      const rtdbSnapshot = await rtdb.ref(`usuarios/${uid}`).once('value');
+      const rtdbData = rtdbSnapshot.val();
+      
+      if (rtdbData) {
+        // Buscar campo 'logo' primeiro (principal), depois logo_url (legacy)
+        const logoUrl = rtdbData.logo || rtdbData.logo_url;
+        
+        if (logoUrl && typeof logoUrl === 'string' && !logoUrl.startsWith('data:') && logoUrl.includes('cloudinary.com')) {
+          try {
+            const url = new URL(logoUrl);
+            if (['http:', 'https:'].includes(url.protocol)) {
+              console.log(`ℹ️ Logo encontrada no Realtime Database para uid=${uid}`);
+              return logoUrl;
+            }
+          } catch {
+            console.warn(`⚠️ Logo inválida no RTDB para uid=${uid}`);
+          }
+        }
+      }
+    } catch (rtdbErr) {
+      console.warn(`⚠️ Erro ao buscar no Realtime Database:`, rtdbErr.message);
     }
     
     return DEFAULT_LOGO;
@@ -2273,7 +2313,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     if (userLogoResized) {
       composites.push({
         input: userLogoResized,
-        top: Math.round(1200 * scaleFactor),
+        top: Math.round(1170 * scaleFactor),
         left: Math.round(120 * scaleFactor)
       });
     }
@@ -2303,9 +2343,13 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     // Dimensões escaladas para SVG
     const svgPadding = Math.round(60 * scaleFactor);
     const titleY = Math.round(740 * scaleFactor);
-    const synopY = Math.round(1500 * scaleFactor);
     const synopLineHeight = Math.round(36 * scaleFactor);
-    const metaBoxY = Math.round(1650 * scaleFactor);
+    // Sinopse Y dinâmico - ajusta conforme o número de linhas
+    const synopTotalHeight = synopLines.length * synopLineHeight;
+    const synopBaseY = 1500; // Base para 4 linhas
+    const synopY = Math.round((synopBaseY + (4 - synopLines.length) * 18) * scaleFactor);
+    // Metadados Y dinâmico - sempre abaixo da sinopse
+    const metaBoxY = synopY + synopTotalHeight + Math.round(30 * scaleFactor);
     const metaBoxWidth = Math.round(150 * scaleFactor);
     const metaBoxHeight = Math.round(45 * scaleFactor);
     const metaBoxGap = Math.round(160 * scaleFactor);
@@ -2486,6 +2530,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       console.log(`   ⚡ Composição ${quality} (${qualityConfig.preset}, ${targetBitrateVideo})`);
       
       // FFmpeg OTIMIZADO com parâmetros dinâmicos por qualidade
+      // Trailer: escalar para cobrir a área mantendo proporção, depois cortar (crop)
       await spawnProcess('ffmpeg', [
         // Entradas
         '-loop', '1', '-framerate', '24', '-i', backdropPath,
@@ -2493,11 +2538,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         '-loop', '1', '-framerate', '24', '-i', overlayPath,
         '-loop', '1', '-framerate', '24', '-i', framePath,
         // Filtros com dimensões dinâmicas
+        // Trailer: scale para cobrir a área (force_original_aspect_ratio=increase) + crop central
         '-filter_complex',
         `[0:v]scale=${videoWidth}:${videoHeight}:flags=fast_bilinear[backdrop];` +
-        `[1:v]scale=${videoWidth}:${trailerHeight}:flags=fast_bilinear[trailer];` +
+        `[1:v]scale=${videoWidth}:${trailerHeight}:force_original_aspect_ratio=increase,crop=${videoWidth}:${trailerHeight}[trailer];` +
         `[2:v]scale=${videoWidth}:${videoHeight}:flags=fast_bilinear[overlay_scaled];` +
-        `[backdrop][trailer]overlay=0:-10:shortest=1[t1];` +
+        `[backdrop][trailer]overlay=0:0:shortest=1[t1];` +
         `[t1][overlay_scaled]overlay=0:0:shortest=1[t2];` +
         `[t2][3:v]overlay=0:0:shortest=1,format=yuv420p[out]`,
         '-map', '[out]',
