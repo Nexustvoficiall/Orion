@@ -2810,6 +2810,197 @@ app.get("/api/cores", (req, res) => {
   });
 });
 
+// ==================== ENDPOINT: GERAR BANNER DE DIVULGAÇÃO ====================
+app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (req, res) => {
+  try {
+    const {
+      templatePath,
+      logoUrl,
+      logoConfig,
+      color,
+      modelNumber,
+      whatsapp
+    } = req.body || {};
+
+    console.log(`➡️ Gerando banner de divulgação: modelo=${modelNumber}, cor=${color}`);
+
+    // Validações
+    if (!templatePath) {
+      return res.status(400).json({ error: "templatePath obrigatório" });
+    }
+
+    if (!logoUrl) {
+      return res.status(400).json({ error: "Logo obrigatória para gerar banner" });
+    }
+
+    // Carregar template base
+    const templateFullPath = path.join(__dirname, "public", templatePath);
+    let baseImage;
+    
+    try {
+      baseImage = sharp(templateFullPath);
+      const metadata = await baseImage.metadata();
+      console.log(`✅ Template carregado: ${metadata.width}x${metadata.height}`);
+    } catch (error) {
+      console.error("❌ Erro ao carregar template:", error);
+      return res.status(400).json({ error: "Template não encontrado" });
+    }
+
+    // Converter logo de base64 se necessário
+    let logoBuffer;
+    if (logoUrl.startsWith('data:image')) {
+      const base64Data = logoUrl.split(',')[1];
+      logoBuffer = Buffer.from(base64Data, 'base64');
+    } else {
+      // Se for URL, baixar
+      const logoResponse = await fetchWithTimeout(logoUrl);
+      if (!logoResponse.ok) {
+        return res.status(400).json({ error: "Erro ao baixar logo" });
+      }
+      logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
+    }
+
+    // Processar logo para Sharp
+    const logoImage = sharp(logoBuffer);
+    const logoMetadata = await logoImage.metadata();
+    console.log(`✅ Logo carregada: ${logoMetadata.width}x${logoMetadata.height}`);
+
+    // Obter dimensões do template
+    const templateMetadata = await baseImage.metadata();
+    const templateWidth = templateMetadata.width;
+    const templateHeight = templateMetadata.height;
+
+    // Criar composição com Sharp
+    const compositeArray = [];
+
+    // Processar cada posição da logo
+    if (logoConfig && logoConfig.positions) {
+      for (const pos of logoConfig.positions) {
+        const { position, opacity, size } = pos;
+        
+        // Calcular tamanho da logo (médio = 18% da largura do template - aumentado)
+        let logoWidth = Math.floor(templateWidth * 0.18);
+        if (size === 'pequeno') logoWidth = Math.floor(templateWidth * 0.12);
+        if (size === 'grande') logoWidth = Math.floor(templateWidth * 0.25);
+
+        // Redimensionar logo mantendo proporção
+        const resizedLogo = await sharp(logoBuffer)
+          .resize(logoWidth, null, { 
+            fit: 'contain',
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+          })
+          .toBuffer();
+
+        const resizedLogoMetadata = await sharp(resizedLogo).metadata();
+        const logoHeight = resizedLogoMetadata.height;
+
+        // Calcular posição
+        let left, top;
+        const margin = 40;
+
+        switch (position) {
+          case 'superior-direita':
+            left = templateWidth - logoWidth - margin;
+            // Margem menor para subir mais
+            top = Math.floor(margin * 0.5);
+            break;
+          
+          case 'superior-esquerda':
+            left = margin;
+            top = Math.floor(margin * 0.5);
+            break;
+          
+          case 'direita-media':
+            // Movendo mais para esquerda - margem maior
+            left = templateWidth - logoWidth - (margin * 2);
+            // Movendo para baixo - 75% da altura
+            top = Math.floor((templateHeight * 0.75) - (logoHeight / 2));
+            break;
+          
+          case 'inferior-esquerda':
+            left = margin;
+            top = templateHeight - logoHeight - margin;
+            break;
+          
+          case 'centro':
+          default:
+            left = Math.floor((templateWidth - logoWidth) / 2);
+            top = Math.floor((templateHeight - logoHeight) / 2);
+            break;
+        }
+
+        // Aplicar opacidade se necessário
+        let finalLogoBuffer = resizedLogo;
+        if (opacity < 1.0) {
+          finalLogoBuffer = await sharp(resizedLogo)
+            .composite([{
+              input: Buffer.from([255, 255, 255, Math.floor(opacity * 255)]),
+              raw: { width: 1, height: 1, channels: 4 },
+              tile: true,
+              blend: 'dest-in'
+            }])
+            .toBuffer();
+        }
+
+        compositeArray.push({
+          input: finalLogoBuffer,
+          left: left,
+          top: top
+        });
+
+        console.log(`✅ Logo adicionada: posição=${position}, opacity=${opacity}, coords=(${left}, ${top})`);
+      }
+    }
+
+    // Compor imagem final
+    const finalImage = await sharp(templateFullPath)
+      .composite(compositeArray)
+      .png()
+      .toBuffer();
+
+    console.log('✅ Banner composto com sucesso');
+
+    // Upload para Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: "banners_divulgacao",
+          public_id: `${req.uid}_${color}_${modelNumber}_${Date.now()}`,
+          resource_type: "image"
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(finalImage);
+    });
+
+    console.log(`✅ Banner enviado para Cloudinary: ${uploadResult.secure_url}`);
+
+    // Salvar no Firestore
+    const bannerRef = db.collection("banners_divulgacao").doc();
+    await bannerRef.set({
+      userId: req.uid,
+      bannerUrl: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      color: color,
+      modelNumber: modelNumber,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+    });
+
+    res.json({
+      success: true,
+      bannerUrl: uploadResult.secure_url,
+      message: "Banner gerado com sucesso!"
+    });
+
+  } catch (error) {
+    console.error("❌ Erro ao gerar banner de divulgação:", error);
+    res.status(500).json({ error: error.message || "Erro ao gerar banner" });
+  }
+});
+
 app.use((err, req, res, next) => {
   console.error("❌ Erro não tratado:", err);
   if (err instanceof multer.MulterError) {

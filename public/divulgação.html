@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📢 Banners de Divulgação - Orion Creator</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Estrelas animadas */
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 120s linear infinite;
+      z-index: 0;
+      opacity: 0.3;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    /* Container principal */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 100px 20px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header premium */
+    .page-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .page-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+    }
+
+    .page-subtitle {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 400;
+    }
+
+    /* Tela de Seleção de Cores */
+    .color-selection-screen {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .selection-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      margin-bottom: 15px;
+      letter-spacing: 1px;
+    }
+
+    .selection-subtitle {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
+      margin-bottom: 50px;
+      font-weight: 400;
+    }
+
+    /* Grid de Cores */
+    .colors-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      padding: 20px;
+    }
+
+    .color-card {
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.9) 0%, rgba(46, 16, 101, 0.9) 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(168, 85, 247, 0.15);
+      transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      position: relative;
+    }
+
+    .color-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 0;
+    }
+
+    .color-card:hover::before {
+      opacity: 1;
+    }
+
+    .color-card:hover {
+      transform: translateY(-15px) scale(1.05);
+      border-color: #a855f7;
+      box-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.8),
+        0 0 100px rgba(168, 85, 247, 0.4);
+    }
+
+    .color-card-image {
+      width: 100%;
+      height: 250px;
+      position: relative;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .color-preview-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .color-card:hover .color-preview-img {
+      transform: scale(1.05);
+    }
+
+    .color-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(5px);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .color-card:hover .color-overlay {
+      opacity: 1;
+    }
+
+    .color-icon {
+      font-size: 5rem;
+      filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    .color-card-name {
+      padding: 20px;
+      text-align: center;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Seção de geração de banner - removida temporariamente */
+    .generation-section {
+      display: none;
+    }
+
+    /* Galeria de Banners */
+    .banners-gallery-section {
+      display: none;
+      max-width: 1400px;
+      margin: 0 auto;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .banners-gallery-section.active {
+      display: block;
+    }
+
+    .gallery-header {
+      text-align: center;
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .btn-back {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-back:hover {
+      background: linear-gradient(90deg, #4f46e5, #7c3aed);
+      transform: translateY(-50%) translateX(-5px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    }
+
+    .gallery-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .gallery-subtitle {
+      font-size: 1rem;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 400;
+    }
+
+    /* Grid de Banners */
+    .banners-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 30px;
+      padding: 20px;
+    }
+
+    .banner-item {
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.9) 0%, rgba(46, 16, 101, 0.9) 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(168, 85, 247, 0.15);
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+
+    .banner-item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .banner-item:hover::before {
+      opacity: 1;
+    }
+
+    .banner-item:hover {
+      transform: translateY(-10px) scale(1.02);
+      border-color: #a855f7;
+      box-shadow: 
+        0 20px 50px rgba(0, 0, 0, 0.8),
+        0 0 80px rgba(168, 85, 247, 0.3);
+    }
+
+    .banner-preview-wrapper {
+      width: 100%;
+      height: 400px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    .banner-preview-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+    }
+
+    .banner-item:hover .banner-preview-image {
+      transform: scale(1.05);
+    }
+
+    .banner-info {
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .banner-number {
+      font-size: 0.9rem;
+      color: #c084fc;
+      font-weight: 600;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-generate-banner {
+      width: 100%;
+      background: linear-gradient(90deg, #a855f7, #ec4899);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+      position: relative;
+      z-index: 10;
+    }
+
+    .btn-generate-banner:hover {
+      background: linear-gradient(90deg, #ec4899, #a855f7);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.5);
+    }
+
+    .btn-generate-banner:active {
+      transform: translateY(0);
+    }
+
+    /* Loading Spinner */
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(168, 85, 247, 0.2);
+      border-top-color: #a855f7;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      height: 100%;
+      width: 250px;
+      position: fixed;
+      top: 0;
+      left: -250px;
+      background: linear-gradient(180deg, #1e0b3a, #2e1065, #3b0764);
+      padding-top: 60px;
+      transition: left 0.3s ease;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .sidebar.active { left: 0; }
+
+    .sidebar a {
+      display: block;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      font-size: 1.1em;
+      transition: background 0.2s;
+    }
+
+    .sidebar a:hover { background: rgba(147, 51, 234, 0.2); }
+
+    /* SEÇÃO IMPORTANTE - COMPACTA */
+    .sidebar-importante {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
+      border-top: 1px solid rgba(168, 85, 247, 0.3);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.3);
+      margin: 10px 0;
+      padding: 15px 20px;
+    }
+
+    .importante-header {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #a855f7;
+      text-align: center;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .importante-section {
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+    }
+
+    .importante-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .importante-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 8px;
+    }
+
+    .logo-preview {
+      width: 100%;
+      height: 60px;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px dashed rgba(168, 85, 247, 0.3);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+
+    .btn-upload-logo, .btn-salvar-whatsapp {
+      width: 100%;
+      background: linear-gradient(90deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-upload-logo:hover, .btn-salvar-whatsapp:hover {
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
+    }
+
+    .btn-upload-logo:disabled {
+      background: #555;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .upload-info, .upload-reset {
+      font-size: 0.65rem;
+      color: #d8b4fe;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .upload-info span, .upload-reset span {
+      color: #a855f7;
+      font-weight: 700;
+    }
+
+    .whatsapp-input {
+      width: 100%;
+      background: rgba(10, 10, 30, 0.4);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 6px;
+      padding: 8px;
+      color: white;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .whatsapp-input:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+    }
+
+    .whatsapp-input::placeholder {
+      color: #888;
+      font-size: 0.75rem;
+    }
+    
+    .sidebar-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sidebar-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #menu-toggle {
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      background: linear-gradient(90deg, #9333ea, #a855f7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 10px;
+      cursor: pointer;
+      z-index: 101;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+      transition: all 0.25s ease;
+    }
+
+    #menu-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.95rem;
+      padding: 25px 10px;
+      border-top: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 250px;
+        left: -250px;
+      }
+
+      .sidebar-importante {
+        padding: 12px 15px;
+      }
+
+      .importante-header {
+        font-size: 0.8rem;
+      }
+
+      .btn-upload-logo, .btn-salvar-whatsapp {
+        font-size: 0.7rem;
+        padding: 7px;
+      }
+
+      #menu-toggle {
+        position: fixed !important;
+        top: 12px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        padding: 0 !important;
+        font-size: 1.2rem !important;
+        line-height: 44px !important;
+        text-align: center !important;
+        z-index: 1002 !important;
+        border-radius: 12px !important;
+        background: rgba(168, 85, 247, 0.95) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 2px solid rgba(255, 255, 255, 0.15) !important;
+        color: white !important;
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.4) !important;
+        cursor: pointer !important;
+      }
+
+      .container {
+        padding: 80px 15px 40px;
+      }
+
+      .page-title {
+        font-size: 2rem;
+      }
+
+      .page-subtitle {
+        font-size: 0.95rem;
+      }
+
+      .selection-title {
+        font-size: 1.8rem;
+      }
+
+      .selection-subtitle {
+        font-size: 0.95rem;
+        margin-bottom: 30px;
+      }
+
+      .colors-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+        padding: 10px;
+      }
+
+      .color-card-image {
+        height: 180px;
+      }
+
+      .color-icon {
+        font-size: 3rem;
+      }
+
+      .color-card-name {
+        font-size: 0.95rem;
+        padding: 12px;
+      }
+
+      /* Galeria de Banners Mobile */
+      .gallery-header {
+        margin-bottom: 25px;
+      }
+
+      .btn-back {
+        position: static;
+        transform: none;
+        margin-bottom: 15px;
+        width: 100%;
+        font-size: 0.9rem;
+        padding: 10px 20px;
+      }
+
+      .btn-back:hover {
+        transform: translateY(-2px);
+      }
+
+      .gallery-title {
+        font-size: 1.6rem;
+      }
+
+      .gallery-subtitle {
+        font-size: 0.85rem;
+      }
+
+      .banners-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 10px;
+      }
+
+      .banner-preview-wrapper {
+        height: 350px;
+      }
+
+      .banner-info {
+        padding: 15px;
+      }
+
+      .banner-number {
+        font-size: 0.85rem;
+      }
+
+      .btn-generate-banner {
+        font-size: 0.9rem;
+        padding: 12px 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .colors-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .color-card-image {
+        height: 200px;
+      }
+
+      .banners-grid {
+        padding: 5px;
+      }
+
+      .banner-preview-wrapper {
+        height: 300px;
+      }
+
+      .page-title {
+        font-size: 1.6rem;
+      }
+
+      .selection-title {
+        font-size: 1.5rem;
+      }
+
+      .gallery-title {
+        font-size: 1.4rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <button id="menu-toggle">☰</button>
+  
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <!-- MENU NAVEGAÇÃO -->
+    <a href="home.html">🏠 Início</a>
+    
+    <!-- SEÇÃO IMPORTANTE -->
+    <div class="sidebar-importante">
+      <div class="importante-header">⭐ IMPORTANTE</div>
+      
+      <!-- Upload de Logo -->
+      <div class="importante-section">
+        <label class="importante-label">📸 Logo Personalizada</label>
+        <div class="logo-preview" id="logoPreview">
+          <img id="logoPreviewImg" src="" alt="Logo" style="display: none; max-width: 100%; max-height: 60px; object-fit: contain;">
+          <span id="logoPlaceholder" style="color: #888; font-size: 0.8rem;">Nenhuma logo</span>
+        </div>
+        <input type="file" id="logoUpload" accept="image/*" style="display: none;">
+        <button class="btn-upload-logo" id="btnUploadLogo">Enviar Logo</button>
+        <div class="upload-info" id="uploadInfo"><span id="uploadsRestantes">--</span>/2 uploads</div>
+        <div class="upload-reset" id="uploadReset">Reset: <span id="dataReset">--/--</span></div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="importante-section">
+        <label class="importante-label">📱 WhatsApp</label>
+        <input type="tel" id="whatsappInput" class="whatsapp-input" placeholder="(00) 00000-0000" maxlength="15">
+        <button class="btn-salvar-whatsapp" id="btnSalvarWhatsapp">Salvar</button>
+      </div>
+    </div>
+    
+    <a href="futebol.html">⚽ Gerar Esportes</a>
+    <a href="divulgação.html">📢 Banners de Divulgação</a>
+    <a href="vods.html">🎬 Filmes & Séries</a>
+    <a href="videos.html">🎥 Vídeos de Vods</a>
+    <a href="programacao.html">📅 Programação Esportiva</a>
+    <a href="perfil.html">👤 Meu Perfil</a>
+    <a href="#" id="sidebar-logout">🚪 Sair</a>
+  </div>
+
+  <div class="container">
+    <div class="page-header">
+      <h1 class="page-title">📢 BANNERS DE DIVULGAÇÃO</h1>
+      <p class="page-subtitle">
+        Crie banners profissionais para promover seus serviços, produtos e eventos
+      </p>
+    </div>
+
+    <!-- Tela de Seleção de Cor -->
+    <div class="color-selection-screen" id="colorSelectionScreen">
+      <h2 class="selection-title">🎨 Escolha a Cor do Seu Banner</h2>
+      <p class="selection-subtitle">Selecione a paleta de cores que melhor representa sua marca</p>
+      
+      <div class="colors-grid">
+        <div class="color-card" data-color="roxo">
+          <div class="color-card-image">
+            <img src="images/divulgação/roxo/1.png" alt="Banner Roxo" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🟣</span>
+            </div>
+          </div>
+          <div class="color-card-name">ROXO</div>
+        </div>
+
+        <div class="color-card" data-color="azul">
+          <div class="color-card-image">
+            <img src="images/divulgação/azul/1.png" alt="Banner Azul" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🔵</span>
+            </div>
+          </div>
+          <div class="color-card-name">AZUL</div>
+        </div>
+
+        <div class="color-card" data-color="verde">
+          <div class="color-card-image">
+            <img src="images/divulgação/verde/1.png" alt="Banner Verde" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🟢</span>
+            </div>
+          </div>
+          <div class="color-card-name">VERDE</div>
+        </div>
+
+        <div class="color-card" data-color="vermelho">
+          <div class="color-card-image">
+            <img src="images/divulgação/vermelho/1.png" alt="Banner Vermelho" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🔴</span>
+            </div>
+          </div>
+          <div class="color-card-name">VERMELHO</div>
+        </div>
+
+        <div class="color-card" data-color="laranja">
+          <div class="color-card-image">
+            <img src="images/divulgação/laranja/1.png" alt="Banner Laranja" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🟠</span>
+            </div>
+          </div>
+          <div class="color-card-name">LARANJA</div>
+        </div>
+
+        <div class="color-card" data-color="amarelo">
+          <div class="color-card-image">
+            <img src="images/divulgação/amarelo/1.png" alt="Banner Amarelo" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">🟡</span>
+            </div>
+          </div>
+          <div class="color-card-name">AMARELO</div>
+        </div>
+
+        <div class="color-card" data-color="prata">
+          <div class="color-card-image">
+            <img src="images/divulgação/prata/1.png" alt="Banner Prata" class="color-preview-img">
+            <div class="color-overlay">
+              <span class="color-icon">⚪</span>
+            </div>
+          </div>
+          <div class="color-card-name">PRATA</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Galeria de Banners da Cor Selecionada -->
+    <div class="banners-gallery-section" id="bannersGallerySection">
+      <div class="gallery-header">
+        <button class="btn-back" id="btnBackToColors">← Voltar para Cores</button>
+        <h2 class="gallery-title" id="galleryTitle">🎨 Banners Disponíveis</h2>
+        <p class="gallery-subtitle" id="gallerySubtitle">Escolha um modelo e personalize seu banner</p>
+      </div>
+
+      <div class="banners-grid" id="bannersGrid">
+        <!-- Banners serão carregados dinamicamente aqui -->
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2025 Orion Creator. Todos os direitos reservados.</p>
+  </footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // Configuração Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
+      authDomain: "orion-lab-a9298.firebaseapp.com",
+      projectId: "orion-lab-a9298",
+      storageBucket: "orion-lab-a9298.firebasestorage.app",
+      messagingSenderId: "421847499235",
+      appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
+      databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // ==================== GERENCIAMENTO DE CORES ====================
+    let selectedColor = null;
+    let userLogoUrl = null;
+    let userWhatsapp = null;
+    const BANNERS_PER_COLOR = 20; // Número máximo de banners para tentar carregar
+
+    // Mapa de nomes de cores para exibição
+    const colorNames = {
+      'preto': 'PRETO',
+      'roxo': 'ROXO',
+      'azul': 'AZUL',
+      'verde': 'VERDE',
+      'vermelho': 'VERMELHO',
+      'laranja': 'LARANJA',
+      'amarelo': 'AMARELO',
+      'prata': 'PRATA'
+    };
+
+    // Mapa de nomes personalizados para os modelos
+    const modelNames = {
+      '1': 'Tudo em um único app',
+      '2': 'Pacotes limitados'
+    };
+
+    // Função para carregar banners da cor selecionada
+    async function carregarBannersDaCor(color) {
+      const bannersGrid = document.getElementById('bannersGrid');
+      const galleryTitle = document.getElementById('galleryTitle');
+      const gallerySubtitle = document.getElementById('gallerySubtitle');
+      
+      // Atualizar título
+      galleryTitle.innerHTML = `🎨 Banners ${colorNames[color]}`;
+      gallerySubtitle.textContent = 'Escolha um modelo e personalize com suas informações';
+      
+      // Limpar grid
+      bannersGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #c084fc; padding: 40px;"><div class="loading-spinner"></div><p style="margin-top: 20px;">Carregando banners...</p></div>';
+      
+      // Array para armazenar banners válidos
+      const bannersValidos = [];
+      
+      // Tentar carregar banners de 1 até BANNERS_PER_COLOR
+      for (let i = 1; i <= BANNERS_PER_COLOR; i++) {
+        const imagePath = `images/divulgação/${color}/${i}.png`;
+        
+        // Verificar se a imagem existe
+        const imageExists = await verificarImagemExiste(imagePath);
+        
+        if (imageExists) {
+          bannersValidos.push({
+            numero: i,
+            path: imagePath
+          });
+        }
+      }
+      
+      // Renderizar banners encontrados
+      if (bannersValidos.length > 0) {
+        bannersGrid.innerHTML = '';
+        
+        bannersValidos.forEach(banner => {
+          const bannerItem = criarBannerItem(banner.numero, banner.path, color);
+          bannersGrid.appendChild(bannerItem);
+        });
+      } else {
+        bannersGrid.innerHTML = `
+          <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">😕</div>
+            <h3 style="color: #c084fc; font-size: 1.5rem; margin-bottom: 10px;">Nenhum banner encontrado</h3>
+            <p style="color: rgba(255,255,255,0.6);">Não há banners disponíveis para esta cor no momento.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Função para verificar se uma imagem existe
+    function verificarImagemExiste(imagePath) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = imagePath;
+      });
+    }
+
+    // Função para criar um item de banner
+    function criarBannerItem(numero, imagePath, color) {
+      const item = document.createElement('div');
+      item.className = 'banner-item';
+      
+      item.innerHTML = `
+        <div class="banner-preview-wrapper">
+          <img src="${imagePath}" alt="Banner ${numero}" class="banner-preview-image">
+        </div>
+        <div class="banner-info">
+          <div class="banner-number">${modelNames[numero] || 'Modelo #' + numero}</div>
+          <button class="btn-generate-banner" data-banner="${numero}" data-color="${color}" data-path="${imagePath}">
+            🎨 Gerar Este Banner
+          </button>
+        </div>
+      `;
+      
+      // Adicionar evento de click no botão
+      const btn = item.querySelector('.btn-generate-banner');
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Botão clicado!');
+        
+        const btnElement = e.currentTarget;
+        const bannerNum = btnElement.getAttribute('data-banner');
+        const bannerColor = btnElement.getAttribute('data-color');
+        const bannerPath = btnElement.getAttribute('data-path');
+        
+        console.log('📋 Dados do banner:', { bannerNum, bannerColor, bannerPath });
+        
+        gerarBanner(bannerNum, bannerColor, bannerPath, btnElement);
+      });
+      
+      console.log(`✅ Banner item criado: #${numero}`);
+      
+      return item;
+    }
+
+    // Função para gerar o banner
+    async function gerarBanner(numero, color, imagePath, btnElement) {
+      console.log('🎨 INICIANDO GERAÇÃO DE BANNER');
+      console.log('📋 Parâmetros:', { numero, color, imagePath });
+      
+      const user = auth.currentUser;
+      if (!user) {
+        console.error('❌ Usuário não logado');
+        alert('⚠️ Você precisa estar logado!');
+        return;
+      }
+      
+      console.log('✅ Usuário logado:', user.uid);
+
+      // Verificar se o usuário tem logo
+      console.log('🔍 Verificando logo do usuário:', userLogoUrl ? 'Tem logo' : 'Sem logo');
+      
+      if (!userLogoUrl) {
+        alert('⚠️ Você precisa fazer upload de uma logo primeiro!\n\nAcesse o menu lateral e envie sua logo na seção "IMPORTANTE".');
+        return;
+      }
+
+      // Mostrar loading
+      const originalText = btnElement.innerHTML;
+      btnElement.disabled = true;
+      btnElement.innerHTML = '⏳ Gerando...';
+      btnElement.style.cursor = 'wait';
+      
+      console.log('⏳ Botão em estado de loading');
+
+      try {
+        console.log('🔑 Obtendo token de autenticação...');
+        const token = await user.getIdToken();
+        console.log('✅ Token obtido');
+
+        // Definir posicionamento da logo baseado no número do banner
+        let logoConfig;
+        if (numero == 1) {
+          console.log('📍 Configuração para Banner 1 (3 logos)');
+          // Banner 1: Logo em 3 posições
+          logoConfig = {
+            positions: [
+              {
+                position: 'direita-media',
+                opacity: 1.0,
+                size: 'medio'
+              },
+              {
+                position: 'inferior-esquerda',
+                opacity: 0.1,
+                size: 'medio'
+              },
+              {
+                position: 'superior-esquerda',
+                opacity: 0.12,
+                size: 'grande'
+              }
+            ]
+          };
+        } else if (numero == 2) {
+          console.log('📍 Configuração para Banner 2 (superior direita)');
+          // Banner 2: Logo no canto superior direito
+          logoConfig = {
+            positions: [
+              {
+                position: 'superior-direita',
+                opacity: 1.0,
+                size: 'medio'
+              }
+            ]
+          };
+        } else {
+          console.log('📍 Configuração padrão (centro)');
+          // Outros banners: configuração padrão
+          logoConfig = {
+            positions: [
+              {
+                position: 'centro',
+                opacity: 1.0,
+                size: 'medio'
+              }
+            ]
+          };
+        }
+
+        console.log('🌐 Enviando requisição para API...');
+        console.log('📦 Payload:', {
+          templatePath: imagePath,
+          color: color,
+          modelNumber: numero,
+          logoConfig: logoConfig
+        });
+
+        // Fazer requisição para API
+        const response = await fetch('/api/gerar-banner-divulgacao', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            templatePath: imagePath,
+            logoUrl: userLogoUrl,
+            logoConfig: logoConfig,
+            color: color,
+            modelNumber: numero,
+            whatsapp: userWhatsapp
+          })
+        });
+
+        console.log('📡 Resposta recebida:', response.status);
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('❌ Erro na resposta:', error);
+          throw new Error(error.error || 'Erro ao gerar banner');
+        }
+
+        const data = await response.json();
+        console.log('✅ Banner gerado com sucesso:', data);
+
+        // Mostrar preview do banner gerado
+        mostrarPreviewBanner(data.bannerUrl, color, numero);
+
+      } catch (error) {
+        console.error('❌ ERRO AO GERAR BANNER:', error);
+        alert(`❌ Erro ao gerar banner:\n\n${error.message}`);
+      } finally {
+        btnElement.disabled = false;
+        btnElement.innerHTML = originalText;
+        btnElement.style.cursor = 'pointer';
+        console.log('✅ Botão restaurado');
+      }
+    }
+
+    // Função para mostrar preview do banner gerado
+    function mostrarPreviewBanner(bannerUrl, color, numero) {
+      // Criar modal de preview
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeIn 0.3s ease;
+      `;
+
+      modal.innerHTML = `
+        <div style="max-width: 500px; width: 100%; background: linear-gradient(135deg, rgba(30, 11, 58, 0.95), rgba(46, 16, 101, 0.95)); border-radius: 20px; padding: 25px; border: 2px solid rgba(168, 85, 247, 0.4); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);">
+          <div style="text-align: center; margin-bottom: 15px;">
+            <h3 style="color: #a855f7; font-size: 1.5rem; margin-bottom: 8px;">✅ Banner Gerado!</h3>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">${modelNames[numero] || 'Modelo #' + numero} - ${colorNames[color]}</p>
+          </div>
+          <div style="background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; margin-bottom: 15px;">
+            <img src="${bannerUrl}" alt="Banner Gerado" style="width: 100%; border-radius: 10px; display: block;">
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="btnDownloadBanner" style="flex: 1; min-width: 120px; background: linear-gradient(90deg, #a855f7, #ec4899); color: white; border: none; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease;">
+              ⬇️ Baixar
+            </button>
+            <button id="btnCloseBanner" style="flex: 1; min-width: 120px; background: linear-gradient(90deg, #6366f1, #8b5cf6); color: white; border: none; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease;">
+              ✕ Fechar
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      // Evento de download
+      modal.querySelector('#btnDownloadBanner').addEventListener('click', async () => {
+        try {
+          // Fazer download via fetch para garantir que funciona
+          const response = await fetch(bannerUrl);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `banner-${color}-modelo-${numero}-${Date.now()}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Limpar objeto URL
+          window.URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Erro ao baixar:', error);
+          // Fallback para método direto
+          const link = document.createElement('a');
+          link.href = bannerUrl;
+          link.download = `banner-${color}-modelo-${numero}-${Date.now()}.png`;
+          link.target = '_blank';
+          link.click();
+        }
+      });
+
+      // Evento de fechar
+      modal.querySelector('#btnCloseBanner').addEventListener('click', () => {
+        modal.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => modal.remove(), 300);
+      });
+
+      // Fechar ao clicar fora
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.style.animation = 'fadeOut 0.3s ease';
+          setTimeout(() => modal.remove(), 300);
+        }
+      });
+    }
+
+    // Click nos cards de cor
+    document.querySelectorAll('.color-card').forEach(card => {
+      card.addEventListener('click', async function() {
+        const color = this.getAttribute('data-color');
+        
+        selectedColor = color;
+        
+        // Adiciona efeito visual de seleção
+        this.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          this.style.transform = '';
+        }, 200);
+        
+        // Esconder tela de seleção de cores
+        document.getElementById('colorSelectionScreen').style.display = 'none';
+        
+        // Mostrar galeria de banners
+        document.getElementById('bannersGallerySection').classList.add('active');
+        
+        // Carregar banners da cor
+        await carregarBannersDaCor(color);
+        
+        // Scroll para o topo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+
+    // Botão voltar para cores
+    document.getElementById('btnBackToColors').addEventListener('click', () => {
+      document.getElementById('bannersGallerySection').classList.remove('active');
+      document.getElementById('colorSelectionScreen').style.display = 'block';
+      selectedColor = null;
+      
+      // Scroll para o topo
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // ==================== GERENCIAMENTO DE LOGO E WHATSAPP ====================
+    // Função para atualizar contador de uploads
+    async function atualizarContadorUploads(uid) {
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "usuarios/" + uid));
+        
+        if (snapshot.exists()) {
+          const dados = snapshot.val();
+          const uploadsRestantes = dados.uploads_restantes || 2;
+          const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+          
+          document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
+          
+          if (dataReset) {
+            document.getElementById('dataReset').textContent = dataReset.toLocaleDateString('pt-BR');
+          }
+          
+          // Desabilitar botão se não tiver uploads restantes
+          const btnUpload = document.getElementById('btnUploadLogo');
+          if (uploadsRestantes <= 0) {
+            btnUpload.disabled = true;
+            btnUpload.textContent = 'Limite Atingido';
+          } else {
+            btnUpload.disabled = false;
+            btnUpload.textContent = 'Enviar Logo';
+          }
+          
+          // Carregar logo do usuário (logo_url é o base64)
+          const logoImg = document.getElementById('logoPreviewImg');
+          const logoPlaceholder = document.getElementById('logoPlaceholder');
+          
+          if (dados.logo_url) {
+            userLogoUrl = dados.logo_url;
+            if (logoImg) {
+              logoImg.src = dados.logo_url;
+              logoImg.style.display = 'block';
+            }
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'none';
+            }
+            console.log('✅ Logo carregada do Firebase:', dados.logo_url.substring(0, 50) + '...');
+          } else {
+            // Sem logo personalizada
+            if (logoImg) logoImg.style.display = 'none';
+            if (logoPlaceholder) {
+              logoPlaceholder.style.display = 'block';
+              logoPlaceholder.textContent = 'Nenhuma logo';
+            }
+            console.log('ℹ️ Usuário não possui logo personalizada');
+          }
+          
+          // Mostrar WhatsApp se existir
+          if (dados.whatsapp) {
+            userWhatsapp = dados.whatsapp;
+            document.getElementById('whatsappInput').value = dados.whatsapp;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados do usuário:', error);
+      }
+    }
+
+    // Função para resetar contador mensalmente
+    async function verificarResetMensal(uid) {
+      const dbRef = ref(db);
+      const snapshot = await get(child(dbRef, "usuarios/" + uid));
+      
+      if (snapshot.exists()) {
+        const dados = snapshot.val();
+        const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
+        const hoje = new Date();
+        
+        // Se não tem data de reset ou passou de 30 dias, reseta
+        if (!dataReset || hoje >= dataReset) {
+          const proximoReset = new Date();
+          proximoReset.setDate(proximoReset.getDate() + 30);
+          
+          await update(ref(db, "usuarios/" + uid), {
+            uploads_restantes: 2,
+            data_reset_logo: proximoReset.toISOString()
+          });
+          
+          atualizarContadorUploads(uid);
+        }
+      }
+    }
+
+    // Upload de logo
+    document.getElementById('btnUploadLogo').addEventListener('click', () => {
+      document.getElementById('logoUpload').click();
+    });
+
+    document.getElementById('logoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const user = auth.currentUser;
+      if (!user) {
+        alert("⚠️ Você precisa estar logado para fazer upload!");
+        return;
+      }
+
+      // Validações
+      if (!file.type.startsWith('image/')) {
+        alert("⚠️ Por favor, selecione uma imagem válida!");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert("⚠️ A imagem deve ter no máximo 5MB!");
+        return;
+      }
+
+      try {
+        // Converter para base64
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Image = event.target.result;
+
+          // Salvar no Firebase Realtime Database
+          await update(ref(db, "usuarios/" + user.uid), {
+            logo_url: base64Image,
+            uploads_restantes: (await get(child(ref(db), "usuarios/" + user.uid))).val().uploads_restantes - 1
+          });
+
+          userLogoUrl = base64Image;
+
+          // Atualizar preview
+          document.getElementById('logoPreviewImg').src = base64Image;
+          document.getElementById('logoPreviewImg').style.display = 'block';
+          document.getElementById('logoPlaceholder').style.display = 'none';
+
+          alert("✅ Logo enviada com sucesso!");
+          await atualizarContadorUploads(user.uid);
+        };
+
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("❌ Erro ao fazer upload:", error);
+        alert("❌ Erro ao enviar logo. Tente novamente!");
+      }
+    });
+
+    // Salvar WhatsApp
+    document.getElementById('btnSalvarWhatsapp').addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("⚠️ Você precisa estar logado!");
+        return;
+      }
+
+      const whatsapp = document.getElementById('whatsappInput').value;
+
+      if (!whatsapp || whatsapp.length < 14) {
+        alert("⚠️ Por favor, insira um número válido!");
+        return;
+      }
+
+      try {
+        await update(ref(db, "usuarios/" + user.uid), {
+          whatsapp: whatsapp
+        });
+
+        userWhatsapp = whatsapp;
+        alert("✅ WhatsApp salvo com sucesso!");
+      } catch (error) {
+        console.error("❌ Erro ao salvar WhatsApp:", error);
+        alert("❌ Erro ao salvar WhatsApp. Tente novamente!");
+      }
+    });
+
+    // Máscara para WhatsApp
+    document.getElementById('whatsappInput').addEventListener('input', (e) => {
+      let value = e.target.value.replace(/\D/g, '');
+      
+      if (value.length <= 11) {
+        if (value.length <= 2) {
+          e.target.value = value;
+        } else if (value.length <= 7) {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
+        } else {
+          e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+        }
+      }
+    });
+
+    // ==================== AUTENTICAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = "index.html";
+        return;
+      }
+      
+      // Verificar e resetar contador mensal
+      await verificarResetMensal(user.uid);
+      
+      // Atualizar informações de logo e WhatsApp
+      await atualizarContadorUploads(user.uid);
+    });
+
+    // Logout
+    document.getElementById("sidebar-logout").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "index.html";
+    });
+    
+    // ==================== MENU SIDEBAR ====================
+    const menuToggle = document.getElementById("menu-toggle");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarOverlay = document.getElementById("sidebarOverlay");
+    
+    function toggleMenu() {
+      sidebar.classList.toggle("active");
+      sidebarOverlay.classList.toggle("active");
+      document.body.style.overflow = sidebar.classList.contains("active") ? "hidden" : "";
+    }
+    
+    menuToggle.addEventListener("click", toggleMenu);
+    sidebarOverlay.addEventListener("click", toggleMenu);
+    
+    // Fechar ao clicar em link
+    sidebar.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", () => {
+        if (window.innerWidth <= 768) toggleMenu();
+      });
+    });
+  </script>
+</body>
+</html>
