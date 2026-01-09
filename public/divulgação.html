@@ -1219,16 +1219,20 @@
         console.log('📡 Resposta recebida:', response.status);
 
         if (!response.ok) {
-          const error = await response.json();
-          console.error('❌ Erro na resposta:', error);
-          throw new Error(error.error || 'Erro ao gerar banner');
+          const errorText = await response.text();
+          console.error('❌ Erro na resposta:', errorText);
+          throw new Error(errorText || 'Erro ao gerar banner');
         }
 
-        const data = await response.json();
-        console.log('✅ Banner gerado com sucesso:', data);
+        // Receber o banner como blob (arquivo binário)
+        const blob = await response.blob();
+        console.log('✅ Banner gerado com sucesso (blob size:', blob.size, 'bytes)');
+
+        // Criar URL temporária do blob para preview e download
+        const blobUrl = window.URL.createObjectURL(blob);
 
         // Mostrar preview do banner gerado
-        mostrarPreviewBanner(data.bannerUrl, color, numero);
+        mostrarPreviewBanner(blobUrl, color, numero, blob);
 
       } catch (error) {
         console.error('❌ ERRO AO GERAR BANNER:', error);
@@ -1242,7 +1246,7 @@
     }
 
     // Função para mostrar preview do banner gerado
-    function mostrarPreviewBanner(bannerUrl, color, numero) {
+    function mostrarPreviewBanner(blobUrl, color, numero, blob) {
       // Criar modal de preview
       const modal = document.createElement('div');
       modal.style.cssText = `
@@ -1265,7 +1269,7 @@
             <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">${modelNames[numero] || 'Modelo #' + numero} - ${colorNames[color]}</p>
           </div>
           <div style="background: rgba(0,0,0,0.3); border-radius: 15px; padding: 15px; margin-bottom: 15px;">
-            <img src="${bannerUrl}" alt="Banner Gerado" style="width: 100%; border-radius: 10px; display: block;">
+            <img src="${blobUrl}" alt="Banner Gerado" style="width: 100%; border-radius: 10px; display: block;">
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button id="btnDownloadBanner" style="flex: 1; min-width: 120px; background: linear-gradient(90deg, #a855f7, #ec4899); color: white; border: none; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.3s ease;">
@@ -1280,45 +1284,39 @@
 
       document.body.appendChild(modal);
 
-      // Evento de download
-      modal.querySelector('#btnDownloadBanner').addEventListener('click', async () => {
+      // Evento de download - usar o blob diretamente
+      modal.querySelector('#btnDownloadBanner').addEventListener('click', () => {
         try {
-          // Fazer download via fetch para garantir que funciona
-          const response = await fetch(bannerUrl);
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          
           const link = document.createElement('a');
-          link.href = url;
+          link.href = blobUrl;
           link.download = `banner-${color}-modelo-${numero}-${Date.now()}.png`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          
-          // Limpar objeto URL
-          window.URL.revokeObjectURL(url);
+          console.log('✅ Download iniciado');
         } catch (error) {
-          console.error('Erro ao baixar:', error);
-          // Fallback para método direto
-          const link = document.createElement('a');
-          link.href = bannerUrl;
-          link.download = `banner-${color}-modelo-${numero}-${Date.now()}.png`;
-          link.target = '_blank';
-          link.click();
+          console.error('❌ Erro ao baixar:', error);
+          alert('Erro ao baixar o banner. Tente novamente.');
         }
       });
 
-      // Evento de fechar
+      // Evento de fechar - limpar a URL do blob
       modal.querySelector('#btnCloseBanner').addEventListener('click', () => {
         modal.style.animation = 'fadeOut 0.3s ease';
-        setTimeout(() => modal.remove(), 300);
+        setTimeout(() => {
+          window.URL.revokeObjectURL(blobUrl);
+          modal.remove();
+        }, 300);
       });
 
-      // Fechar ao clicar fora
+      // Fechar ao clicar fora - limpar a URL do blob
       modal.addEventListener('click', (e) => {
         if (e.target === modal) {
           modal.style.animation = 'fadeOut 0.3s ease';
-          setTimeout(() => modal.remove(), 300);
+          setTimeout(() => {
+            window.URL.revokeObjectURL(blobUrl);
+            modal.remove();
+          }, 300);
         }
       });
     }

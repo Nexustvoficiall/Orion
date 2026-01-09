@@ -2977,42 +2977,13 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
       .png()
       .toBuffer();
 
-    console.log('✅ Banner composto com sucesso');
+    console.log('✅ Banner composto com sucesso - enviando para download direto');
 
-    // Upload para Cloudinary
-    const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: "banners_divulgacao",
-          public_id: `${req.uid}_${color}_${modelNumber}_${Date.now()}`,
-          resource_type: "image"
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(finalImage);
-    });
-
-    console.log(`✅ Banner enviado para Cloudinary: ${uploadResult.secure_url}`);
-
-    // Salvar no Firestore
-    const bannerRef = db.collection("banners_divulgacao").doc();
-    await bannerRef.set({
-      userId: req.uid,
-      bannerUrl: uploadResult.secure_url,
-      publicId: uploadResult.public_id,
-      color: color,
-      modelNumber: modelNumber,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
-    });
-
-    res.json({
-      success: true,
-      bannerUrl: uploadResult.secure_url,
-      message: "Banner gerado com sucesso!"
-    });
+    // Retornar o banner diretamente como imagem para download
+    // Não salvar no Cloudinary nem no Firestore - apenas gerar e baixar
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="banner_divulgacao_${color}_modelo${modelNumber}_${Date.now()}.png"`);
+    res.send(finalImage);
 
   } catch (error) {
     console.error("❌ Erro ao gerar banner de divulgação:", error);
