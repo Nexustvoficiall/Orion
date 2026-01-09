@@ -938,7 +938,7 @@
     let selectedColor = null;
     let userLogoUrl = null;
     let userWhatsapp = null;
-    const BANNERS_PER_COLOR = 20; // Número máximo de banners para tentar carregar
+    const BANNERS_PER_COLOR = 5; // Apenas modelos 1-5 com posições configuradas
 
     // Mapa de nomes de cores para exibição
     const colorNames = {
@@ -1178,17 +1178,9 @@
             ]
           };
         } else {
-          console.log('📍 Configuração padrão (centro)');
-          // Outros banners: configuração padrão
-          logoConfig = {
-            positions: [
-              {
-                position: 'centro',
-                opacity: 1.0,
-                size: 'medio'
-              }
-            ]
-          };
+          console.error('❌ Modelo não configurado:', numero);
+          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-5.');
+          return;
         }
 
         console.log('🌐 Enviando requisição para API...');
