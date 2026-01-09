@@ -2882,6 +2882,7 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
         let logoWidth = Math.floor(templateWidth * 0.18);
         if (size === 'pequeno') logoWidth = Math.floor(templateWidth * 0.12);
         if (size === 'grande') logoWidth = Math.floor(templateWidth * 0.25);
+        if (size === 'medio-grande') logoWidth = Math.floor(templateWidth * 0.19);
 
         // Redimensionar logo mantendo proporção
         const resizedLogo = await sharp(logoBuffer)
@@ -2906,7 +2907,7 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
             break;
           
           case 'superior-esquerda':
-            left = margin;
+            left = Math.floor(margin * 0.5);
             top = Math.floor(margin * 0.5);
             break;
           
@@ -2920,6 +2921,24 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
           case 'inferior-esquerda':
             left = margin;
             top = templateHeight - logoHeight - margin;
+            break;
+          
+          case 'inferior-esquerda-diagonal':
+            // Posição diagonal: mais para esquerda e efeito diagonal mais pronunciado
+            left = Math.floor(margin * 0.5);
+            top = templateHeight - logoHeight - Math.floor(margin * 2.8);
+            break;
+          
+          case 'inferior-direita':
+            left = templateWidth - logoWidth - margin;
+            top = templateHeight - logoHeight - Math.floor(margin * 0.2);
+            break;
+          
+          case 'inferior-direita-esquerda':
+            // Logo no inferior direito, mais à esquerda e bem embaixo
+            left = templateWidth - logoWidth - Math.floor(margin * 7.8);
+            top = templateHeight - logoHeight;
+            console.log(`🎯 Posição inferior-direita-esquerda: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
             break;
           
           case 'centro':

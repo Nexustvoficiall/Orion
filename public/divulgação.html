@@ -955,7 +955,10 @@
     // Mapa de nomes personalizados para os modelos
     const modelNames = {
       '1': 'Tudo em um único app',
-      '2': 'Pacotes limitados'
+      '2': 'Pacotes limitados',
+      '3': 'Conteúdo infantil',
+      '4': 'O melhor do streaming',
+      '5': 'Vamos maratonar'
     };
 
     // Função para carregar banners da cor selecionada
@@ -1124,6 +1127,52 @@
               {
                 position: 'superior-direita',
                 opacity: 1.0,
+                size: 'medio'
+              }
+            ]
+          };
+        } else if (numero == 3) {
+          console.log('📍 Configuração para Banner 3 (superior esquerda + inferior direita)');
+          // Banner 3: Logo no canto superior esquerdo (100% opacidade) + inferior direito (18% opacidade, maior)
+          logoConfig = {
+            positions: [
+              {
+                position: 'superior-esquerda',
+                opacity: 1.0,
+                size: 'medio'
+              },
+              {
+                position: 'inferior-direita',
+                opacity: 0.18,
+                size: 'grande'
+              }
+            ]
+          };
+        } else if (numero == 4) {
+          console.log('📍 Configuração para Banner 4 (inferior direita levemente à esquerda)');
+          // Banner 4: Logo no canto inferior direito, levemente à esquerda
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-direita-esquerda',
+                opacity: 1.0,
+                size: 'medio-grande'
+              }
+            ]
+          };
+        } else if (numero == 5) {
+          console.log('📍 Configuração para Banner 5 (inferior direito + inferior esquerdo diagonal)');
+          // Banner 5: Logo no canto inferior direito (100%) + inferior esquerdo (18% diagonal)
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-direita',
+                opacity: 1.0,
+                size: 'medio'
+              },
+              {
+                position: 'inferior-esquerda-diagonal',
+                opacity: 0.18,
                 size: 'medio'
               }
             ]
