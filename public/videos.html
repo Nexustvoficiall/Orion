@@ -414,12 +414,12 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0, 0, 0, 0.92);
       z-index: 9999;
       align-items: center;
       justify-content: center;
       padding: 18px;
-      backdrop-filter: blur(5px);
+      backdrop-filter: blur(20px);
       overflow: hidden;
     }
 
@@ -445,19 +445,36 @@
     .modal-content {
       width: 100%;
       max-width: 900px;
-      border-radius: 24px;
+      border-radius: 20px;
       overflow: hidden;
       position: relative;
       display: grid;
       grid-template-columns: 360px 1fr;
       gap: 0;
       padding: 0;
-      background: linear-gradient(135deg, rgba(20, 10, 40, 0.98), rgba(10, 5, 20, 0.98));
-      backdrop-filter: blur(30px) saturate(150%);
-      border: 2px solid rgba(192, 132, 252, 0.3);
-      box-shadow: 0 50px 150px rgba(107, 33, 168, 0.5), 
-                  0 0 100px rgba(168, 85, 247, 0.2) inset;
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.95) 0%, rgba(46, 16, 101, 0.95) 100%);
+      backdrop-filter: blur(20px);
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.6),
+        0 0 60px rgba(168, 85, 247, 0.15);
       max-height: 92vh;
+      transition: all 0.3s ease;
+    }
+
+    .modal-content::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(168, 85, 247, 0.1) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .modal-content:hover::before {
+      opacity: 1;
     }
 
     .modal-content.full-step {
@@ -494,17 +511,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(180deg, rgba(107, 33, 168, 0.1), rgba(0, 0, 0, 0.5));
+      background: linear-gradient(180deg, rgba(30, 11, 58, 0.3), rgba(46, 16, 101, 0.5));
       overflow: hidden;
       position: relative;
+      z-index: 1;
     }
 
     .modal-left::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.15), transparent 70%);
+      background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.2), transparent 70%);
       pointer-events: none;
+      z-index: 2;
     }
 
     .modal-content.full-step .modal-left {
@@ -529,7 +548,8 @@
       position: relative;
       overflow-y: auto;
       overflow-x: hidden;
-      background: linear-gradient(180deg, rgba(15, 5, 30, 0.5), rgba(5, 0, 15, 0.8));
+      background: transparent;
+      z-index: 3;
     }
     
     .modal-right::-webkit-scrollbar {
@@ -582,28 +602,32 @@
       position: absolute;
       right: 20px;
       top: 20px;
-      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(107, 33, 168, 0.5));
-      border: 2px solid rgba(192, 132, 252, 0.4);
+      background: linear-gradient(135deg, rgba(30, 11, 58, 0.9), rgba(46, 16, 101, 0.9));
+      border: 2px solid rgba(168, 85, 247, 0.5);
       color: #fff;
       font-size: 22px;
       cursor: pointer;
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      z-index: 100;
+      z-index: 1000;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(107, 33, 168, 0.4);
+      box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(168, 85, 247, 0.3);
     }
 
     .close-btn:hover {
-      background: linear-gradient(135deg, rgba(192, 132, 252, 0.6), rgba(168, 85, 247, 0.7));
-      border-color: rgba(192, 132, 252, 0.8);
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.9), rgba(107, 33, 168, 0.9));
+      border-color: #a855f7;
       transform: scale(1.15) rotate(90deg);
-      box-shadow: 0 6px 25px rgba(168, 85, 247, 0.6);
+      box-shadow: 
+        0 6px 25px rgba(0, 0, 0, 0.8),
+        0 0 40px rgba(168, 85, 247, 0.6);
     }
 
     /* SELETOR DE CORES - QUADRADINHOS */
@@ -3817,7 +3841,7 @@
     async function generateSingleBanner(item, duration, quality) {
       let timerInterval; // Declarar no início do escopo
       try {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await videoAuth.currentUser?.getIdToken();
         if (!token) throw new Error('Usuário não autenticado');
         
         // Iniciar cronômetro

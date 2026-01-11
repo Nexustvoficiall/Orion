@@ -1846,7 +1846,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '1200k', audio: '64k', bufsize: '1500k' },
           60: { video: '900k', audio: '64k', bufsize: '1200k' },
-          90: { video: '700k', audio: '64k', bufsize: '1000k' }
+          90: { video: '550k', audio: '64k', bufsize: '800k' }
         },
         // Download quality
         ytdlpFormat: 'best[height<=480]',
@@ -1866,7 +1866,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '2500k', audio: '96k', bufsize: '3000k' },
           60: { video: '1800k', audio: '96k', bufsize: '2500k' },
-          90: { video: '1200k', audio: '96k', bufsize: '1800k' }
+          90: { video: '800k', audio: '96k', bufsize: '1200k' }
         },
         ytdlpFormat: 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]',
         estimatedTime: '~1 minuto'
@@ -1885,7 +1885,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '6000k', audio: '128k', bufsize: '8000k' },
           60: { video: '4500k', audio: '128k', bufsize: '6000k' },
-          90: { video: '3500k', audio: '128k', bufsize: '5000k' }
+          90: { video: '850k', audio: '96k', bufsize: '1200k' }
         },
         ytdlpFormat: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]',
         estimatedTime: '~2 minutos'
@@ -2320,8 +2320,8 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     
     // 4. Criar overlay com textos (título se não houver logo, sinopse, metadados)
     // Título abaixo do trailer/backdrop
-    const wrapChars = Math.round(22 / scaleFactor); // Ajustar wrap para resolução
-    const titleLines = logoUrl ? [] : wrapText(titulo.toUpperCase(), Math.max(15, wrapChars));
+    const wrapChars = Math.round(18 / scaleFactor); // Quebra melhor do título
+    const titleLines = logoUrl ? [] : wrapText(titulo.toUpperCase(), Math.max(12, wrapChars));
     const baseTitleFontSize = titulo.length > 30 ? 38 : titulo.length > 20 ? 44 : 50;
     const titleFontSize = Math.round(baseTitleFontSize * scaleFactor);
     
@@ -2342,7 +2342,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     
     // Dimensões escaladas para SVG
     const svgPadding = Math.round(60 * scaleFactor);
-    const titleY = Math.round(740 * scaleFactor);
+    const titleY = Math.round(880 * scaleFactor);
     const synopLineHeight = Math.round(36 * scaleFactor);
     // Sinopse Y dinâmico - ajusta conforme o número de linhas
     const synopTotalHeight = synopLines.length * synopLineHeight;
