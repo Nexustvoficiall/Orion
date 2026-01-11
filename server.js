@@ -1846,7 +1846,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '1200k', audio: '64k', bufsize: '1500k' },
           60: { video: '900k', audio: '64k', bufsize: '1200k' },
-          90: { video: '550k', audio: '64k', bufsize: '800k' }
+          90: { video: '520k', audio: '64k', bufsize: '750k' }
         },
         // Download quality
         ytdlpFormat: 'best[height<=480]',
@@ -1866,7 +1866,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '2500k', audio: '96k', bufsize: '3000k' },
           60: { video: '1800k', audio: '96k', bufsize: '2500k' },
-          90: { video: '800k', audio: '96k', bufsize: '1200k' }
+          90: { video: '750k', audio: '64k', bufsize: '1000k' }
         },
         ytdlpFormat: 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]',
         estimatedTime: '~1 minuto'
@@ -1877,7 +1877,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         height: 1080,
         verticalWidth: 1080,
         verticalHeight: 1920,
-        crf: 23,
+        crf: 25,
         preset: 'medium',
         tune: 'film',
         profile: 'high',
@@ -1885,7 +1885,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         bitrates: {
           30: { video: '6000k', audio: '128k', bufsize: '8000k' },
           60: { video: '4500k', audio: '128k', bufsize: '6000k' },
-          90: { video: '850k', audio: '96k', bufsize: '1200k' }
+          90: { video: '700k', audio: '64k', bufsize: '950k' }
         },
         ytdlpFormat: 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]',
         estimatedTime: '~2 minutos'
