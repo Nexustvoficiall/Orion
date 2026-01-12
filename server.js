@@ -2929,6 +2929,13 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
             top = templateHeight - logoHeight - Math.floor(margin * 2.8);
             break;
           
+          case 'inferior-esquerda-baixo-diagonal':
+            // Posição diagonal mais à esquerda e mais baixa
+            left = Math.floor(margin * 0.02);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.15);
+            console.log(`🎯 Posição inferior-esquerda-baixo-diagonal: left=${left}, top=${top}`);
+            break;
+          
           case 'inferior-direita':
             left = templateWidth - logoWidth - margin;
             top = templateHeight - logoHeight - Math.floor(margin * 0.2);
@@ -2939,6 +2946,13 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
             left = templateWidth - logoWidth - Math.floor(margin * 7.8);
             top = templateHeight - logoHeight;
             console.log(`🎯 Posição inferior-direita-esquerda: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'inferior-direita-elevado':
+            // Logo no inferior direito, levemente para cima
+            left = templateWidth - logoWidth - margin;
+            top = templateHeight - logoHeight - Math.floor(margin * 2.5);
+            console.log(`🎯 Posição inferior-direita-elevado: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
             break;
           
           case 'centro':

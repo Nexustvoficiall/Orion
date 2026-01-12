@@ -938,7 +938,7 @@
     let selectedColor = null;
     let userLogoUrl = null;
     let userWhatsapp = null;
-    const BANNERS_PER_COLOR = 5; // Apenas modelos 1-5 com posições configuradas
+    const BANNERS_PER_COLOR = 7; // Modelos 1-7 com posições configuradas
 
     // Mapa de nomes de cores para exibição
     const colorNames = {
@@ -958,7 +958,9 @@
       '2': 'Pacotes limitados',
       '3': 'Conteúdo infantil',
       '4': 'O melhor do streaming',
-      '5': 'Vamos maratonar'
+      '5': 'Vamos maratonar',
+      '6': 'Para toda Familia',
+      '7': 'Todas as animações'
     };
 
     // Função para carregar banners da cor selecionada
@@ -1177,9 +1179,38 @@
               }
             ]
           };
+        } else if (numero == 6) {
+          console.log('📍 Configuração para Banner 6 (inferior direito 100% + inferior esquerdo 18% grande diagonal)');
+          // Banner 6: Logo no canto inferior direito (100% opacidade) + inferior esquerdo (18% opacidade, maior, diagonal)
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-direita',
+                opacity: 1.0,
+                size: 'medio'
+              },
+              {
+                position: 'inferior-esquerda-baixo-diagonal',
+                opacity: 0.18,
+                size: 'grande'
+              }
+            ]
+          };
+        } else if (numero == 7) {
+          console.log('📍 Configuração para Banner 7 (inferior direito levemente para cima)');
+          // Banner 7: Logo no canto inferior direito levemente para cima
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-direita-elevado',
+                opacity: 1.0,
+                size: 'medio'
+              }
+            ]
+          };
         } else {
           console.error('❌ Modelo não configurado:', numero);
-          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-5.');
+          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-7.');
           return;
         }
 
