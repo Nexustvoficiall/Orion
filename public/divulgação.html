@@ -938,7 +938,7 @@
     let selectedColor = null;
     let userLogoUrl = null;
     let userWhatsapp = null;
-    const BANNERS_PER_COLOR = 7; // Modelos 1-7 com posições configuradas
+    const BANNERS_PER_COLOR = 10; // Modelos 1-10 com posições configuradas
 
     // Mapa de nomes de cores para exibição
     const colorNames = {
@@ -960,7 +960,10 @@
       '4': 'O melhor do streaming',
       '5': 'Vamos maratonar',
       '6': 'Para toda Familia',
-      '7': 'Todas as animações'
+      '7': 'Todas as animações',
+      '8': 'Tudo na sua TV',
+      '9': 'Canais 24hr',
+      '10': 'Indicação'
     };
 
     // Função para carregar banners da cor selecionada
@@ -1208,9 +1211,50 @@
               }
             ]
           };
+        } else if (numero == 8) {
+          console.log('📍 Configuração para Banner 8 - Tudo na sua TV (rodapé + marca d\'agua)');
+          // Banner 8: Logo principal no rodapé + marca d'água superior esquerda
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-esquerda-rodape',
+                opacity: 1.0,
+                size: 'medio-grande'
+              },
+              {
+                position: 'superior-esquerda',
+                opacity: 0.18,
+                size: 'grande'
+              }
+            ]
+          };
+        } else if (numero == 9) {
+          console.log('📍 Configuração para Banner 9 - Canais 24hr (centro inferior rodapé bem embaixo)');
+          // Banner 9: Logo no centro inferior, bem no rodapé
+          logoConfig = {
+            positions: [
+              {
+                position: 'centro-inferior-rodape-baixo',
+                opacity: 1.0,
+                size: 'medio-grande'
+              }
+            ]
+          };
+        } else if (numero == 10) {
+          console.log('📍 Configuração para Banner 10 - Indicação (inferior esquerdo)');
+          // Banner 10: Logo no canto inferior esquerdo
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-esquerda-extremo',
+                opacity: 1.0,
+                size: 'medio-grande'
+              }
+            ]
+          };
         } else {
           console.error('❌ Modelo não configurado:', numero);
-          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-7.');
+          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-10.');
           return;
         }
 

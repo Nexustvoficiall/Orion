@@ -2955,6 +2955,48 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
             console.log(`🎯 Posição inferior-direita-elevado: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
             break;
           
+          case 'inferior-esquerda-direita':
+            // Banner 8: Logo no inferior esquerdo, mais para direita e para baixo
+            left = Math.floor(margin * 4.5);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.3);
+            console.log(`🎯 Posição inferior-esquerda-direita: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'centro-inferior-rodape':
+            // Banner 8: Logo centralizado no rodapé inferior
+            left = Math.floor((templateWidth - logoWidth) / 2);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.5);
+            console.log(`🎯 Posição centro-inferior-rodape: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'centro-inferior-rodape-baixo':
+            // Banner 9: Logo centralizado no rodapé inferior, mais embaixo
+            left = Math.floor((templateWidth - logoWidth) / 2);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.05);
+            console.log(`🎯 Posição centro-inferior-rodape-baixo: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'inferior-esquerda-rodape':
+            // Banner 8: Logo próxima ao centro no rodapé, levemente à direita
+            left = Math.floor((templateWidth - logoWidth) / 2) - Math.floor(logoWidth * 0.5);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.1);
+            console.log(`🎯 Posição inferior-esquerda-rodape: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'inferior-esquerda-baixo':
+            // Logo no inferior esquerdo, mais para esquerda e bem embaixo
+            left = Math.floor(margin * 0.3);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.2);
+            console.log(`🎯 Posição inferior-esquerda-baixo: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
+          case 'inferior-esquerda-extremo':
+            // Banner 10: Logo no inferior esquerdo extremo
+            left = Math.floor(margin * 0.1);
+            top = templateHeight - logoHeight - Math.floor(margin * 0.2);
+            console.log(`🎯 Posição inferior-esquerda-extremo: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
           case 'centro':
           default:
             left = Math.floor((templateWidth - logoWidth) / 2);
