@@ -938,7 +938,7 @@
     let selectedColor = null;
     let userLogoUrl = null;
     let userWhatsapp = null;
-    const BANNERS_PER_COLOR = 10; // Modelos 1-10 com posições configuradas
+    const BANNERS_PER_COLOR = 11; // Modelos 1-11 com posições configuradas
 
     // Mapa de nomes de cores para exibição
     const colorNames = {
@@ -963,7 +963,8 @@
       '7': 'Todas as animações',
       '8': 'Tudo na sua TV',
       '9': 'Canais 24hr',
-      '10': 'Indicação'
+      '10': 'Indicação',
+      '11': 'Tudo em 1 só lugar'
     };
 
     // Função para carregar banners da cor selecionada
@@ -1252,9 +1253,26 @@
               }
             ]
           };
+        } else if (numero == 11) {
+          console.log('📍 Configuração para Banner 11 - Tudo em 1 só lugar (inferior esquerdo + marca d\'água direita)');
+          // Banner 11: Logo no canto inferior esquerdo + marca d'água inferior direita
+          logoConfig = {
+            positions: [
+              {
+                position: 'inferior-esquerda-baixo-m11',
+                opacity: 1.0,
+                size: 'medio-grande'
+              },
+              {
+                position: 'inferior-direita',
+                opacity: 0.18,
+                size: 'medio'
+              }
+            ]
+          };
         } else {
           console.error('❌ Modelo não configurado:', numero);
-          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-10.');
+          alert('⚠️ Este modelo não está disponível. Use apenas modelos 1-11.');
           return;
         }
 

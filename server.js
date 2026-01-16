@@ -1,3 +1,9 @@
+// PIX Payments Store (memória temporária)
+// Removido: declaração duplicada de pixPayments
+
+
+
+// A definição da rota foi movida para depois da inicialização do app
 // server.js (Orion Creator API 2.8.22 - VIDEO GENERATION WITH PROGRESS)
 // VERSÃO: MELHORIAS RIGEL, BELTEGUESE, BELLATRIX + GERAÇÃO DE VÍDEOS + SOCKET.IO PROGRESS
 
@@ -39,7 +45,6 @@ const __dirname = dirname(__filename);
 
 const requiredEnvVars = [
   "TMDB_KEY",
-  "PORT",
   "FIREBASE_PROJECT_ID",
   "FIREBASE_PRIVATE_KEY",
   "FIREBASE_CLIENT_EMAIL",
@@ -78,6 +83,7 @@ const db = getFirestore();
 const rtdb = getDatabase();
 
 const app = express();
+// ... PIX endpoints definidos mais abaixo (implementação completa)
 const PORT = process.env.PORT || 8080; // Fly.io e outras plataformas usam portas variáveis
 
 const fanartService = new FanartService(process.env.FANART_API_KEY);
@@ -2997,6 +3003,13 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
             console.log(`🎯 Posição inferior-esquerda-extremo: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
             break;
           
+          case 'inferior-esquerda-baixo-m11':
+            // Banner 11: Logo no inferior esquerdo, bem embaixo
+            left = margin;
+            top = templateHeight - logoHeight - Math.floor(margin * 0.1);
+            console.log(`🎯 Posição inferior-esquerda-baixo-m11: left=${left}, top=${top}, templateSize=${templateWidth}x${templateHeight}, logoSize=${logoWidth}x${logoHeight}`);
+            break;
+          
           case 'centro':
           default:
             left = Math.floor((templateWidth - logoWidth) / 2);
@@ -3083,6 +3096,275 @@ process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
   process.exit(1);
 });
+
+// ============================================================================
+// 💳 MERCADO PAGO PIX - ENDPOINTS DE PAGAMENTO
+// ============================================================================
+
+// Rate limiter para PIX (evita abusos)
+const pixLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 30, // máximo 30 requisições
+  message: { error: "Muitas tentativas de pagamento. Aguarde alguns minutos." }
+});
+
+// Store de pagamentos PIX (em produção usar Redis ou banco)
+const pixPayments = new Map();
+
+// Limpar pagamentos antigos a cada 30 minutos
+setInterval(() => {
+  const now = Date.now();
+  let removed = 0;
+  for (const [id, payment] of pixPayments.entries()) {
+    if (now - payment.createdAt > 30 * 60 * 1000) { // 30 minutos
+      pixPayments.delete(id);
+      removed++;
+    }
+  }
+  if (removed > 0) console.log(`🧹 PIX: ${removed} pagamentos expirados removidos`);
+}, 30 * 60 * 1000);
+
+// POST /api/criar-pix - Criar pagamento PIX via Mercado Pago
+app.post("/api/criar-pix", pixLimiter, async (req, res) => {
+  try {
+    const { plano, valor, dias, email, userId } = req.body;
+    
+    if (!plano || !valor || !dias) {
+      return res.status(400).json({ error: "Dados incompletos. Informe plano, valor e dias." });
+    }
+    
+    // Validar valores dos planos
+    const planosValidos = {
+      mensal: 35.00,
+      trimestral: 99.90,
+      semestral: 169.90,
+      anual: 250.00
+    };
+    
+    if (!planosValidos[plano] || Math.abs(planosValidos[plano] - valor) > 0.01) {
+      return res.status(400).json({ error: "Plano ou valor inválido." });
+    }
+    
+    // Token do Mercado Pago (adicionar no .env: MERCADO_PAGO_ACCESS_TOKEN)
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    
+    if (!accessToken) {
+      console.error("❌ MERCADO_PAGO_ACCESS_TOKEN não configurado");
+      return res.status(500).json({ error: "Configuração de pagamento inválida. Contate o suporte." });
+    }
+    
+    // Criar pagamento no Mercado Pago
+    const idempotencyKey = `${userId || 'guest'}-${plano}-${Date.now()}`;
+    
+    const paymentData = {
+      transaction_amount: valor,
+      description: `Orion Creator - Plano ${plano.charAt(0).toUpperCase() + plano.slice(1)} (${dias} dias)`,
+      payment_method_id: "pix",
+      payer: {
+        email: email || "cliente@orioncreator.com"
+      },
+      notification_url: process.env.RENDER_EXTERNAL_URL 
+        ? `${process.env.RENDER_EXTERNAL_URL}/api/webhook-pix`
+        : undefined
+    };
+    
+    console.log(`💳 Criando PIX: ${plano} - R$ ${valor.toFixed(2)} para ${email}`);
+    
+    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": idempotencyKey
+      },
+      body: JSON.stringify(paymentData)
+    });
+    
+    const mpData = await mpResponse.json();
+    
+    if (!mpResponse.ok) {
+      console.error("❌ Erro Mercado Pago:", mpData);
+      return res.status(500).json({ 
+        error: "Erro ao criar pagamento PIX.", 
+        details: mpData.message || mpData.cause?.[0]?.description 
+      });
+    }
+    
+    // Extrair dados do PIX
+    const pixCode = mpData.point_of_interaction?.transaction_data?.qr_code;
+    const qrCodeBase64 = mpData.point_of_interaction?.transaction_data?.qr_code_base64;
+    const paymentId = mpData.id.toString();
+    
+    // Salvar na store local
+    pixPayments.set(paymentId, {
+      paymentId,
+      plano,
+      valor,
+      dias,
+      email,
+      userId,
+      status: mpData.status,
+      createdAt: Date.now()
+    });
+    
+    console.log(`✅ PIX criado: ${paymentId} - Status: ${mpData.status}`);
+    
+    res.json({
+      success: true,
+      paymentId,
+      pixCode,
+      qrCodeBase64,
+      status: mpData.status,
+      expiration: mpData.date_of_expiration
+    });
+    
+  } catch (err) {
+    console.error("❌ Erro ao criar PIX:", err);
+    res.status(500).json({ error: "Erro interno ao processar pagamento." });
+  }
+});
+
+// GET /api/verificar-pix/:id - Verificar status do pagamento
+app.get("/api/verificar-pix/:id", pixLimiter, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: "ID do pagamento não informado." });
+    }
+    
+    const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    
+    if (!accessToken) {
+      return res.status(500).json({ error: "Configuração de pagamento inválida." });
+    }
+    
+    // Consultar Mercado Pago
+    const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`
+      }
+    });
+    
+    const mpData = await mpResponse.json();
+    
+    if (!mpResponse.ok) {
+      console.error("❌ Erro ao verificar PIX:", mpData);
+      return res.status(404).json({ error: "Pagamento não encontrado." });
+    }
+    
+    // Atualizar store local
+    const localPayment = pixPayments.get(id);
+    if (localPayment) {
+      localPayment.status = mpData.status;
+    }
+    
+    // Se aprovado, atualizar plano do usuário
+    if (mpData.status === "approved" && localPayment?.userId) {
+      try {
+        const novaExpiracao = new Date();
+        novaExpiracao.setDate(novaExpiracao.getDate() + (localPayment.dias || 30));
+        
+        const userData = {
+          plano: localPayment.plano,
+          data_expiracao: novaExpiracao.toISOString(),
+          dataExpiracao: novaExpiracao.toISOString(),
+          status: "ativo",
+          suspenso: false,
+          ultimoPagamento: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        // Atualizar no Firebase RTDB
+        await rtdb.ref(`usuarios/${localPayment.userId}`).update(userData);
+        
+        // Atualizar no Firestore
+        await db.collection("usuarios").doc(localPayment.userId).set(userData, { merge: true });
+        
+        console.log(`✅ Plano atualizado para ${localPayment.userId}: ${localPayment.plano}`);
+        
+        // Registrar pagamento
+        await db.collection("pagamentos").add({
+          usuarioId: localPayment.userId,
+          email: localPayment.email,
+          plano: localPayment.plano,
+          valor: localPayment.valor,
+          metodo: "PIX",
+          mercadoPagoId: id,
+          status: "confirmado",
+          dataConfirmacao: new Date().toISOString(),
+          criadoEm: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+      } catch (updateErr) {
+        console.error("❌ Erro ao atualizar plano:", updateErr);
+      }
+    }
+    
+    res.json({
+      paymentId: id,
+      status: mpData.status,
+      statusDetail: mpData.status_detail,
+      approved: mpData.status === "approved"
+    });
+    
+  } catch (err) {
+    console.error("❌ Erro ao verificar PIX:", err);
+    res.status(500).json({ error: "Erro ao verificar status do pagamento." });
+  }
+});
+
+// POST /api/webhook-pix - Webhook do Mercado Pago (notificações automáticas)
+app.post("/api/webhook-pix", async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    
+    console.log(`📬 Webhook Mercado Pago: ${type}`, data);
+    
+    if (type === "payment" && data?.id) {
+      const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+      
+      // Buscar detalhes do pagamento
+      const mpResponse = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+        headers: { "Authorization": `Bearer ${accessToken}` }
+      });
+      
+      const mpData = await mpResponse.json();
+      
+      if (mpData.status === "approved") {
+        const localPayment = pixPayments.get(data.id.toString());
+        
+        if (localPayment?.userId) {
+          const novaExpiracao = new Date();
+          novaExpiracao.setDate(novaExpiracao.getDate() + (localPayment.dias || 30));
+          
+          const userData = {
+            plano: localPayment.plano,
+            data_expiracao: novaExpiracao.toISOString(),
+            dataExpiracao: novaExpiracao.toISOString(),
+            status: "ativo",
+            suspenso: false,
+            ultimoPagamento: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          await rtdb.ref(`usuarios/${localPayment.userId}`).update(userData);
+          await db.collection("usuarios").doc(localPayment.userId).set(userData, { merge: true });
+          
+          console.log(`✅ Webhook: Plano ativado para ${localPayment.userId}`);
+        }
+      }
+    }
+    
+    res.sendStatus(200);
+    
+  } catch (err) {
+    console.error("❌ Erro no webhook:", err);
+    res.sendStatus(500);
+  }
+});
+
+// ============================================================================
 
 // Criar HTTP server e Socket.IO
 const httpServer = createServer(app);

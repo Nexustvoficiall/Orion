@@ -1,6 +1,16 @@
 services:
   - type: web
     name: orion-creator
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars: []
+services:
+  - type: web
+    name: orion-creator
     env: docker
     dockerfilePath: ./Dockerfile
     region: oregon
