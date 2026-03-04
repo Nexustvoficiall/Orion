@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Banners Esportivos - Orion Creator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      overflow: auto !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      height: auto !important;
+      min-height: 100vh !important;
+      width: 100% !important;
+      max-width: 100vw !important;
+      position: static !important;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+      background-attachment: fixed;
+      color: #fff;
+      padding: 0;
+    }
+
+    /* Estrelas de fundo */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 60% 70%, white, transparent),
+        radial-gradient(1px 1px at 50% 50%, white, transparent),
+        radial-gradient(1px 1px at 80% 10%, white, transparent),
+        radial-gradient(2px 2px at 90% 60%, white, transparent),
+        radial-gradient(1px 1px at 33% 80%, white, transparent);
+      background-size: 200% 200%;
+      animation: stars 180s linear infinite;
+      opacity: 0.4;
+      pointer-events: none !important;
+      z-index: 0;
+    }
+
+    @keyframes stars {
+      from { background-position: 0 0; }
+      to { background-position: 100% 100%; }
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      pointer-events: auto !important;
+    }
+
+    /* Garantir que todos elementos interativos sejam clicáveis */
+    .passo-container,
+    .card-esporte,
+    .card-modelo, 
+    .card-cor,
+    button,
+    a,
+    input {
+      pointer-events: auto !important;
+      cursor: pointer !important;
+      position: relative;
+      z-index: 2;
+    }
+
+    input {
+      cursor: text !important;
+    }
+
+    header {
+      padding: 40px 20px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
+      backdrop-filter: blur(10px);
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #a855f7, transparent);
+    }
+
+    header h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7 0%, #c084fc 50%, #e9d5ff 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 80px rgba(168, 85, 247, 0.5);
+      letter-spacing: 2px;
+    }
+
+    header p {
+      color: #c084fc;
+      font-size: 1.3rem;
+      margin-top: 15px;
+      font-weight: 600;
+      text-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+    }
+
+    .passo-container {
+      animation: fadeIn 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    @keyframes fadeIn {
+      from { 
+        opacity: 0; 
+        transform: translateY(30px) scale(0.95); 
+      }
+      to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+      }
+    }
+
+    .passo-container h2 {
+      text-shadow: 0 4px 20px rgba(168, 85, 247, 0.4);
+      position: relative;
+      display: inline-block;
+    }
+
+    .passo-container h2::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #a855f7, transparent);
+      border-radius: 2px;
+    }
+
+    .passo-container p {
+      text-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+    }
+
+    .passo-container p strong {
+      color: #e9d5ff;
+      font-weight: 700;
+    }
+
+    .card-esporte, .card-modelo, .card-cor {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(107, 33, 168, 0.05) 100%);
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      border-radius: 20px;
+      padding: 35px;
+      text-align: center;
+      cursor: pointer !important;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      backdrop-filter: blur(20px);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+      pointer-events: auto !important;
+      z-index: 10;
+    }
+
+    .card-esporte::before, .card-modelo::before, .card-cor::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+
+    .card-esporte:hover::before, .card-modelo:hover::before, .card-cor:hover::before {
+      opacity: 1;
+    }
+
+    .card-esporte:hover, .card-modelo:hover, .card-cor:hover {
+      transform: translateY(-10px) scale(1.02);
+      border-color: #a855f7;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(107, 33, 168, 0.1) 100%);
+      box-shadow: 
+        0 20px 60px rgba(168, 85, 247, 0.4),
+        0 0 50px rgba(168, 85, 247, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    .card-esporte h3, .card-modelo h3, .card-cor h3 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 2px 10px rgba(168, 85, 247, 0.5);
+      position: relative;
+      z-index: 1;
+      letter-spacing: 0.5px;
+    }
+
+    .card-modelo p {
+      color: #c084fc;
+      margin-top: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-modelo > div {
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-cor {
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-cor h3 {
+      font-size: 1.4rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-voltar {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(107, 33, 168, 0.15));
+      border: 2px solid rgba(168, 85, 247, 0.5);
+      color: #fff;
+      padding: 14px 35px;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer !important;
+      margin-bottom: 35px;
+      transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto !important;
+      z-index: 10;
+      position: relative;
+    }
+
+    .btn-voltar:hover {
+      background: linear-gradient(135deg, #a855f7, #9333ea);
+      border-color: #a855f7;
+      transform: translateX(-5px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+    }
+
+    .btn-gerar {
+      background: linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7c3aed 100%);
+      border: none;
+      color: #fff;
+      padding: 22px 60px;
+      border-radius: 16px;
+      font-size: 1.6rem;
+      font-weight: 900;
+      cursor: pointer !important;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      box-shadow: 
+        0 15px 40px rgba(168, 85, 247, 0.5),
+        0 5px 15px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+      pointer-events: auto !important;
+      z-index: 10;
+    }
+
+    .btn-gerar::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .btn-gerar:hover::before {
+      width: 400px;
+      height: 400px;
+    }
+
+    .btn-gerar:hover {
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 
+        0 25px 60px rgba(168, 85, 247, 0.7),
+        0 10px 25px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-gerar:active {
+      transform: translateY(-2px) scale(1.02);
+    }
+
+    .btn-gerar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🏆 ORION SPORTS BANNERS</h1>
+    <p style="color: #a855f7; font-size: 1.2rem; margin-top: 10px;">Gerador de Banners Esportivos</p>
+  </header>
+
+  <script>
+    // DEBUG: Detectar redirecionamentos
+    console.log('🚀 Página futebol.html carregada');
+    console.log('📍 URL atual:', window.location.href);
+    
+    // Bloquear QUALQUER tentativa de redirecionamento nos primeiros 5 segundos
+    const originalLocation = window.location.href;
+    let redirectBlocked = false;
+    
+    Object.defineProperty(window, 'location', {
+      get: function() {
+        return {
+          href: originalLocation,
+          replace: function(url) {
+            console.warn('⚠️ Tentativa de redirect BLOQUEADA:', url);
+            redirectBlocked = true;
+          }
+        };
+      },
+      set: function(url) {
+        console.warn('⚠️ Tentativa de redirect BLOQUEADA:', url);
+        redirectBlocked = true;
+      }
+    });
+    
+    setTimeout(() => {
+      console.log('✅ Período de proteção encerrado');
+      if (redirectBlocked) {
+        alert('AVISO: Houve tentativa de redirecionamento que foi bloqueada. Verifique o console.');
+      }
+    }, 5000);
+  </script>
+
+  <main style="max-width: 1400px; margin: 40px auto; padding: 0 20px; position: relative; pointer-events: auto; z-index: 1;">
+    
+    <!-- PASSO 1: ESCOLHER ESPORTE -->
+    <div id="passo1" class="passo-container">
+      <h2 style="text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 40px;">
+        🏆 ESCOLHA O ESPORTE
+      </h2>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 1000px; margin: 0 auto;">
+        <button onclick="selecionarEsporte('futebol')" class="card-esporte">
+          <div style="font-size: 4rem; margin-bottom: 15px;">⚽</div>
+          <h3>FUTEBOL</h3>
+        </button>
+        
+        <button onclick="selecionarEsporte('basquete')" class="card-esporte">
+          <div style="font-size: 4rem; margin-bottom: 15px;">🏀</div>
+          <h3>BASQUETE</h3>
+        </button>
+        
+        <button onclick="selecionarEsporte('tenis')" class="card-esporte">
+          <div style="font-size: 4rem; margin-bottom: 15px;">🎾</div>
+          <h3>TÊNIS</h3>
+        </button>
+        
+        <button onclick="selecionarEsporte('f1')" class="card-esporte">
+          <div style="font-size: 4rem; margin-bottom: 15px;">🏎️</div>
+          <h3>FÓRMULA 1</h3>
+        </button>
+        
+        <button onclick="selecionarEsporte('beisebol')" class="card-esporte">
+          <div style="font-size: 4rem; margin-bottom: 15px;">⚾</div>
+          <h3>BEISEBOL</h3>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASSO 2: ESCOLHER MODELO -->
+    <div id="passo2" class="passo-container" style="display: none;">
+      <button onclick="voltarPasso(1)" class="btn-voltar">← Voltar</button>
+      
+      <h2 style="text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 20px;">
+        🎨 ESCOLHA O MODELO
+      </h2>
+      <p style="text-align: center; color: #a855f7; font-size: 1.2rem; margin-bottom: 40px;">
+        Esporte: <strong id="esporteSelecionado"></strong>
+      </p>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; max-width: 1000px; margin: 0 auto;">
+        <button onclick="selecionarModelo('modelo1')" class="card-modelo">
+          <div style="width: 100%; height: 200px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+            📋
+          </div>
+          <h3>MODELO 1</h3>
+          <p>Banner com jogos listados</p>
+        </button>
+        
+        <button onclick="selecionarModelo('modelo2')" class="card-modelo" style="opacity: 0.5; cursor: not-allowed;">
+          <div style="width: 100%; height: 200px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+            🎯
+          </div>
+          <h3>MODELO 2</h3>
+          <p>Em breve...</p>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASSO 3: ESCOLHER COR -->
+    <div id="passo3" class="passo-container" style="display: none;">
+      <button onclick="voltarPasso(2)" class="btn-voltar">← Voltar</button>
+      
+      <h2 style="text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 20px;">
+        🎨 ESCOLHA A COR
+      </h2>
+      <p style="text-align: center; color: #a855f7; font-size: 1.2rem; margin-bottom: 40px;">
+        Esporte: <strong id="esporteSelecionado2"></strong> | Modelo: <strong id="modeloSelecionado"></strong>
+      </p>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px; max-width: 900px; margin: 0 auto;">
+        <button onclick="selecionarCor('ROXO')" class="card-cor" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <h3>ROXO</h3>
+        </button>
+        
+        <button onclick="selecionarCor('AZUL')" class="card-cor" style="background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);">
+          <h3>AZUL</h3>
+        </button>
+        
+        <button onclick="selecionarCor('VERDE')" class="card-cor" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+          <h3>VERDE</h3>
+        </button>
+        
+        <button onclick="selecionarCor('VERMELHO')" class="card-cor" style="background: linear-gradient(135deg, #f5576c 0%, #b30000 100%);">
+          <h3>VERMELHO</h3>
+        </button>
+        
+        <button onclick="selecionarCor('LARANJA')" class="card-cor" style="background: linear-gradient(135deg, #ff9068 0%, #fd746c 100%);">
+          <h3>LARANJA</h3>
+        </button>
+        
+        <button onclick="selecionarCor('AMARELO')" class="card-cor" style="background: linear-gradient(135deg, #ffd89b 0%, #ffa600 100%);">
+          <h3>AMARELO</h3>
+        </button>
+        
+        <button onclick="selecionarCor('DOURADO')" class="card-cor" style="background: linear-gradient(135deg, #d4af37 0%, #aa8800 100%);">
+          <h3>DOURADO</h3>
+        </button>
+        
+        <button onclick="selecionarCor('ROSA')" class="card-cor" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+          <h3>ROSA</h3>
+        </button>
+        
+        <button onclick="selecionarCor('PRATA')" class="card-cor" style="background: linear-gradient(135deg, #bdc3c7 0%, #7f8c8d 100%);">
+          <h3>PRATA</h3>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASSO 4: GERAR BANNER -->
+    <div id="passo4" class="passo-container" style="display: none;">
+      <button onclick="voltarPasso(3)" class="btn-voltar">← Voltar</button>
+      
+      <h2 style="text-align: center; font-size: 2.5rem; color: #fff; margin-bottom: 20px;">
+        🚀 GERAR BANNERS
+      </h2>
+      
+      <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); 
+                  border: 2px solid #6366f1; border-radius: 15px; padding: 30px; text-align: center; max-width: 800px; margin: 0 auto 30px;">
+        <p style="font-size: 1.2rem; color: #a855f7; margin-bottom: 15px;">
+          Esporte: <strong id="esporteSelecionado3" style="color: #fff;"></strong> | 
+          Modelo: <strong id="modeloSelecionado2" style="color: #fff;"></strong> | 
+          Cor: <strong id="corSelecionada" style="color: #fff;"></strong>
+        </p>
+        
+        <div id="loadingJogos" style="margin: 20px 0;">
+          <p style="color: #fff; font-size: 1.1rem;">🔄 Carregando jogos de hoje...</p>
+        </div>
+        
+        <div id="semJogos" style="display: none; margin: 20px 0;">
+          <p style="color: #f87171; font-size: 1.2rem;">😕 Nenhum jogo encontrado para hoje</p>
+        </div>
+        
+        <div id="listaJogos" style="display: none;"></div>
+        
+        <div id="progressoGeracao" style="display: none; margin-top: 30px;">
+          <div style="background: rgba(0,0,0,0.5); border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 15px;">
+            <div id="barraProgresso" style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s;"></div>
+          </div>
+          <p id="textoProgresso" style="color: #fff; font-size: 1.1rem; font-weight: 600;"></p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBd4-KutsbhKwzcZS0Ii3u98l2vE1nMfbE",
+      authDomain: "orion-creator.firebaseapp.com",
+      projectId: "orion-creator",
+      storageBucket: "orion-creator.firebasestorage.app",
+      messagingSenderId: "101346121625",
+      appId: "1:101346121625:web:cf0cd81e99e23faac48cc2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    let usuarioAtual = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        usuarioAtual = user;
+        console.log('✅ Usuário autenticado:', user.email);
+      } else {
+        console.log('⚠️ Usuário não autenticado - mas permitindo acesso');
+        // NÃO REDIRECIONAR - comentado temporariamente para debug
+        // window.location.href = '/index.html';
+      }
+    });
+
+    // Estado da aplicação
+    window.appState = {
+      esporte: null,
+      modelo: null,
+      cor: null,
+      jogos: []
+    };
+
+    // Navegar entre passos
+    window.selecionarEsporte = function(esporte) {
+      window.appState.esporte = esporte;
+      mostrarPasso(2);
+      document.getElementById('esporteSelecionado').textContent = esporte.toUpperCase();
+    };
+
+    window.selecionarModelo = function(modelo) {
+      if (modelo === 'modelo2') {
+        alert('Modelo 2 em breve!');
+        return;
+      }
+      window.appState.modelo = modelo;
+      mostrarPasso(3);
+      document.getElementById('esporteSelecionado2').textContent = window.appState.esporte.toUpperCase();
+      document.getElementById('modeloSelecionado').textContent = modelo.toUpperCase();
+    };
+
+    window.selecionarCor = async function(cor) {
+      window.appState.cor = cor;
+      mostrarPasso(4);
+      document.getElementById('esporteSelecionado3').textContent = window.appState.esporte.toUpperCase();
+      document.getElementById('modeloSelecionado2').textContent = window.appState.modelo.toUpperCase();
+      document.getElementById('corSelecionada').textContent = cor;
+      
+      // Carregar jogos
+      await carregarJogos();
+    };
+
+    window.voltarPasso = function(passo) {
+      mostrarPasso(passo);
+    };
+
+    function mostrarPasso(numero) {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`passo${i}`).style.display = i === numero ? 'block' : 'none';
+      }
+    }
+
+    async function carregarJogos() {
+      const loadingDiv = document.getElementById('loadingJogos');
+      const semJogosDiv = document.getElementById('semJogos');
+      const listaDiv = document.getElementById('listaJogos');
+
+      try {
+        loadingDiv.style.display = 'block';
+        semJogosDiv.style.display = 'none';
+        listaDiv.style.display = 'none';
+
+        const res = await fetch('/api/fotmob/jogos-hoje');
+        const data = await res.json();
+
+        loadingDiv.style.display = 'none';
+
+        if (!data.success || !data.events || data.events.length === 0) {
+          semJogosDiv.style.display = 'block';
+          return;
+        }
+
+        window.appState.jogos = data.events;
+        const totalBanners = Math.ceil(data.total / 6);
+
+        listaDiv.style.display = 'block';
+        listaDiv.innerHTML = `
+          <p style="font-size: 1.5rem; color: #fff; margin-bottom: 20px;">
+            🎯 ${data.total} JOGOS ENCONTRADOS
+          </p>
+          <p style="font-size: 1.1rem; color: #a855f7; margin-bottom: 25px;">
+            Serão gerados <strong>${totalBanners} banners</strong> (até 6 jogos por banner)
+          </p>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; color: #fff; font-size: 1rem; margin-bottom: 10px;">
+              🖼️ URL da Logo (opcional):
+            </label>
+            <input type="text" id="inputLogoUrl" 
+                   placeholder="https://exemplo.com/logo.png" 
+                   style="width: 100%; max-width: 500px; padding: 12px 20px; font-size: 1rem; 
+                          border: 2px solid #6366f1; border-radius: 10px; background: rgba(0,0,0,0.3); 
+                          color: #fff; text-align: center;">
+          </div>
+          
+          <button onclick="gerarTodosBanners()" class="btn-gerar" id="btnGerarTodos">
+            🎨 GERAR TODOS OS BANNERS
+          </button>
+        `;
+      } catch (error) {
+        loadingDiv.style.display = 'none';
+        semJogosDiv.style.display = 'block';
+        semJogosDiv.innerHTML = `<p style="color: #f87171;">❌ Erro: ${error.message}</p>`;
+      }
+    }
+
+    window.gerarTodosBanners = async function() {
+      const jogos = window.appState.jogos;
+      const logoUrl = document.getElementById('inputLogoUrl')?.value || '';
+      const btn = document.getElementById('btnGerarTodos');
+      const progressoDiv = document.getElementById('progressoGeracao');
+      const barra = document.getElementById('barraProgresso');
+      const texto = document.getElementById('textoProgresso');
+
+      btn.disabled = true;
+      progressoDiv.style.display = 'block';
+
+      const jogosPorBanner = 6;
+      const totalBanners = Math.ceil(jogos.length / jogosPorBanner);
+
+      for (let i = 0; i < totalBanners; i++) {
+        const inicio = i * jogosPorBanner;
+        const fim = Math.min(inicio + jogosPorBanner, jogos.length);
+        const jogosLote = jogos.slice(inicio, fim);
+
+        const progresso = Math.round(((i + 1) / totalBanners) * 100);
+        barra.style.width = progresso + '%';
+        texto.textContent = `Gerando banner ${i + 1} de ${totalBanners} (${jogosLote.length} jogos)`;
+
+        try {
+          const token = await usuarioAtual.getIdToken();
+          
+          const res = await fetch('/api/gerar-banner-esporte', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              jogos: jogosLote,
+              modelo: window.appState.modelo,
+              cor: window.appState.cor,
+              logoUrl
+            })
+          });
+
+          if (!res.ok) throw new Error('Erro ao gerar banner');
+
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          alert('Erro ao gerar banner: ' + error.message);
+          break;
+        }
+      }
+
+      texto.textContent = '✅ Todos os banners foram gerados!';
+      btn.disabled = false;
+    };
+  </script>
+
+</body>
+</html>

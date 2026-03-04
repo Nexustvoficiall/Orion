@@ -17,6 +17,7 @@ import sharp from "sharp";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import fs from "fs";
 import { promises as fsPromises } from "fs";
 import { spawn } from "child_process";
 import rateLimit from "express-rate-limit";
@@ -37,6 +38,8 @@ import {
 } from "./api/tmdb.js";
 
 import FanartService from "./api/fanart-service.js";
+import footballRouter from "./api/football-service.js";
+import fotmobRouter from "./api/fotmob-service.js";
 
 dotenv.config();
 
@@ -84,7 +87,7 @@ const rtdb = getDatabase();
 
 const app = express();
 // ... PIX endpoints definidos mais abaixo (implementação completa)
-const PORT = process.env.PORT || 8080; // Fly.io e outras plataformas usam portas variáveis
+const PORT = process.env.PORT || 3000;
 
 const fanartService = new FanartService(process.env.FANART_API_KEY);
 console.log("✅ Fanart.tv Service inicializado");
@@ -125,9 +128,18 @@ app.use(compression({ level: 6 })); // Gzip/Brotli
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public"), {
-  maxAge: '7d', // ⚡ Cache de arquivos estáticos por 7 dias
-  etag: true
+  maxAge: 0, // ⚡ Desabilitar cache durante desenvolvimento
+  etag: false,
+  setHeaders: (res, path) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  }
 }));
+
+// Football routes (TheSportsDB service)
+app.use('/api/football', footballRouter);
+
+// FotMob routes (FotMob API service)
+app.use('/api/fotmob', fotmobRouter);
 
 const tmdbLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -269,7 +281,11 @@ const ALLOWED_IMAGE_DOMAINS = [
   "res.cloudinary.com",
   "image.tmdb.org",
   "themoviedb.org",
-  "assets.fanart.tv"
+  "assets.fanart.tv",
+  "www.thesportsdb.com",
+  "thesportsdb.com",
+  "images.fotmob.com",
+  "fotmob.com"
 ];
 
 const TIPOS_BANNER_VALIDOS = ["horizontal", "vertical"];
@@ -839,6 +855,430 @@ app.get("/api/ultimas-criacoes", verificarAuth, async (req, res) => {
   }
 });
 
+// Endpoint específico para gerar banner de futebol com jogos do dia
+app.post("/api/football/generate-banner", verificarAuth, bannerLimiter, async (req, res) => {
+  try {
+    const { sport, model, color } = req.body;
+    const userId = req.uid;
+
+    if (!model || !color) {
+      return res.status(400).json({ error: 'Modelo e cor são obrigatórios' });
+    }
+
+    console.log(`⚽ Gerando banner de futebol: model=${model}, color=${color}`);
+
+    // 1. Buscar TODOS os jogos de hoje (todas as ligas de futebol)
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    
+    let allGames = [];
+
+    console.log(`📅 Buscando jogos de futebol para ${dateStr}...`);
+
+    // Buscar todos os jogos do dia (todas as ligas/esportes)
+    try {
+      const response = await fetch(
+        `https://www.thesportsdb.com/api/v1/json/${process.env.SPORTSDB_KEY || '3'}/eventsday.php?d=${dateStr}&s=Soccer`
+      );
+      const data = await response.json();
+      
+      if (data.events && data.events.length > 0) {
+        // Filtrar apenas ligas principais que nos interessam
+        const mainLeagues = [
+          'Brasileirão', 'Brazilian Serie A', 'Serie A',
+          'Champions League', 'UEFA Champions League',
+          'Premier League', 'English Premier League',
+          'La Liga', 'Spanish La Liga',
+          'Serie A', 'Italian Serie A',
+          'Ligue 1', 'French Ligue 1',
+          'Bundesliga', 'German Bundesliga',
+          'Liga Portugal', 'Portuguese Liga',
+          'Libertadores', 'Copa Libertadores',
+          'World Cup', 'Copa do Mundo',
+          'Europa League', 'UEFA Europa League'
+        ];
+        
+        allGames = data.events.filter(game => {
+          const leagueName = game.strLeague || '';
+          return mainLeagues.some(league => 
+            leagueName.toLowerCase().includes(league.toLowerCase())
+          );
+        });
+        
+        console.log(`✅ ${allGames.length} jogos encontrados de ligas principais`);
+      } else {
+        console.log('⚠️ Nenhum jogo de futebol encontrado para hoje');
+      }
+    } catch (err) {
+      console.error(`❌ Erro ao buscar jogos:`, err.message);
+    }
+
+    // Se não encontrou jogos reais, usar dados mockados
+    if (allGames.length === 0) {
+      console.log('📊 Usando dados mockados (nenhum jogo hoje)');
+      allGames = [
+        {
+          strHomeTeam: 'Flamengo',
+          strAwayTeam: 'Palmeiras',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/qtwpqr1420998857.png',
+          strTime: '19:00:00',
+          strLeague: 'Brasileirão Série A',
+          strFilename: 'Premiere'
+        },
+        {
+          strHomeTeam: 'Corinthians',
+          strAwayTeam: 'São Paulo',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xtuyvu1448813372.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xrqtvr1467461324.png',
+          strTime: '21:30:00',
+          strLeague: 'Brasileirão Série A',
+          strFilename: 'SporTV'
+        },
+        {
+          strHomeTeam: 'Real Madrid',
+          strAwayTeam: 'Barcelona',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/qtwpqr1420998857.png',
+          strTime: '17:00:00',
+          strLeague: 'La Liga',
+          strFilename: 'ESPN'
+        },
+        {
+          strHomeTeam: 'Manchester United',
+          strAwayTeam: 'Liverpool',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xtuyvu1448813372.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xrqtvr1467461324.png',
+          strTime: '14:30:00',
+          strLeague: 'Premier League',
+          strFilename: 'Star+'
+        },
+        {
+          strHomeTeam: 'PSG',
+          strAwayTeam: 'Monaco',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/vwpvry1467462651.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/qtwpqr1420998857.png',
+          strTime: '16:00:00',
+          strLeague: 'Ligue 1',
+          strFilename: 'ESPN'
+        },
+        {
+          strHomeTeam: 'Bayern München',
+          strAwayTeam: 'Borussia Dortmund',
+          strHomeTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xtuyvu1448813372.png',
+          strAwayTeamBadge: 'https://www.thesportsdb.com/images/media/team/badge/xrqtvr1467461324.png',
+          strTime: '15:30:00',
+          strLeague: 'Bundesliga',
+          strFilename: 'OneFootball'
+        }
+      ];
+    }
+
+    console.log(`✅ Total de ${allGames.length} jogos para processar`);
+
+    console.log(`✅ Encontrados ${allGames.length} jogos para hoje`);
+
+    // 2. Carregar template base
+    const templatePath = path.join(process.cwd(), 'public', 'images', 'modelos', 'futebol', model, `${color}.png`);
+    
+    if (!fs.existsSync(templatePath)) {
+      return res.status(400).json({ error: 'Template não encontrado' });
+    }
+
+    const baseImage = sharp(templatePath);
+    const metadata = await baseImage.metadata();
+    const width = metadata.width;
+    const height = metadata.height;
+
+    // 3. Preparar composições - layout com jogador à esquerda
+    const startY = 220; // Posição Y inicial dos jogos
+    const cardHeight = 85; // Altura de cada linha de jogo
+    const cardSpacing = 20; // Espaçamento entre jogos
+    const maxGames = 6; // Máximo de jogos
+
+    const gamesToShow = allGames.slice(0, maxGames);
+
+    // Data formatada DD/MM
+    const dateFormatted = today.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit'
+    });
+
+    const compositeArray = [];
+    let svgTexts = '';
+
+    // ========== JOGADOR DE CORPO INTEIRO ==========
+    let playerAdded = false;
+    const firstGame = gamesToShow[0];
+    if (firstGame && firstGame.strHomeTeam) {
+      try {
+        // Buscar time pelo nome
+        console.log(`\n🔍 Buscando time: ${firstGame.strHomeTeam}`);
+        const teamSearch = await fetch(
+          `https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(firstGame.strHomeTeam)}`
+        );
+        const teamData = await teamSearch.json();
+        
+        if (teamData.teams && teamData.teams[0]) {
+          const teamId = teamData.teams[0].idTeam;
+          console.log(`✅ Time ID: ${teamId}`);
+          
+          // Buscar jogadores
+          const playerResponse = await fetch(
+            `https://www.thesportsdb.com/api/v1/json/3/lookup_all_players.php?id=${teamId}`
+          );
+          const playerData = await playerResponse.json();
+          
+          if (playerData.player && playerData.player.length > 0) {
+            console.log(`📋 ${playerData.player.length} jogadores`);
+            
+            // Buscar jogador com strCutout (corpo inteiro)
+            for (const p of playerData.player) {
+              if (p.strCutout) {
+                console.log(`🎯 Jogador com cutout: ${p.strPlayer}`);
+                console.log(`   URL: ${p.strCutout}`);
+                
+                const imgResponse = await fetch(p.strCutout);
+                if (imgResponse.ok) {
+                  const imgBuffer = await imgResponse.arrayBuffer();
+                  console.log(`   Bytes: ${imgBuffer.byteLength}`);
+                  
+                  const resizedPlayer = await sharp(Buffer.from(imgBuffer))
+                    .resize(320, 550, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                    .png()
+                    .toBuffer();
+                  
+                  compositeArray.push({
+                    input: resizedPlayer,
+                    top: 180,
+                    left: 25
+                  });
+                  
+                  playerAdded = true;
+                  console.log(`✅ JOGADOR ADICIONADO: ${p.strPlayer}`);
+                  break;
+                }
+              }
+            }
+            
+            // Fallback: usar strThumb se não encontrou cutout
+            if (!playerAdded) {
+              for (const p of playerData.player) {
+                if (p.strThumb) {
+                  console.log(`🎯 Jogador com thumb: ${p.strPlayer}`);
+                  const imgResponse = await fetch(p.strThumb);
+                  if (imgResponse.ok) {
+                    const imgBuffer = await imgResponse.arrayBuffer();
+                    const resizedPlayer = await sharp(Buffer.from(imgBuffer))
+                      .resize(280, 450, { fit: 'cover' })
+                      .png()
+                      .toBuffer();
+                    
+                    compositeArray.push({
+                      input: resizedPlayer,
+                      top: 180,
+                      left: 25
+                    });
+                    
+                    playerAdded = true;
+                    console.log(`✅ JOGADOR (thumb) ADICIONADO: ${p.strPlayer}`);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`❌ Erro jogador:`, err.message);
+      }
+    }
+    
+    console.log(`\n📊 Jogador: ${playerAdded ? 'SIM' : 'NÃO'}`);
+
+    // Data no canto esquerdo (vertical)
+    svgTexts += `
+      <text x="18" y="400" font-family="Orbitron, sans-serif" font-size="14" font-weight="700" 
+            fill="#ffffff" text-anchor="middle" transform="rotate(-90 18 400)">
+        ${dateFormatted}
+      </text>
+    `;
+
+    // Adicionar data no canto (vertical)
+    svgTexts += `
+      <text x="15" y="420" font-family="Orbitron, sans-serif" font-size="16" font-weight="700" 
+            fill="#ffffff" text-anchor="middle" transform="rotate(-90 15 420)">
+        ${dateFormatted}
+      </text>
+    `;
+
+    // Para cada jogo, adicionar textos e escudos
+    for (let index = 0; index < gamesToShow.length; index++) {
+      const game = gamesToShow[index];
+      const y = startY + (index * (cardHeight + cardSpacing));
+      const time = game.strTime ? game.strTime.substring(0, 5) : '00:00';
+      const channel = game.strFilename || game.strTVStation || 'TV';
+      
+      const homeTeam = (game.strHomeTeam || 'Time 1').toUpperCase();
+      const awayTeam = (game.strAwayTeam || 'Time 2').toUpperCase();
+      
+      // Tamanho adaptativo
+      const maxLen = Math.max(homeTeam.length, awayTeam.length);
+      let fontSize = 18;
+      if (maxLen > 12) fontSize = 16;
+      if (maxLen > 15) fontSize = 14;
+      if (maxLen > 18) fontSize = 12;
+      
+      // ========== ESCUDO TIME CASA ==========
+      if (game.strHomeTeamBadge) {
+        console.log(`\n🛡️ Escudo CASA: ${homeTeam}`);
+        console.log(`   URL: ${game.strHomeTeamBadge}`);
+        try {
+          const resp = await fetch(game.strHomeTeamBadge);
+          console.log(`   HTTP: ${resp.status}`);
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            console.log(`   Bytes: ${buf.byteLength}`);
+            if (buf.byteLength > 100) {
+              const badge = await sharp(Buffer.from(buf))
+                .resize(45, 45, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .png()
+                .toBuffer();
+              compositeArray.push({ input: badge, top: y + 12, left: 340 });
+              console.log(`   ✅ ADICIONADO`);
+            }
+          }
+        } catch (e) { console.log(`   ❌ ERRO: ${e.message}`); }
+      }
+      
+      // ========== ESCUDO TIME FORA ==========
+      if (game.strAwayTeamBadge) {
+        console.log(`🛡️ Escudo FORA: ${awayTeam}`);
+        console.log(`   URL: ${game.strAwayTeamBadge}`);
+        try {
+          const resp = await fetch(game.strAwayTeamBadge);
+          console.log(`   HTTP: ${resp.status}`);
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            console.log(`   Bytes: ${buf.byteLength}`);
+            if (buf.byteLength > 100) {
+              const badge = await sharp(Buffer.from(buf))
+                .resize(45, 45, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                .png()
+                .toBuffer();
+              compositeArray.push({ input: badge, top: y + 12, left: 660 });
+              console.log(`   ✅ ADICIONADO`);
+            }
+          }
+        } catch (e) { console.log(`   ❌ ERRO: ${e.message}`); }
+      }
+      
+      // Horário (preto, acima)
+      svgTexts += `
+        <text x="520" y="${y + 15}" font-family="Orbitron, sans-serif" 
+              font-size="18" font-weight="900" fill="#1a1a2e" text-anchor="middle">
+          ${time}
+        </text>
+      `;
+      
+      // Time casa
+      svgTexts += `
+        <text x="395" y="${y + 45}" font-family="Poppins, sans-serif" font-size="${fontSize}" 
+              font-weight="900" fill="white" text-anchor="start">
+          ${homeTeam}
+        </text>
+      `;
+      
+      // X
+      svgTexts += `
+        <text x="520" y="${y + 45}" font-family="Orbitron, sans-serif" font-size="22" 
+              font-weight="900" fill="white" text-anchor="middle">
+          X
+        </text>
+      `;
+      
+      // Time fora
+      svgTexts += `
+        <text x="545" y="${y + 45}" font-family="Poppins, sans-serif" font-size="${fontSize}" 
+              font-weight="900" fill="white" text-anchor="start">
+          ${awayTeam}
+        </text>
+      `;
+      
+      // Canal
+      svgTexts += `
+        <text x="520" y="${y + 68}" font-family="Poppins, sans-serif" font-size="13" 
+              font-weight="600" fill="#a0a0c0" text-anchor="middle">
+          📺 ${channel.toUpperCase()}
+        </text>
+      `;
+    }
+    
+    console.log(`\n📊 TOTAL COMPOSITE: ${compositeArray.length} itens`);
+    
+
+    const svgOverlay = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        ${svgTexts}
+      </svg>
+    `;
+
+    // Adicionar SVG com textos
+    compositeArray.unshift({
+      input: Buffer.from(svgOverlay),
+      top: 0,
+      left: 0
+    });
+
+    // 4. Compor imagem final
+    const finalBuffer = await baseImage
+      .composite(compositeArray)
+      .png()
+      .toBuffer();
+
+    // 5. Upload para Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'banners/football',
+          resource_type: 'image',
+          public_id: `football_${Date.now()}_${userId}`,
+          overwrite: true
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(finalBuffer);
+    });
+
+    // 6. Salvar no Firestore
+    await db.collection('banners').add({
+      userId,
+      tipo: 'futebol',
+      modelo: model,
+      cor: color,
+      url: uploadResult.secure_url,
+      criadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      expirarEm: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      totalJogos: gamesToShow.length
+    });
+
+    console.log(`✅ Banner de futebol gerado: ${uploadResult.secure_url}`);
+
+    res.json({
+      success: true,
+      url: uploadResult.secure_url,
+      message: `Banner gerado com ${gamesToShow.length} jogos!`
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar banner de futebol:', error);
+    res.status(500).json({ error: error.message || 'Erro ao gerar banner' });
+  }
+});
+
 app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => {
   try {
     const {
@@ -855,16 +1295,78 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       tmdbTipo,
       modeloTipo,
       backdropUrl,
-      temporada
+      temporada,
+      // Dados de futebol
+      homeTeam,
+      awayTeam,
+      homeBadgeUrl,
+      awayBadgeUrl,
+      league,
+      venue,
+      date,
+      time,
+      cor
     } = req.body || {};
 
     console.log(`➡️ REQUISIÇÃO RECEBIDA: modeloTipo="${modeloTipo}", tipo="${tipo}"`);
 
-    if (!posterUrl) return res.status(400).json({ error: "posterUrl obrigatório" });
-    if (!validarURL(posterUrl)) return res.status(400).json({ error: "posterUrl inválida" });
-    if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
-    if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
-    if (backdropUrl && !validarURL(backdropUrl)) return res.status(400).json({ error: "backdropUrl inválida" });
+    // Se for futebol, usar dados do jogo
+    let isFutebol = tipo === 'futebol' || (!!homeTeam && !!awayTeam);
+    let bannerTitle = titulo;
+    let bannerPoster = posterUrl;
+    let bannerSinopse = sinopse;
+    let bannerLeague = league;
+    let bannerVenue = venue;
+    let bannerDate = date;
+    let bannerTime = time;
+    let bannerCor = cor || modeloCor;
+    let bannerHomeBadge = homeBadgeUrl;
+    let bannerAwayBadge = awayBadgeUrl;
+    if (isFutebol) {
+      // Validar dados mínimos
+      if (!homeTeam || !awayTeam) {
+        return res.status(400).json({ error: "homeTeam e awayTeam são obrigatórios para banners de futebol" });
+      }
+      
+      // Título padrão: Home x Away
+      bannerTitle = `${homeTeam.trim()} x ${awayTeam.trim()}`;
+      
+      // Sinopse: Liga, local, data/hora (todos opcionais)
+      const parts = [];
+      if (league) parts.push(league.trim());
+      if (venue) parts.push(venue.trim());
+      if (date) parts.push(date.trim());
+      if (time) parts.push(time.trim());
+      bannerSinopse = parts.join(' • ');
+      
+      // Usar escudo do time da casa como poster (com fallback)
+      bannerPoster = null;
+      if (homeBadgeUrl && validarURL(homeBadgeUrl)) {
+        bannerPoster = homeBadgeUrl;
+      } else if (awayBadgeUrl && validarURL(awayBadgeUrl)) {
+        bannerPoster = awayBadgeUrl;
+      } else {
+        // Usar imagem padrão se não houver escudos válidos
+        bannerPoster = 'https://res.cloudinary.com/dxbu3zk6i/image/upload/v1/orion_creator/logo-default.png';
+        console.warn(`⚠️ Banner de futebol sem escudos válidos: ${homeTeam} x ${awayTeam}`);
+      }
+      
+      // Validar escudos individuais e usar placeholder se necessário
+      if (homeBadgeUrl && !validarURL(homeBadgeUrl)) {
+        console.warn(`⚠️ Escudo inválido para ${homeTeam}: ${homeBadgeUrl}`);
+        bannerHomeBadge = 'https://res.cloudinary.com/dxbu3zk6i/image/upload/v1/orion_creator/logo-default.png';
+      }
+      if (awayBadgeUrl && !validarURL(awayBadgeUrl)) {
+        console.warn(`⚠️ Escudo inválido para ${awayTeam}: ${awayBadgeUrl}`);
+        bannerAwayBadge = 'https://res.cloudinary.com/dxbu3zk6i/image/upload/v1/orion_creator/logo-default.png';
+      }
+    } else {
+      if (!posterUrl) return res.status(400).json({ error: "posterUrl obrigatório" });
+      if (!validarURL(posterUrl)) return res.status(400).json({ error: "posterUrl inválida" });
+      if (!titulo || !titulo.trim()) return res.status(400).json({ error: "Título obrigatório" });
+      if (titulo.length > 100) return res.status(400).json({ error: "Título excede 100 caracteres" });
+      if (backdropUrl && !validarURL(backdropUrl)) return res.status(400).json({ error: "backdropUrl inválida" });
+    }
     
     // Validações de segurança para parâmetros numéricos
     if (tmdbId && !/^\d+$/.test(String(tmdbId))) {
@@ -879,7 +1381,7 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       return res.status(400).json({ error: "Tipo deve ser horizontal ou vertical" });
     }
 
-    const corKey = (modeloCor || "ROXO").toUpperCase();
+    const corKey = (bannerCor || "ROXO").toUpperCase();
     if (!COLORS[corKey]) {
       return res.status(400).json({ error: `Cor inválida. Opções: ${Object.keys(COLORS).join(", ")}` });
     }
@@ -921,61 +1423,77 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
 
     let logoFanartBuffer = null;
     let fanartTitle = null;
-    if (tmdbId) {
-      if (isOrionX || isExclusive) {
-        try {
-          const imgsUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, {
-            include_image_language: "pt-BR,pt-br,pt,en,null"
-          });
-          const imgsResp = await fetchWithTimeout(imgsUrl);
-          if (imgsResp.ok) {
-            const imgsData = await imgsResp.json();
-            const logos = imgsData.logos || [];
-            const pickByLang = (langs) =>
-              logos.find(l => langs.includes(l.iso_639_1 || "null"));
-            const chosenLogo =
-              pickByLang(["pt-BR", "pt-br"]) ||
-              pickByLang(["pt"]) ||
-              pickByLang(["en"]) ||
-              logos[0];
-            if (chosenLogo && chosenLogo.file_path) {
-              const logoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
-              if (validarURL(logoUrl)) {
-                logoFanartBuffer = await fetchBuffer(logoUrl, true);
-              }
-            }
+    
+    // BELLATRIX e BELTEGUESE: Buscar logo oficial (TMDB → Fanart → texto)
+    if ((isBellatrix || isBelteguese) && tmdbId) {
+      try {
+        console.log(`🎨 Buscando logo oficial para ${isBellatrix ? 'BELLATRIX' : 'BELTEGUESE'}: TMDB → Fanart → Texto`);
+        
+        // 1. Tentar TMDB primeiro
+        const imgUrl = buildTMDBUrl(`/${tmdbTipo || "movie"}/${tmdbId}/images`, { include_image_language: "pt,en,null" });
+        const imgResp = await fetchWithTimeout(imgUrl);
+        
+        if (imgResp.ok) {
+          const imgData = await imgResp.json();
+          const logos = imgData.logos || [];
+          
+          console.log(`📊 TMDB retornou ${logos.length} logos para ${tmdbTipo} ${tmdbId}`);
+          
+          // Priorizar logos em português, depois inglês, depois qualquer um
+          const findLogo = (langs) => logos.find(l => langs.includes(l.iso_639_1 || "null"));
+          const chosenLogo = findLogo(["pt", "pt-BR"]) || findLogo(["en"]) || findLogo(["null", ""]) || logos[0];
+          
+          if (chosenLogo?.file_path) {
+            const tmdbLogoUrl = `https://image.tmdb.org/t/p/original${chosenLogo.file_path}`;
+            console.log(`✅ Logo TMDB encontrado (${chosenLogo.iso_639_1 || 'sem idioma'}): ${tmdbLogoUrl}`);
+            logoFanartBuffer = await fetchBuffer(tmdbLogoUrl, true);
+          } else {
+            console.log(`⚠️ TMDB retornou logos mas nenhum tinha file_path válido`);
           }
-        } catch (err) {
-          console.warn("⚠️ Logo TMDB não obtida para Exclusive:", err.message);
+        } else {
+          console.log(`⚠️ TMDB API retornou status ${imgResp.status}`);
         }
-
+        
+        // 2. Se não encontrou no TMDB, tentar Fanart.tv
         if (!logoFanartBuffer) {
-          try {
-            let logoUrl = null;
-            if (tmdbTipo === "movie") {
-              logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-BR");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt-br");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
-              if (!logoUrl) logoUrl = await fanartService.getMovieLogo(tmdbId, "en");
-            } else if (tmdbTipo === "tv") {
-              const tvdbId = await fanartService.getTVDBIdFromTMDB(tmdbId, process.env.TMDB_KEY);
-              if (tvdbId) {
-                logoUrl = await fanartService.getTVLogo(tvdbId, "pt-BR");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt-br");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "pt");
-                if (!logoUrl) logoUrl = await fanartService.getTVLogo(tvdbId, "en");
-              }
-            }
-            if (logoUrl && validarURL(logoUrl)) {
-              logoFanartBuffer = await fetchBuffer(logoUrl, true);
-              try {
-                fanartTitle = await fanartService.getCleanTitle(tmdbId, tmdbTipo);
-              } catch {}
-            }
-          } catch (err) {
-            console.warn("⚠️ Logo Fanart não obtida:", err.message);
+          console.log(`⚠️ Logo não encontrado no TMDB, tentando Fanart.tv...`);
+          let fanartLogoUrl = null;
+          
+          if (tmdbTipo === "movie") {
+            fanartLogoUrl = await fanartService.getMovieLogo(tmdbId, "pt");
+          } else if (tmdbTipo === "tv") {
+            // Para TV, precisamos do TVDB ID, não TMDB ID
+            // Por enquanto vamos pular Fanart para séries
+            console.log(`ℹ️ Fanart.tv para séries requer TVDB ID (não implementado ainda)`);
+          }
+          
+          if (fanartLogoUrl) {
+            console.log(`✅ Logo Fanart encontrado: ${fanartLogoUrl}`);
+            logoFanartBuffer = await fetchBuffer(fanartLogoUrl, true);
           }
         }
+        
+        // 3. Se não encontrou nada, vai usar texto (logoFanartBuffer permanece null)
+        if (!logoFanartBuffer) {
+          console.log(`⚠️ Nenhuma logo encontrada em TMDB ou Fanart. Usando título em texto: "${titulo}"`);
+        }
+        
+      } catch (err) {
+        console.warn(`⚠️ Erro ao buscar logo para ${isBellatrix ? 'BELLATRIX' : 'BELTEGUESE'}:`, err.message);
+        logoFanartBuffer = null; // Fallback para texto
+      }
+    } 
+    // FUTEBOL: Escudos dos times
+    else if (isFutebol) {
+      try {
+        if (bannerHomeBadge && validarURL(bannerHomeBadge)) {
+          logoFanartBuffer = await fetchBuffer(bannerHomeBadge, true);
+        } else if (bannerAwayBadge && validarURL(bannerAwayBadge)) {
+          logoFanartBuffer = await fetchBuffer(bannerAwayBadge, true);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Erro ao carregar escudo do time (${homeTeam || awayTeam}):`, err.message);
+        logoFanartBuffer = null;
       }
     }
 
@@ -1350,7 +1868,7 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
         if (userLogo && validarURL(userLogo)) {
           let lb = await fetchBuffer(userLogo, false);
 
-          let lbSmall = await sharp(lb).resize(200, 200, { fit: "contain" }).png().toBuffer();
+          let lbSmall = await sharp(lb).ensureAlpha().resize(200, 200, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
           const logoTop = Math.round(height - 30 - 200);
           const logoLeft = 30;
           userLogoLayer = { input: lbSmall, top: logoTop, left: logoLeft };
@@ -1619,7 +2137,7 @@ app.post("/api/gerar-banner", verificarAuth, bannerLimiter, async (req, res) => 
       const userLogo = await getUserLogoUrl(req.uid);
       if (userLogo && validarURL(userLogo)) {
         let lb = await fetchBuffer(userLogo, false);
-        lb = await sharp(lb).resize(180, 180, { fit: "contain" }).png().toBuffer();
+        lb = await sharp(lb).ensureAlpha().resize(180, 180, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
         userLogoLayer = { input: lb, top: 40, left: width - 220 };
       }
     } catch {}
@@ -1949,8 +2467,17 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
 
     console.log(`✅ Dados: "${titulo}" (${ano})`);
 
+    // Caminho do yt-dlp (pode estar no diretório do projeto como .exe)
+    const ytdlpPath = await (async () => {
+      const localPath = path.join(__dirname, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+      if (await fileExists(localPath)) return localPath;
+      return 'yt-dlp'; // Fallback para PATH do sistema
+    })();
+    console.log(`   yt-dlp path: ${ytdlpPath}`);
+
     console.log("🎥 2/8 - Buscando vídeo/trailer OFICIAL (apenas YouTube ou TMDB)...");
     let videos = details.videos?.results || [];
+    console.log(`   Total de vídeos no TMDB: ${videos.length}`);
     
     // Para SÉRIES, buscar trailer específico da temporada
     if (tmdbTipo === "tv" && temporada) {
@@ -1972,6 +2499,14 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       }
     }
     
+    // Listar todos os vídeos disponíveis para debug
+    if (videos.length > 0) {
+      console.log(`   📋 Vídeos disponíveis:`);
+      videos.forEach((v, i) => {
+        console.log(`      ${i+1}. ${v.type} | ${v.name} | ${v.iso_639_1} | ${v.site} | key: ${v.key}`);
+      });
+    }
+    
     // Buscar TRAILERS OFICIAIS apenas (tipo Trailer ou Teaser)
     // Ordem de prioridade: Trailer oficial PT-BR > PT > EN > Teaser PT-BR > PT > EN
     const findOfficialTrailer = (lang, type) => videos.find(v => 
@@ -1980,6 +2515,8 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     const findAnyOfficialTrailer = (type) => videos.find(v => 
       v.site === "YouTube" && v.type === type
     );
+    
+    console.log(`   🔍 Procurando trailers oficiais do YouTube...`);
     
     // Prioridade: Trailer oficial (PT-BR > PT > EN > qualquer) depois Teaser (PT-BR > PT > EN)
     let trailer = findOfficialTrailer("pt-BR", "Trailer") || 
@@ -1991,6 +2528,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
                   findOfficialTrailer("en", "Teaser") || 
                   findAnyOfficialTrailer("Teaser");
     
+    if (trailer) {
+      console.log(`   ✅ Trailer selecionado: ${trailer.name} (${trailer.type}, ${trailer.iso_639_1}, key: ${trailer.key})`);
+    } else {
+      console.log(`   ⚠️ Nenhum trailer/teaser oficial encontrado`);
+    }
+    
     let trailerKey = null;
     let useCreatedVideo = false;
     
@@ -1999,15 +2542,73 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
     
     if (trailer && trailer.site === "YouTube" && youtubeIdRegex.test(trailer.key)) {
       trailerKey = trailer.key;
-      console.log(`✅ Vídeo encontrado no YouTube: ${trailerKey} (${trailer.iso_639_1 || 'sem idioma'})`);
+      console.log(`✅ Vídeo encontrado no TMDB/YouTube: ${trailerKey} (${trailer.iso_639_1 || 'sem idioma'})`);
     } else {
-      // Criar vídeo placeholder com backdrop animado
-      if (trailer && trailer.site === "YouTube") {
-        console.log(`⚠️ ID do YouTube inválido: ${trailer.key}`);
+      // TMDB não tem trailer - buscar diretamente no YouTube via yt-dlp
+      console.log("🔍 TMDB sem trailer - buscando diretamente no YouTube...");
+      
+      const tituloOriginal = details.original_title || details.original_name || titulo;
+      const anoStr = ano || '';
+      const tipo = tmdbTipo === "tv" ? "série" : "filme";
+      
+      // Termos de busca em ordem de prioridade
+      const searchTerms = [
+        `${titulo} trailer oficial dublado ${anoStr}`,
+        `${titulo} trailer legendado ${anoStr}`,
+        `${tituloOriginal} official trailer ${anoStr}`,
+        `${titulo} trailer ${anoStr}`,
+        `${tituloOriginal} trailer ${anoStr}`
+      ];
+      
+      for (const searchTerm of searchTerms) {
+        try {
+          console.log(`   🔍 Buscando: "${searchTerm}"`);
+          
+          const ytSearchResult = await new Promise((resolve, reject) => {
+            const ytProcess = require('child_process').spawn(ytdlpPath, [
+              `ytsearch1:${searchTerm}`,
+              '--get-id',
+              '--no-warnings',
+              '--no-playlist'
+            ]);
+            
+            let output = '';
+            let errorOutput = '';
+            
+            ytProcess.stdout.on('data', (data) => { output += data.toString(); });
+            ytProcess.stderr.on('data', (data) => { errorOutput += data.toString(); });
+            
+            const timeout = setTimeout(() => {
+              ytProcess.kill();
+              reject(new Error('Timeout'));
+            }, 30000);
+            
+            ytProcess.on('close', (code) => {
+              clearTimeout(timeout);
+              // Aceitar resultado mesmo com code != 0 se tiver output válido (warnings causam exit code != 0)
+              if (output.trim()) {
+                resolve(output.trim());
+              } else {
+                reject(new Error(errorOutput || 'Não encontrado'));
+              }
+            });
+          });
+          
+          if (ytSearchResult && youtubeIdRegex.test(ytSearchResult)) {
+            trailerKey = ytSearchResult;
+            console.log(`   ✅ Trailer encontrado no YouTube: ${trailerKey} (busca: "${searchTerm}")`);
+            break;
+          }
+        } catch (err) {
+          console.log(`   ⚠️ Busca falhou: ${err.message}`);
+        }
       }
-      console.log("⚠️ Nenhum vídeo disponível - criando vídeo placeholder com backdrop animado");
-      useCreatedVideo = true;
-      trailerKey = `placeholder_${tmdbId}`;
+      
+      if (!trailerKey) {
+        console.log("⚠️ Nenhum trailer encontrado no YouTube - criando vídeo placeholder");
+        useCreatedVideo = true;
+        trailerKey = `placeholder_${tmdbId}`;
+      }
     }
 
     console.log("⬇️ 3/8 - Obtendo/Criando vídeo...");
@@ -2023,13 +2624,13 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       try {
         await spawnProcess('ffmpeg', [
           '-f', 'lavfi',
-          '-i', 'color=c=#0a0a15:s=1920x1080:d=30',
+          '-i', `color=c=#0a0a15:s=1920x1080:d=${duracaoNum}`,
           '-f', 'lavfi',
           '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-          '-vf', 'zoompan=z=\'min(zoom+0.0015,1.5)\':d=1:s=1920x1080,fade=in:0:30',
+          '-vf', `zoompan=z='min(zoom+0.0015,1.5)':d=1:s=1920x1080,fade=in:0:30`,
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
-          '-t', '30',
+          '-t', duracaoNum.toString(),
           '-pix_fmt', 'yuv420p',
           '-c:a', 'aac',
           '-y', trailerPath
@@ -2051,7 +2652,7 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       try {
         console.log(`   Tentativa 1: yt-dlp ${qualidadeNum}p ${qualityConfig.name}...`);
         
-        await spawnProcess('yt-dlp', [
+        await spawnProcess(ytdlpPath, [
           '-f', formatString,
           '--no-playlist',
           '--no-warnings',
@@ -2059,41 +2660,65 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
           '--retries', '2',
           '--no-check-certificates',
           '--merge-output-format', 'mp4',
-        '-o', trailerPath,
-        `https://www.youtube.com/watch?v=${trailerKey}`
-      ]);
-      
-      const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
-      if (fileExists) {
-        downloadSuccess = true;
-        console.log(`   ✅ Sucesso com yt-dlp (${qualidadeNum}p ${qualityConfig.name})`);
+          '--ffmpeg-location', 'ffmpeg',
+          '-o', trailerPath,
+          `https://www.youtube.com/watch?v=${trailerKey}`
+        ]);
+        
+        const trailerExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (trailerExists) {
+          downloadSuccess = true;
+          console.log(`   ✅ Sucesso com yt-dlp (${qualidadeNum}p ${qualityConfig.name})`);
+        }
+      } catch (err) {
+        lastError = err;
+        console.log(`   ⚠️ Falhou com yt-dlp: ${err.message}`);
+        if (err.stderr) console.log(`   stderr: ${err.stderr.substring(0, 500)}`);
+        // Verificar se apesar do erro, o arquivo foi baixado (warnings podem causar exit code != 0)
+        const trailerExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (trailerExists) {
+          const stats = await fsPromises.stat(trailerPath);
+          if (stats.size > 100000) { // > 100KB = arquivo real
+            downloadSuccess = true;
+            console.log(`   ✅ Arquivo baixado apesar do warning (${(stats.size/1024/1024).toFixed(2)}MB)`);
+          }
+        }
       }
-    } catch (err) {
-      lastError = err;
-      console.log(`   ⚠️ Falhou com yt-dlp: ${err.message}`);
-    }
 
     // ESTRATÉGIA 2: Fallback para qualidade menor se primeira falhou
     if (!downloadSuccess) {
       try {
         console.log("   Tentativa 2: yt-dlp qualidade 480p (fallback)...");
-        await spawnProcess('yt-dlp', [
+        await spawnProcess(ytdlpPath, [
           '-f', 'best[height<=480]',
           '--no-playlist',
-          '--socket-timeout', '10',
-          '--retries', '1',
+          '--no-warnings',
+          '--no-check-certificates',
+          '--socket-timeout', '15',
+          '--retries', '2',
+          '--ffmpeg-location', 'ffmpeg',
           '-o', trailerPath,
           `https://www.youtube.com/watch?v=${trailerKey}`
         ]);
         
-        const fileExists = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
-        if (fileExists) {
+        const trailerExists2 = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (trailerExists2) {
           downloadSuccess = true;
           console.log(`   ✅ Sucesso com yt-dlp (480p fallback)`);
         }
       } catch (err) {
         lastError = err;
         console.log(`   ⚠️ Falhou com yt-dlp (fallback): ${err.message}`);
+        if (err.stderr) console.log(`   stderr: ${err.stderr.substring(0, 500)}`);
+        // Verificar se apesar do erro, o arquivo foi baixado
+        const trailerExists2 = await fsPromises.access(trailerPath).then(() => true).catch(() => false);
+        if (trailerExists2) {
+          const stats = await fsPromises.stat(trailerPath);
+          if (stats.size > 100000) {
+            downloadSuccess = true;
+            console.log(`   ✅ Arquivo baixado apesar do warning (${(stats.size/1024/1024).toFixed(2)}MB)`);
+          }
+        }
       }
     }
 
@@ -2103,12 +2728,12 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
       try {
         await spawnProcess('ffmpeg', [
           '-f', 'lavfi',
-          '-i', 'color=c=black:s=1920x1080:d=30',
+          '-i', `color=c=black:s=1920x1080:d=${duracaoNum}`,
           '-f', 'lavfi',
           '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
-          '-t', '30',
+          '-t', duracaoNum.toString(),
           '-pix_fmt', 'yuv420p',
           '-c:a', 'aac',
           '-y', trailerPath
@@ -2280,16 +2905,44 @@ app.post("/api/gerar-video", verificarAuth, videoLimiter, async (req, res) => {
         }])
         .png({ compressionLevel: 1 })
         .toBuffer(),
-      // Logo oficial - escalar proporcionalmente
-      logoBuffer ? sharp(logoBuffer)
-        .resize(Math.round(450 * scaleFactor), Math.round(120 * scaleFactor), { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
-        .png({ compressionLevel: 1 })
-        .toBuffer()
-        .catch(err => { console.warn(`⚠️ Logo processo: ${err.message}`); return null; }) : null,
-      // Logo do cliente - escalar proporcionalmente
+      // Logo oficial - escalar proporcionalmente baseado no tamanho do nome
+      logoBuffer ? (() => {
+        // Calcular tamanho do logo baseado no comprimento do título
+        const titleLength = titulo.length;
+        let logoBaseWidth = 450; // Padrão
+        let logoBaseHeight = 120;
+        
+        if (titleLength > 30) {
+          // Títulos longos: logo menor
+          logoBaseWidth = 350;
+          logoBaseHeight = 95;
+        } else if (titleLength > 20) {
+          // Títulos médios: logo médio
+          logoBaseWidth = 400;
+          logoBaseHeight = 110;
+        } else if (titleLength <= 10) {
+          // Títulos curtos: logo maior
+          logoBaseWidth = 500;
+          logoBaseHeight = 130;
+        }
+        
+        const logoWidth = Math.round(logoBaseWidth * scaleFactor);
+        const logoHeight = Math.round(logoBaseHeight * scaleFactor);
+        
+        console.log(`   Logo dimensões: ${logoWidth}x${logoHeight} (título: ${titleLength} chars)`);
+        
+        return sharp(logoBuffer)
+          .ensureAlpha()
+          .resize(logoWidth, logoHeight, { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
+          .png({ compressionLevel: 1 })
+          .toBuffer()
+          .catch(err => { console.warn(`⚠️ Logo processo: ${err.message}`); return null; });
+      })() : null,
+      // Logo do cliente - escalar proporcionalmente SEM BORDAS
       (userLogo && validarURL(userLogo)) ? fetchBuffer(userLogo, false)
         .then(buf => sharp(buf)
-          .resize(Math.round(280 * scaleFactor), Math.round(280 * scaleFactor), { fit: "contain", withoutEnlargement: true, kernel: 'cubic' })
+          .ensureAlpha()
+          .resize(Math.round(280 * scaleFactor), Math.round(280 * scaleFactor), { fit: "inside", withoutEnlargement: true, kernel: 'cubic' })
           .png({ compressionLevel: 1 })
           .toBuffer()
         )
@@ -2668,7 +3321,9 @@ app.get("/api/test-video", verificarAuth, async (req, res) => {
 
   // Teste yt-dlp
   try {
-    const ytdlpResult = await spawnProcess('yt-dlp', ['--version']);
+    const ytdlpLocalPath = path.join(__dirname, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+    const ytdlpCmd = await fileExists(ytdlpLocalPath) ? ytdlpLocalPath : 'yt-dlp';
+    const ytdlpResult = await spawnProcess(ytdlpCmd, ['--version']);
     diagnostics.tools.ytdlp = {
       installed: true,
       version: ytdlpResult.stdout.trim()
@@ -2866,10 +3521,16 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
       logoBuffer = Buffer.from(await logoResponse.arrayBuffer());
     }
 
-    // Processar logo para Sharp
-    const logoImage = sharp(logoBuffer);
+    // Processar logo para Sharp - GARANTIR PNG COM TRANSPARÊNCIA
+    const logoImage = sharp(logoBuffer).ensureAlpha();
     const logoMetadata = await logoImage.metadata();
-    console.log(`✅ Logo carregada: ${logoMetadata.width}x${logoMetadata.height}`);
+    console.log(`✅ Logo carregada: ${logoMetadata.width}x${logoMetadata.height}, formato: ${logoMetadata.format}, hasAlpha: ${logoMetadata.hasAlpha}`);
+    
+    // Converter para PNG com transparência
+    logoBuffer = await sharp(logoBuffer)
+      .ensureAlpha()
+      .png()
+      .toBuffer();
 
     // Obter dimensões do template
     const templateMetadata = await baseImage.metadata();
@@ -2890,12 +3551,14 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
         if (size === 'grande') logoWidth = Math.floor(templateWidth * 0.25);
         if (size === 'medio-grande') logoWidth = Math.floor(templateWidth * 0.19);
 
-        // Redimensionar logo mantendo proporção
+        // Redimensionar logo mantendo proporção e transparência
         const resizedLogo = await sharp(logoBuffer)
+          .ensureAlpha()
           .resize(logoWidth, null, { 
-            fit: 'contain',
-            background: { r: 0, g: 0, b: 0, alpha: 0 }
+            fit: 'inside',
+            withoutEnlargement: true
           })
+          .png()
           .toBuffer();
 
         const resizedLogoMetadata = await sharp(resizedLogo).metadata();
@@ -3060,6 +3723,259 @@ app.post("/api/gerar-banner-divulgacao", verificarAuth, bannerLimiter, async (re
   }
 });
 
+// ==================== NOVO ENDPOINT: GERAR BANNER DE ESPORTE ====================
+app.post("/api/gerar-banner-esporte", verificarAuth, bannerLimiter, async (req, res) => {
+  try {
+    const { jogos, modelo, cor, logoUrl } = req.body;
+
+    if (!jogos || !Array.isArray(jogos) || jogos.length === 0) {
+      return res.status(400).json({ error: "Array de jogos é obrigatório" });
+    }
+
+    console.log(`➡️ Gerando banner com ${jogos.length} jogos`);
+    
+    // DEBUG: Verificar se os escudos estão vindo
+    jogos.forEach((j, i) => {
+      console.log(`📊 Jogo ${i + 1}: ${j.strHomeTeam} x ${j.strAwayTeam}`);
+      console.log(`   Home Badge: ${j.homeBadgeUrl || 'AUSENTE'}`);
+      console.log(`   Away Badge: ${j.awayBadgeUrl || 'AUSENTE'}`);
+    });
+
+    // Caminho do modelo PNG
+    const modeloPath = path.join(__dirname, 'public', 'images', 'modelos', 'futebol', modelo || 'modelo1', `${cor || 'ROXO'}.png`);
+    
+    let modeloBase;
+    try {
+      await fsPromises.access(modeloPath);
+      modeloBase = await sharp(modeloPath).toBuffer();
+      console.log(`✅ Modelo carregado: ${modeloPath}`);
+    } catch (err) {
+      console.error(`❌ Modelo não encontrado em: ${modeloPath}`);
+      return res.status(404).json({ error: `Modelo não encontrado`, path: modeloPath });
+    }
+
+    const { width, height } = await sharp(modeloBase).metadata();
+
+    let overlayLayers = [];
+    let textOverlays = [];
+
+    // BUSCAR IMAGEM DE JOGADOR (primeiro jogo com foto disponível)
+    let playerImageUrl = null;
+    console.log('🔍 Buscando jogador nos jogos...');
+    for (const jogo of jogos) {
+      console.log(`   Jogo: ${jogo.strHomeTeam} - Players:`, jogo.players?.length || 0);
+      if (jogo.players && jogo.players.length > 0) {
+        const player = jogo.players[0];
+        console.log(`   Player encontrado:`, player);
+        playerImageUrl = player.strCutout || player.strRender || player.strThumb;
+        console.log(`   URL candidata: ${playerImageUrl}`);
+        if (playerImageUrl) {
+          const isValid = validarURL(playerImageUrl);
+          console.log(`   URL válida? ${isValid}`);
+          if (isValid) {
+            console.log(`✅ Jogador selecionado: ${playerImageUrl}`);
+            break;
+          }
+        }
+      }
+    }
+    if (!playerImageUrl) console.log('⚠️ Nenhuma URL de jogador válida encontrada');
+
+    // JOGADOR GRANDE NO LADO ESQUERDO (35% da largura)
+    if (playerImageUrl) {
+      try {
+        console.log(`🔄 Carregando jogador: ${playerImageUrl}`);
+        const playerBuffer = await fetchBuffer(playerImageUrl, true);
+        const PLAYER_WIDTH = Math.round(width * 0.35);
+        const PLAYER_HEIGHT = height;
+        
+        const playerProcessed = await sharp(playerBuffer)
+          .resize(PLAYER_WIDTH, PLAYER_HEIGHT, { fit: 'cover', position: 'center' })
+          .png()
+          .toBuffer();
+        
+        overlayLayers.push({
+          input: playerProcessed,
+          top: 0,
+          left: 0
+        });
+        console.log(`✅ Jogador adicionado (${PLAYER_WIDTH}x${PLAYER_HEIGHT}px)`);
+      } catch (err) {
+        console.error('❌ Erro ao carregar jogador:', err.message);
+      }
+    } else {
+      console.log('⚠️ Nenhum jogador encontrado nos jogos');
+    }
+
+    // CALCULAR POSIÇÕES
+    const CONTENT_START_X = Math.round(width * 0.38);
+    const CONTENT_WIDTH = width - CONTENT_START_X - 80;
+
+    // DATA VERTICAL NO CANTO DIREITO
+    const hoje = new Date();
+    const diaSemana = hoje.toLocaleDateString('pt-BR', { weekday: 'long' }).toUpperCase();
+    const diaNumero = hoje.getDate().toString().padStart(2, '0');
+
+    textOverlays.push(`
+      <text x="${width - 50}" y="250" font-size="36" font-weight="900" fill="#00D4FF" 
+            font-family="Arial Black" transform="rotate(90 ${width - 50} 250)">
+        ${diaSemana} - ${diaNumero}
+      </text>
+    `);
+
+    // LISTA DE JOGOS (até 6 jogos) - ALINHADO COM OS CARDS DO PNG
+    const JOGO_START_Y = 250;  // Início do primeiro card branco
+    const JOGO_HEIGHT = 125;   // Altura de cada bloco completo (branco + roxo + azul)
+    const ESCUDO_SIZE = 55;    // Tamanho dos escudos
+
+    for (let i = 0; i < Math.min(6, jogos.length); i++) {
+      const jogo = jogos[i];
+      const jogoY = JOGO_START_Y + (i * JOGO_HEIGHT);
+      const horario = jogo.strTime?.substring(0, 5) || '--:--';
+      const centerX = CONTENT_START_X + CONTENT_WIDTH / 2;
+
+      // POSIÇÕES DOS CARDS (calculadas para alinhar com o PNG)
+      const CARD_BRANCO_Y = jogoY + 5;           // Horário (mais baixo)
+      const CARD_ROXO_Y = jogoY + 38;            // Times (mais baixo)
+      const CARD_AZUL_Y = jogoY + 80;            // Canal (mais baixo)
+
+      // ESCUDOS DOS TIMES (ao lado dos nomes no card roxo)
+      const escudoHomeX = CONTENT_START_X + 60;
+      const escudoAwayX = CONTENT_START_X + CONTENT_WIDTH - ESCUDO_SIZE - 60;
+      const escudoY = CARD_ROXO_Y + 8;  // Mesma linha dos nomes
+
+      // Escudo time da casa
+      if (jogo.homeBadgeUrl && validarURL(jogo.homeBadgeUrl)) {
+        try {
+          console.log(`🔄 Carregando escudo HOME: ${jogo.homeBadgeUrl}`);
+          const escudoBuffer = await fetchBuffer(jogo.homeBadgeUrl, true);
+          const escudoProcessed = await sharp(escudoBuffer)
+            .resize(ESCUDO_SIZE, ESCUDO_SIZE, { fit: 'inside' })
+            .png()
+            .toBuffer();
+          
+          overlayLayers.push({
+            input: escudoProcessed,
+            top: escudoY,
+            left: escudoHomeX
+          });
+          console.log(`✅ Escudo HOME jogo ${i + 1} adicionado`);
+        } catch (err) {
+          console.error(`❌ Erro ao carregar escudo home jogo ${i + 1}:`, err.message);
+        }
+      } else {
+        console.log(`⚠️ Jogo ${i + 1} sem escudo HOME válido`);
+      }
+
+      // Escudo time visitante
+      if (jogo.awayBadgeUrl && validarURL(jogo.awayBadgeUrl)) {
+        try {
+          console.log(`🔄 Carregando escudo AWAY: ${jogo.awayBadgeUrl}`);
+          const escudoBuffer = await fetchBuffer(jogo.awayBadgeUrl, true);
+          const escudoProcessed = await sharp(escudoBuffer)
+            .resize(ESCUDO_SIZE, ESCUDO_SIZE, { fit: 'inside' })
+            .png()
+            .toBuffer();
+          
+          overlayLayers.push({
+            input: escudoProcessed,
+            top: escudoY,
+            left: escudoAwayX
+          });
+          console.log(`✅ Escudo AWAY jogo ${i + 1} adicionado`);
+        } catch (err) {
+          console.error(`❌ Erro ao carregar escudo away jogo ${i + 1}:`, err.message);
+        }
+      } else {
+        console.log(`⚠️ Jogo ${i + 1} sem escudo AWAY válido`);
+      }
+
+      // HORÁRIO NO CARD BRANCO (topo)
+      textOverlays.push(`
+        <text x="${centerX}" y="${CARD_BRANCO_Y + 21}" 
+              text-anchor="middle" font-size="32" font-weight="900" fill="#1a1a2e" 
+              font-family="Arial Black">
+          ${horario}
+        </text>
+      `);
+
+      // NOMES DOS TIMES NO CARD ROXO (meio)
+      const homeTeam = (jogo.strHomeTeam || '').substring(0, 14).toUpperCase();
+      const awayTeam = (jogo.strAwayTeam || '').substring(0, 14).toUpperCase();
+      
+      textOverlays.push(`
+        <text x="${centerX}" y="${CARD_ROXO_Y + 32}" 
+              text-anchor="middle" font-size="24" font-weight="900" fill="#FFFFFF" 
+              font-family="Arial Black">
+          ${homeTeam} X ${awayTeam}
+        </text>
+      `);
+
+      // CANAL NO CARD AZUL ESCURO (embaixo)
+      const canal = jogo.canal_oficial || jogo.canal || 'A DEFINIR';
+      
+      textOverlays.push(`
+        <text x="${centerX}" y="${CARD_AZUL_Y + 20}" 
+              text-anchor="middle" font-size="20" font-weight="700" fill="#00D4FF" 
+              font-family="Arial">
+          ${canal.toUpperCase()}
+        </text>
+      `);
+    }
+
+    // LOGO DO CLIENTE NO CANTO INFERIOR DIREITO
+    if (logoUrl && validarURL(logoUrl)) {
+      try {
+        const logoBuffer = await fetchBuffer(logoUrl, true);
+        const LOGO_SIZE = 150;
+        
+        const logoProcessed = await sharp(logoBuffer)
+          .resize(LOGO_SIZE, LOGO_SIZE, { fit: 'inside' })
+          .png()
+          .toBuffer();
+        
+        overlayLayers.push({
+          input: logoProcessed,
+          top: height - LOGO_SIZE - 30,
+          left: width - LOGO_SIZE - 30
+        });
+      } catch (err) {
+        console.error('❌ Erro ao carregar logo:', err.message);
+      }
+    }
+
+    // Gerar SVG com textos
+    const svgOverlay = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        ${textOverlays.join('\n')}
+      </svg>
+    `;
+
+    overlayLayers.push({
+      input: Buffer.from(svgOverlay),
+      top: 0,
+      left: 0
+    });
+
+    // Composição final
+    const bannerFinal = await sharp(modeloBase)
+      .composite(overlayLayers)
+      .png()
+      .toBuffer();
+
+    console.log(`✅ Banner gerado com sucesso (${jogos.length} jogos)`);
+
+    res.set('Content-Type', 'image/png');
+    res.set('Content-Disposition', `attachment; filename="jogos_${diaNumero}_${Date.now()}.png"`);
+    res.send(bannerFinal);
+
+  } catch (err) {
+    console.error('❌ Erro ao gerar banner:', err);
+    res.status(500).json({ error: 'Falha ao gerar banner: ' + err.message });
+  }
+});
+
+// ==================== CLOUDINARY UPLOAD ====================
 app.use((err, req, res, next) => {
   console.error("❌ Erro não tratado:", err);
   if (err instanceof multer.MulterError) {

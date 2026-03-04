@@ -1,908 +1,1044 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⚽ Esportes - Orion Creator</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  body {
-    background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
-    color: white;
-    font-family: 'Poppins', sans-serif;
-    overflow-x: hidden;
-    min-height: 100vh;
-    position: relative;
-  }
-
-  /* Estrelas animadas */
-  .stars {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
-    animation: moveStars 120s linear infinite;
-    z-index: 0;
-    opacity: 0.3;
-  }
-
-  @keyframes moveStars {
-    from { background-position: 0 0; }
-    to { background-position: -10000px 5000px; }
-  }
-
-  /* Container principal */
-  .container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 100px 20px 40px;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Header premium */
-  .page-header {
-    text-align: center;
-    margin-bottom: 50px;
-  }
-
-  .page-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 900;
-    background: linear-gradient(135deg, #a855f7, #6366f1, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 15px;
-    letter-spacing: 2px;
-  }
-
-  .page-subtitle {
-    font-size: 1.1rem;
-    color: rgba(255, 255, 255, 0.8);
-    font-weight: 400;
-  }
-
-  /* Grid de categorias de esportes */
-  .sports-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 15px;
-    margin-bottom: 40px;
-    max-width: 1000px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .sport-card {
-    background: linear-gradient(135deg, rgba(30, 11, 58, 0.8) 0%, rgba(46, 16, 101, 0.8) 50%, rgba(59, 7, 100, 0.8) 100%);
-    border-radius: 15px;
-    padding: 20px 15px;
-    border: 2px solid rgba(168, 85, 247, 0.4);
-    box-shadow: 
-      0 10px 40px rgba(0, 0, 0, 0.5),
-      0 0 80px rgba(168, 85, 247, 0.2),
-      inset 0 0 60px rgba(168, 85, 247, 0.05);
-    backdrop-filter: blur(20px);
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    cursor: pointer;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sport-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
-    animation: rotateSportGlow 10s linear infinite;
-    z-index: 0;
-  }
-
-  @keyframes rotateSportGlow {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .sport-card:hover {
-    transform: translateY(-10px) scale(1.03);
-    border-color: #a855f7;
-    box-shadow: 
-      0 20px 60px rgba(0, 0, 0, 0.7),
-      0 0 120px rgba(168, 85, 247, 0.4);
-  }
-
-  .sport-card.active {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3));
-    border-color: #a855f7;
-    box-shadow: 
-      0 15px 50px rgba(168, 85, 247, 0.6),
-      0 0 100px rgba(168, 85, 247, 0.5);
-  }
-
-  .sport-content {
-    position: relative;
-    z-index: 1;
-  }
-
-  .sport-icon {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-    display: block;
-  }
-
-  .sport-name {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #fff;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  /* Jogos container */
-  .games-section {
-    margin-top: 40px;
-  }
-
-  .section-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 1.8rem;
-    color: #a855f7;
-    margin-bottom: 25px;
-    text-align: center;
-  }
-
-  #jogos-hoje {
-    display: grid;
-    gap: 20px;
-  }
-
-  /* Card de jogo premium */
-  .card-jogo {
-    background: linear-gradient(135deg, rgba(30, 11, 58, 0.8), rgba(46, 16, 101, 0.8));
-    border: 2px solid rgba(168, 85, 247, 0.3);
-    border-radius: 20px;
-    padding: 25px;
-    backdrop-filter: blur(15px);
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  }
-
-  .card-jogo:hover {
-    transform: translateY(-5px);
-    border-color: #a855f7;
-    box-shadow: 0 15px 45px rgba(168, 85, 247, 0.4);
-  }
-
-  footer {
-    text-align: center;
-    margin-top: 60px;
-    padding: 25px 10px;
-    border-top: 1px solid rgba(168, 85, 247, 0.3);
-    color: #d1d5db;
-    font-size: 0.95em;
-  }
-
-  /* ==================== SIDEBAR ==================== */
-  .sidebar {
-    height: 100%;
-    width: 250px;
-    position: fixed;
-    top: 0;
-    left: -250px;
-    background: linear-gradient(180deg, #1e0b3a, #2e1065, #3b0764);
-    padding-top: 60px;
-    transition: left 0.3s ease;
-    z-index: 100;
-    overflow-y: auto;
-  }
-
-  .sidebar.active { left: 0; }
-
-  .sidebar a {
-    display: block;
-    color: white;
-    padding: 15px 30px;
-    text-decoration: none;
-    font-size: 1.1em;
-    transition: background 0.2s;
-  }
-
-  .sidebar a:hover { background: rgba(147, 51, 234, 0.2); }
-
-  /* SEÇÃO IMPORTANTE - COMPACTA */
-  .sidebar-importante {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(99, 102, 241, 0.15));
-    border-top: 1px solid rgba(168, 85, 247, 0.3);
-    border-bottom: 1px solid rgba(168, 85, 247, 0.3);
-    margin: 10px 0;
-    padding: 15px 20px;
-  }
-
-  .importante-header {
-    font-size: 0.85rem;
-    font-weight: 800;
-    color: #a855f7;
-    text-align: center;
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .importante-section {
-    margin-bottom: 15px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(168, 85, 247, 0.15);
-  }
-
-  .importante-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .importante-label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #c084fc;
-    margin-bottom: 8px;
-  }
-
-  .logo-preview {
-    width: 100%;
-    height: 60px;
-    background: rgba(10, 10, 30, 0.4);
-    border: 1px dashed rgba(168, 85, 247, 0.3);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 8px;
-    overflow: hidden;
-  }
-
-  .btn-upload-logo, .btn-salvar-whatsapp {
-    width: 100%;
-    background: linear-gradient(90deg, #a855f7, #6366f1);
-    color: white;
-    border: none;
-    padding: 8px;
-    border-radius: 6px;
-    font-weight: 700;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .btn-upload-logo:hover, .btn-salvar-whatsapp:hover {
-    background: linear-gradient(90deg, #6366f1, #a855f7);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(168, 85, 247, 0.5);
-  }
-
-  .btn-upload-logo:disabled {
-    background: #555;
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
-
-  .upload-info, .upload-reset {
-    font-size: 0.65rem;
-    color: #d8b4fe;
-    margin-top: 4px;
-    text-align: center;
-  }
-
-  .upload-info span, .upload-reset span {
-    color: #a855f7;
-    font-weight: 700;
-  }
-
-  .whatsapp-input {
-    width: 100%;
-    background: rgba(10, 10, 30, 0.4);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    border-radius: 6px;
-    padding: 8px;
-    color: white;
-    font-size: 0.8rem;
-    margin-bottom: 8px;
-    transition: all 0.3s ease;
-  }
-
-  .whatsapp-input:focus {
-    outline: none;
-    border-color: #a855f7;
-    box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
-  }
-
-  .whatsapp-input::placeholder {
-    color: #888;
-    font-size: 0.75rem;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Banners Esportivos - Orion Creator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
   
-  .sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
-    z-index: 100;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-  
-  .sidebar-overlay.active {
-    opacity: 1;
-    pointer-events: auto;
-  }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  #menu-toggle {
-    position: fixed;
-    top: 15px;
-    left: 15px;
-    background: linear-gradient(90deg, #9333ea, #a855f7);
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 10px;
-    cursor: pointer;
-    z-index: 101;
-    font-weight: bold;
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
-    transition: all 0.25s ease;
-  }
+    html, body {
+      overflow: auto !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      height: auto !important;
+      min-height: 100vh !important;
+      width: 100% !important;
+      max-width: 100vw !important;
+      position: static !important;
+      margin: 0;
+    }
 
-  #menu-toggle:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
-  }
-</style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: radial-gradient(circle at top, #0a0118, #0f0526, #1a0b3d);
+      background-attachment: fixed;
+      color: #fff;
+      padding: 0;
+    }
+
+    /* ESTRELAS ANIMADAS */
+    .stars {
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: moveStars 120s linear infinite;
+      z-index: -1;
+      opacity: 0.3;
+      pointer-events: none !important;
+    }
+
+    @keyframes moveStars {
+      from { background-position: 0 0; }
+      to { background-position: -10000px 5000px; }
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      background: rgba(10, 10, 30, 0.8);
+      backdrop-filter: blur(15px);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .logo {
+      height: 45px;
+      filter: drop-shadow(0 0 10px #a855f7);
+    }
+
+    .back-btn {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3));
+      border: 1px solid rgba(168, 85, 247, 0.5);
+      color: white;
+      padding: 10px 25px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .back-btn:hover {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.5), rgba(99, 102, 241, 0.5));
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(168, 85, 247, 0.4);
+    }
+
+    /* HERO SECTION */
+    .hero-galactic {
+      position: relative;
+      width: 100%;
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: linear-gradient(135deg, rgba(10, 10, 30, 0.95) 0%, rgba(20, 15, 45, 0.95) 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 60px rgba(168, 85, 247, 0.15);
+    }
+
+    .hero-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #6366f1, #8b5cf6);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      margin-bottom: 1rem;
+      animation: gradientShift 4s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .hero-subtitle {
+      text-align: center;
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 2rem;
+    }
+
+    /* CARDS DE ESPORTES */
+    .sports-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .sport-card {
+      position: relative;
+      height: 320px;
+      border-radius: 20px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      box-shadow: 0 15px 50px rgba(0,0,0,0.5);
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+    }
+
+    .sport-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1));
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .sport-card:hover::before {
+      opacity: 1;
+    }
+
+    .sport-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      box-shadow: 
+        0 30px 80px rgba(0,0,0,0.7),
+        0 0 50px rgba(168, 85, 247, 0.3);
+    }
+
+    .sport-card-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: brightness(0.7);
+      transition: all 0.6s ease;
+    }
+
+    .sport-card:hover .sport-card-bg {
+      filter: brightness(0.9);
+      transform: scale(1.1);
+    }
+
+    .sport-card-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(10,1,24,0) 0%,
+        rgba(10,1,24,0.6) 50%,
+        rgba(10,1,24,0.95) 100%
+      );
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 30px;
+    }
+
+    .sport-icon {
+      font-size: 4rem;
+      margin-bottom: 15px;
+      filter: drop-shadow(0 0 20px currentColor);
+    }
+
+    .sport-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 3px 20px rgba(0,0,0,0.8), 0 0 30px rgba(168, 85, 247, 0.6);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .sport-desc {
+      font-size: 0.95rem;
+      color: #e0e0e0;
+      line-height: 1.5;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    }
+
+    /* MODAL */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      overflow-y: auto;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, rgba(20, 15, 45, 0.98), rgba(30, 20, 60, 0.98));
+      border-radius: 20px;
+      padding: 35px;
+      max-width: 550px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      box-shadow: 0 20px 80px rgba(0, 0, 0, 0.8);
+      position: relative;
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      font-size: 2rem;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-close:hover {
+      background: rgba(168, 85, 247, 0.8);
+      transform: rotate(90deg);
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+      color: #a855f7;
+      text-transform: uppercase;
+    }
+
+    .modal-subtitle {
+      font-size: 1.1rem;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 30px;
+    }
+
+    /* SEÇÃO DE MODELOS */
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #c084fc;
+      margin: 30px 0 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .models-grid {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 25px;
+      overflow-x: auto;
+      padding: 5px;
+      scroll-behavior: smooth;
+      justify-content: center;
+    }
+
+    .models-grid::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .models-grid::-webkit-scrollbar-track {
+      background: rgba(168, 85, 247, 0.1);
+      border-radius: 10px;
+    }
+
+    .models-grid::-webkit-scrollbar-thumb {
+      background: rgba(168, 85, 247, 0.5);
+      border-radius: 10px;
+    }
+
+    .model-option {
+      min-width: 140px;
+      max-width: 140px;
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .model-option img {
+      width: 100%;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .model-option:hover {
+      border-color: rgba(168, 85, 247, 0.8);
+      transform: translateY(-3px);
+    }
+
+    .model-option.selected {
+      border-color: #a855f7;
+      border-width: 3px;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+      transform: translateY(-3px);
+    }
+
+    .model-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #a855f7;
+      margin-top: 2px;
+    }
+
+    .model-desc {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    /* CORES */
+    .colors-grid {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .color-option {
+      width: 65px;
+      height: 65px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .color-option:hover {
+      border-color: rgba(168, 85, 247, 0.8);
+      transform: translateY(-5px) scale(1.08);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .color-option.selected {
+      border-color: #ffffff;
+      border-width: 3px;
+      box-shadow: 0 0 25px rgba(168, 85, 247, 1);
+      transform: translateY(-5px) scale(1.12);
+    }
+
+    .color-option[data-color="ROXO"] {
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+    }
+
+    .color-option[data-color="AZUL"] {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    /* BUSCA DE TIME/EVENTO */
+    .search-section {
+      margin-bottom: 30px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(168, 85, 247, 0.3);
+      border-radius: 12px;
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #a855f7;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .search-results {
+      margin-top: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .search-result-item {
+      padding: 12px 15px;
+      border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-result-item:hover {
+      background: rgba(168, 85, 247, 0.2);
+    }
+
+    .search-result-item img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      background: white;
+      border-radius: 8px;
+      padding: 5px;
+    }
+
+    /* BOTÃO GERAR */
+    .generate-btn {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      color: white;
+      border: none;
+      padding: 16px 35px;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+      margin-top: 15px;
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(168, 85, 247, 0.6);
+    }
+
+    .generate-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* LOADING */
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #a855f7;
+      font-size: 1.1rem;
+      display: none;
+    }
+
+    .loading.active {
+      display: block;
+    }
+
+    .spinner {
+      border: 4px solid rgba(168, 85, 247, 0.2);
+      border-top: 4px solid #a855f7;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* RESULTADO */
+    .result-section {
+      display: none;
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .result-section.active {
+      display: block;
+    }
+
+    .result-image {
+      max-width: 100%;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      margin-bottom: 20px;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .result-btn {
+      background: rgba(168, 85, 247, 0.2);
+      border: 2px solid #a855f7;
+      color: white;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .result-btn:hover {
+      background: rgba(168, 85, 247, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* MOBILE */
+    @media (max-width: 768px) {
+      .header {
+        padding: 15px 20px;
+      }
+
+      .logo {
+        height: 35px;
+      }
+
+      .hero-galactic {
+        padding: 1.5rem 1rem;
+      }
+
+      .sports-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 20px;
+      }
+
+      .sport-card {
+        height: 280px;
+      }
+
+      .modal-content {
+        padding: 25px;
+        margin: 10px;
+      }
+
+      .modal-title {
+        font-size: 1.5rem;
+      }
+
+      .models-grid {
+        overflow-x: auto;
+      }
+
+      .colors-grid {
+        justify-content: center;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="stars"></div>
 
-<button id="menu-toggle">☰ MENU</button>
-
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-<div class="sidebar" id="sidebar">
-  <!-- MENU NAVEGAÇÃO -->
-  <a href="home.html">🏠 Início</a>
-  
-  <!-- SEÇÃO IMPORTANTE -->
-  <div class="sidebar-importante">
-    <div class="importante-header">⭐ IMPORTANTE</div>
-    
-    <!-- Upload de Logo -->
-    <div class="importante-section">
-      <label class="importante-label">📸 Logo Personalizada</label>
-      <div class="logo-preview" id="logoPreview">
-        <img id="logoPreviewImg" src="" alt="Logo" style="display: none; max-width: 100%; max-height: 60px; object-fit: contain;">
-        <span id="logoPlaceholder" style="color: #888; font-size: 0.8rem;">Nenhuma logo</span>
-      </div>
-      <input type="file" id="logoUpload" accept="image/*" style="display: none;">
-      <button class="btn-upload-logo" id="btnUploadLogo">Enviar Logo</button>
-      <div class="upload-info" id="uploadInfo"><span id="uploadsRestantes">--</span>/2 uploads</div>
-      <div class="upload-reset" id="uploadReset">Reset: <span id="dataReset">--/--</span></div>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo-container">
+      <img src="images/logo.png" alt="Orion Creator" class="logo" onerror="this.style.display='none'">
+      <span style="font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #a855f7;">ESPORTES</span>
     </div>
-
-    <!-- WhatsApp -->
-    <div class="importante-section">
-      <label class="importante-label">📱 WhatsApp</label>
-      <input type="tel" id="whatsappInput" class="whatsapp-input" placeholder="(00) 00000-0000" maxlength="15">
-      <button class="btn-salvar-whatsapp" id="btnSalvarWhatsapp">Salvar</button>
-    </div>
-  </div>
-  
-  <a href="futebol.html">⚽ Gerar Esportes</a>
-  <a href="divulgação.html">📢 Banners de Divulgação</a>
-  <a href="vods.html">🎬 Filmes & Séries</a>
-  <a href="videos.html">🎥 Vídeos de Vods</a>
-  <a href="programacao.html">📅 Programação Esportiva</a>
-  <a href="perfil.html">👤 Meu Perfil</a>
-  <a href="#" id="sidebar-logout">🚪 Sair</a>
-</div>
-
-<script>
-  // Estrelas
-  for(let i=0;i<150;i++){
-    const star=document.createElement('div');
-    star.className='star';
-    const size=Math.random()*2+1;
-    star.style.width=size+'px';
-    star.style.height=size+'px';
-    star.style.top=Math.random()*window.innerHeight+'px';
-    star.style.left=Math.random()*window.innerWidth+'px';
-    star.style.animationDuration=(Math.random()*20+10)+'s';
-    document.body.appendChild(star);
-  }
-</script>
-
-<div class="stars"></div>
-
-<div class="container">
-  <div class="page-header">
-    <h1 class="page-title">⚽ ESPORTES AO VIVO</h1>
-    <p class="page-subtitle">Escolha seu esporte favorito e acompanhe os jogos em tempo real</p>
+    <a href="home.html" class="back-btn">
+      <span>←</span> Voltar
+    </a>
   </div>
 
-  <!-- Grid de categorias de esportes -->
+  <!-- HERO -->
+  <div class="hero-galactic">
+    <h1 class="hero-title">🏆 Banners Esportivos</h1>
+    <p class="hero-subtitle">Crie banners profissionais para seus eventos esportivos favoritos</p>
+  </div>
+
+  <!-- CARDS DE ESPORTES -->
   <div class="sports-grid">
-    <div class="sport-card" data-sport="futebol">
-      <div class="sport-content">
-        <span class="sport-icon">⚽</span>
+    <div class="sport-card" data-sport="football">
+      <div class="sport-card-bg" style="background-image: url('https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800');"></div>
+      <div class="sport-card-overlay">
+        <div class="sport-icon">⚽</div>
         <div class="sport-name">Futebol</div>
+        <div class="sport-desc">Times, ligas e competições do mundo todo</div>
       </div>
     </div>
 
-    <div class="sport-card" data-sport="basquete">
-      <div class="sport-content">
-        <span class="sport-icon">🏀</span>
+    <div class="sport-card" data-sport="basketball">
+      <div class="sport-card-bg" style="background-image: url('https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800');"></div>
+      <div class="sport-card-overlay">
+        <div class="sport-icon">🏀</div>
         <div class="sport-name">Basquete</div>
+        <div class="sport-desc">NBA, NBB e basquete internacional</div>
       </div>
     </div>
 
-    <div class="sport-card" data-sport="ufc">
-      <div class="sport-content">
-        <span class="sport-icon">🥊</span>
-        <div class="sport-name">UFC/MMA</div>
+    <div class="sport-card" data-sport="tennis">
+      <div class="sport-card-bg" style="background-image: url('https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800');"></div>
+      <div class="sport-card-overlay">
+        <div class="sport-icon">🎾</div>
+        <div class="sport-name">Tênis</div>
+        <div class="sport-desc">Grand Slams e torneios ATP/WTA</div>
       </div>
     </div>
 
-    <div class="sport-card" data-sport="f1">
-      <div class="sport-content">
-        <span class="sport-icon">🏎️</span>
+    <div class="sport-card" data-sport="mma">
+      <div class="sport-card-bg" style="background-image: url('https://www.combatarena.pt/cdn/shop/articles/categorie_di_peso_ufc.jpg?v=1735835895&width=1366');"></div>
+      <div class="sport-card-overlay">
+        <div class="sport-icon">🥊</div>
+        <div class="sport-name">UFC / MMA</div>
+        <div class="sport-desc">Lutas e eventos de artes marciais</div>
+      </div>
+    </div>
+
+    <div class="sport-card" data-sport="motorsport">
+      <div class="sport-card-bg" style="background-image: url('https://www.conteudomotorsport.com.br/fx-files/images/big/1_nc88ks0q2koi.webp');"></div>
+      <div class="sport-card-overlay">
+        <div class="sport-icon">🏎️</div>
         <div class="sport-name">Fórmula 1</div>
-      </div>
-    </div>
-
-    <div class="sport-card" data-sport="voley">
-      <div class="sport-content">
-        <span class="sport-icon">🏐</span>
-        <div class="sport-name">Vôlei</div>
-      </div>
-    </div>
-
-    <div class="sport-card" data-sport="todos">
-      <div class="sport-content">
-        <span class="sport-icon">🌐</span>
-        <div class="sport-name">Gerar Todos</div>
+        <div class="sport-desc">GPs e campeonatos de automobilismo</div>
       </div>
     </div>
   </div>
 
-  <!-- Seção de jogos -->
-  <div class="games-section" id="games-section" style="display: none;">
-    <h2 class="section-title" id="sport-title">Jogos de Hoje</h2>
-    <div id="rodada" style="text-align: center; color: #a855f7; margin-bottom: 20px; font-weight: 600;"></div>
-    <div id="jogos-hoje"></div>
+  <!-- MODAL -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal()">×</button>
+      
+      <h2 class="modal-title" id="modal-sport-name"></h2>
+      <p class="modal-subtitle">Configure seu banner esportivo</p>
+
+      <!-- MODELOS -->
+      <div class="section-title" id="models-section-title">📐 Escolha o Modelo</div>
+      <div class="models-grid" id="models-grid">
+        <!-- Modelos serão carregados dinamicamente aqui -->
+      </div>
+
+      <!-- CORES -->
+      <div class="section-title" id="colors-section-title" style="display: none;">🎨 Escolha a Cor</div>
+      <div class="colors-grid" id="colors-grid" style="display: none;">
+        <!-- Cores serão carregadas dinamicamente aqui -->
+      </div>
+
+      <!-- LOADING -->
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Gerando seu banner...</p>
+      </div>
+
+      <!-- RESULTADO -->
+      <div class="result-section" id="result-section">
+        <img id="result-image" class="result-image" alt="Banner gerado">
+        <div class="result-actions">
+          <button class="result-btn" onclick="downloadBanner()">💾 Download</button>
+          <button class="result-btn" onclick="resetForm()">🔄 Novo Banner</button>
+        </div>
+      </div>
+
+      <!-- BOTÃO GERAR -->
+      <button class="generate-btn" id="generate-btn" onclick="generateBanner()" disabled>
+        🚀 GERAR BANNER
+      </button>
+    </div>
   </div>
-</div>
 
-<footer>
-  © 2025 Orion Creator — Todos os direitos reservados
-</footer>
+  <script type="module">
+    import { auth, onAuthStateChanged } from './js/auth.js';
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    let currentSport = null;
+    let selectedModel = null;
+    let selectedColor = null;
+    let selectedItem = null;
+    let searchTimeout = null;
 
-  // Configuração Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyCJU2wA6lL4aglQIzPrlyYdl_5xaIZqIec",
-    authDomain: "orion-lab-a9298.firebaseapp.com",
-    projectId: "orion-lab-a9298",
-    storageBucket: "orion-lab-a9298.firebasestorage.app",
-    messagingSenderId: "421847499235",
-    appId: "1:421847499235:web:5c271435a1c9d2fe58a0d6",
-    databaseURL: "https://orion-lab-a9298-default-rtdb.firebaseio.com/"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
-
-  // ==================== GERENCIAMENTO DE LOGO E WHATSAPP ====================
-  let userLogoUrl = null;
-  let userWhatsapp = null;
-
-  // Função para atualizar contador de uploads
-  async function atualizarContadorUploads(uid) {
-    try {
-      const dbRef = ref(db);
-      const snapshot = await get(child(dbRef, "usuarios/" + uid));
-      
-      if (snapshot.exists()) {
-        const dados = snapshot.val();
-        const uploadsRestantes = dados.uploads_restantes || 2;
-        const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
-        
-        document.getElementById('uploadsRestantes').textContent = uploadsRestantes;
-        
-        if (dataReset) {
-          document.getElementById('dataReset').textContent = dataReset.toLocaleDateString('pt-BR');
-        }
-        
-        // Desabilitar botão se não tiver uploads restantes
-        const btnUpload = document.getElementById('btnUploadLogo');
-        if (uploadsRestantes <= 0) {
-          btnUpload.disabled = true;
-          btnUpload.textContent = 'Limite Atingido';
-        } else {
-          btnUpload.disabled = false;
-          btnUpload.textContent = 'Enviar Logo';
-        }
-        
-        // Carregar logo do usuário (logo_url é o base64)
-        const logoImg = document.getElementById('logoPreviewImg');
-        const logoPlaceholder = document.getElementById('logoPlaceholder');
-        
-        if (dados.logo_url) {
-          userLogoUrl = dados.logo_url;
-          if (logoImg) {
-            logoImg.src = dados.logo_url;
-            logoImg.style.display = 'block';
-          }
-          if (logoPlaceholder) {
-            logoPlaceholder.style.display = 'none';
-          }
-          console.log('✅ Logo carregada do Firebase:', dados.logo_url.substring(0, 50) + '...');
-        } else {
-          // Sem logo personalizada
-          if (logoImg) logoImg.style.display = 'none';
-          if (logoPlaceholder) {
-            logoPlaceholder.style.display = 'block';
-            logoPlaceholder.textContent = 'Nenhuma logo';
-          }
-          console.log('ℹ️ Usuário não possui logo personalizada');
-        }
-        
-        // Mostrar WhatsApp se existir
-        if (dados.whatsapp) {
-          userWhatsapp = dados.whatsapp;
-          document.getElementById('whatsappInput').value = dados.whatsapp;
-        }
+    // Auth check
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        console.warn('⚠️ Usuário não autenticado');
+        // Comentado para testes: window.location.href = 'index.html';
       }
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados do usuário:', error);
-    }
-  }
+    });
 
-  // Função para resetar contador mensalmente
-  async function verificarResetMensal(uid) {
-    const dbRef = ref(db);
-    const snapshot = await get(child(dbRef, "usuarios/" + uid));
-    
-    if (snapshot.exists()) {
-      const dados = snapshot.val();
-      const dataReset = dados.data_reset_logo ? new Date(dados.data_reset_logo) : null;
-      const hoje = new Date();
-      
-      // Se não tem data de reset ou passou de 30 dias, reseta
-      if (!dataReset || hoje >= dataReset) {
-        const proximoReset = new Date();
-        proximoReset.setDate(proximoReset.getDate() + 30);
-        
-        await update(ref(db, "usuarios/" + uid), {
-          uploads_restantes: 2,
-          data_reset_logo: proximoReset.toISOString()
-        });
-        
-        atualizarContadorUploads(uid);
-      }
-    }
-  }
-
-  // Upload de logo
-  document.getElementById('btnUploadLogo').addEventListener('click', () => {
-    document.getElementById('logoUpload').click();
-  });
-
-  document.getElementById('logoUpload').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    if (!auth.currentUser) {
-      alert('Faça login novamente!');
-      return;
-    }
-    
-    const uid = auth.currentUser.uid;
-    
-    // Verificar uploads restantes
-    const dbRef = ref(db);
-    const snapshot = await get(child(dbRef, "usuarios/" + uid));
-    const dados = snapshot.val();
-    const uploadsRestantes = dados.uploads_restantes || 2;
-    
-    if (uploadsRestantes <= 0) {
-      alert('Você atingiu o limite de 2 uploads por mês. Aguarde o reset em ' + new Date(dados.data_reset_logo).toLocaleDateString('pt-BR'));
-      return;
-    }
-    
-    // Validar arquivo
-    if (!file.type.startsWith('image/')) {
-      alert('Por favor, envie apenas imagens!');
-      return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB!');
-      return;
-    }
-    
-    // Converter para base64
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const logoBase64 = event.target.result;
-      
-      try {
-        // Salvar no Firebase Database
-        await update(ref(db, "usuarios/" + uid), {
-          logo_url: logoBase64,
-          uploads_restantes: uploadsRestantes - 1
-        });
-        
-        // Atualizar preview
-        const logoImg = document.getElementById('logoPreviewImg');
-        const logoPlaceholder = document.getElementById('logoPlaceholder');
-        
-        logoImg.src = logoBase64;
-        logoImg.style.display = 'block';
-        if (logoPlaceholder) {
-          logoPlaceholder.style.display = 'none';
-        }
-        userLogoUrl = logoBase64;
-        
-        alert('Logo enviada com sucesso! Uploads restantes: ' + (uploadsRestantes - 1));
-        atualizarContadorUploads(uid);
-      } catch (error) {
-        console.error('Erro ao salvar logo:', error);
-        alert('Erro ao salvar logo. Tente novamente.');
+    // Funções globais (devem estar disponíveis antes do DOM carregar)
+    window.closeModal = function() {
+      console.log('🔴 Fechando modal');
+      const modal = document.getElementById('modal');
+      if (modal) {
+        modal.classList.remove('active');
       }
     };
-    reader.readAsDataURL(file);
-  });
 
-  // Salvar WhatsApp
-  document.getElementById('btnSalvarWhatsapp').addEventListener('click', async () => {
-    if (!auth.currentUser) {
-      alert('Faça login novamente!');
-      return;
-    }
-    
-    const whatsapp = document.getElementById('whatsappInput').value.trim();
-    
-    if (!whatsapp) {
-      alert('Por favor, insira um número de WhatsApp!');
-      return;
-    }
-    
-    // Validação básica
-    const whatsappLimpo = whatsapp.replace(/\D/g, '');
-    if (whatsappLimpo.length < 10 || whatsappLimpo.length > 11) {
-      alert('Número de WhatsApp inválido! Use o formato: (00) 00000-0000');
-      return;
-    }
-    
-    try {
-      const uid = auth.currentUser.uid;
-      await update(ref(db, "usuarios/" + uid), {
-        whatsapp: whatsapp
-      });
+    window.generateBanner = async function() {
+      console.log('🚀 Gerando banner...');
+      await generateBanner();
+    };
+
+    // Aguardar DOM estar pronto
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🎯 DOM Carregado - Inicializando event listeners');
       
-      userWhatsapp = whatsapp;
-      alert('WhatsApp salvo com sucesso!');
-    } catch (error) {
-      console.error('Erro ao salvar WhatsApp:', error);
-      alert('Erro ao salvar WhatsApp. Tente novamente.');
-    }
-  });
+      // Sport cards click
+      document.querySelectorAll('.sport-card').forEach(card => {
+        console.log('📌 Adicionando listener ao card:', card.dataset.sport);
+        card.addEventListener('click', () => {
+          currentSport = card.dataset.sport;
+          console.log('🔵 Card clicado:', currentSport);
+          openModal(currentSport);
+        });
+      });
+    });
 
-  // Máscara para WhatsApp
-  document.getElementById('whatsappInput').addEventListener('input', (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    
-    if (value.length <= 11) {
-      if (value.length <= 2) {
-        e.target.value = value;
-      } else if (value.length <= 7) {
-        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2)}`;
-      } else {
-        e.target.value = `(${value.slice(0, 2)}) ${value.slice(2, 7)}-${value.slice(7, 11)}`;
+    // Funções para carregar modelos e cores de futebol
+    function loadFootballModels() {
+      const modelsGrid = document.getElementById('models-grid');
+      modelsGrid.innerHTML = `
+        <div class="model-option" data-model="modelo1">
+          <img src="images/modelos/futebol/modelo1/ROXO.png" alt="Modelo 1">
+          <div class="model-name" style="font-size: 0.85rem; color: #a855f7;">Modelo 1</div>
+        </div>
+      `;
+      
+      // Re-attach event listeners
+      document.querySelectorAll('.model-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.model-option').forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          selectedModel = option.dataset.model;
+          if (currentSport === 'football') {
+            loadFootballColors(selectedModel);
+          }
+          checkFormValid();
+        });
+      });
+    }
+
+    function loadFootballColors(model) {
+      const colorsGrid = document.getElementById('colors-grid');
+      const colorsSectionTitle = document.getElementById('colors-section-title');
+      
+      const colors = ['ROXO', 'AZUL'];
+      
+      colorsGrid.innerHTML = colors.map(color => `
+        <div class="color-option" data-color="${color}" title="${color}"></div>
+      `).join('');
+      
+      colorsSectionTitle.style.display = 'block';
+      colorsGrid.style.display = 'flex';
+      
+      // Re-attach event listeners
+      document.querySelectorAll('.color-option').forEach(option => {
+        option.addEventListener('click', () => {
+          document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          selectedColor = option.dataset.color;
+          checkFormValid();
+        });
+      });
+    }
+
+    // Search input
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      const query = e.target.value.trim();
+      
+      if (query.length < 2) {
+        document.getElementById('search-results').innerHTML = '';
+        return;
+      }
+
+      searchTimeout = setTimeout(() => searchItems(query), 500);
+    });
+
+    function openModal(sport) {
+      console.log('🚀 openModal chamado para:', sport);
+      
+      const sportNames = {
+        football: '⚽ FUTEBOL',
+        basketball: '🏀 BASQUETE',
+        tennis: '🎾 TÊNIS',
+        mma: '🥊 UFC / MMA',
+        motorsport: '🏎️ FÓRMULA 1'
+      };
+
+      const modalEl = document.getElementById('modal');
+      const modalSportName = document.getElementById('modal-sport-name');
+      
+      console.log('Modal element:', modalEl);
+      console.log('Modal sport name element:', modalSportName);
+      
+      if (!modalEl || !modalSportName) {
+        console.error('❌ Elementos do modal não encontrados!');
+        return;
+      }
+      
+      modalSportName.textContent = sportNames[sport];
+      modalEl.classList.add('active');
+      
+      console.log('✅ Classe active adicionada ao modal');
+      
+      // Carregar modelos e cores dinamicamente
+      if (sport === 'football') {
+        console.log('⚽ Carregando modelos de futebol...');
+        loadFootballModels();
+        // Esconder cores até selecionar modelo
+        document.getElementById('colors-section-title').style.display = 'none';
+        document.getElementById('colors-grid').style.display = 'none';
+      }
+      
+      resetForm();
+    }
+
+    async function searchItems(query) {
+      const resultsDiv = document.getElementById('search-results');
+      resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #a855f7;">🔍 Buscando...</div>';
+
+      try {
+        const token = await auth.currentUser.getIdToken();
+        const endpoint = getSportEndpoint(currentSport);
+        
+        const response = await fetch(`/api/football${endpoint}?search=${encodeURIComponent(query)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Erro na busca');
+
+        const data = await response.json();
+        displaySearchResults(data);
+      } catch (error) {
+        console.error('Search error:', error);
+        resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #ef4444;">❌ Erro na busca</div>';
       }
     }
-  });
 
-  // Verifica autenticação e carrega dados do usuário
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      window.location.href = "index.html";
-      return;
-    }
-    
-    // Verificar e resetar contador mensal
-    await verificarResetMensal(user.uid);
-    
-    // Atualizar informações de logo e WhatsApp
-    await atualizarContadorUploads(user.uid);
-  });
-
-  // Logout
-  document.getElementById("sidebar-logout").addEventListener("click", async () => {
-    await signOut(auth);
-    window.location.href = "index.html";
-  });
-  
-  // Toggle Menu Sidebar com overlay
-  const menuToggle = document.getElementById("menu-toggle");
-  const sidebar = document.getElementById("sidebar");
-  const sidebarOverlay = document.getElementById("sidebarOverlay");
-  
-  function toggleMenu() {
-    sidebar.classList.toggle("active");
-    sidebarOverlay.classList.toggle("active");
-    document.body.style.overflow = sidebar.classList.contains("active") ? "hidden" : "";
-  }
-  
-  menuToggle.addEventListener("click", toggleMenu);
-  sidebarOverlay.addEventListener("click", toggleMenu);
-  
-  // Fechar ao clicar em link
-  sidebar.querySelectorAll("a").forEach(link => {
-    link.addEventListener("click", () => {
-      if (window.innerWidth <= 768) toggleMenu();
-    });
-  });
-</script>
-
-<script>
-const jogosContainer = document.getElementById('jogos-hoje');
-const rodadaEl = document.getElementById('rodada');
-const gamesSection = document.getElementById('games-section');
-const sportTitle = document.getElementById('sport-title');
-const sportCards = document.querySelectorAll('.sport-card');
-
-const statusPT = {
-  "SCHEDULED": "Agendado",
-  "LIVE": "🔴 Ao Vivo",
-  "IN_PLAY": "🔴 Em Andamento",
-  "PAUSED": "⏸️ Pausado",
-  "FINISHED": "✅ Finalizado",
-  "POSTPONED": "⏰ Adiado",
-  "CANCELLED": "❌ Cancelado"
-};
-
-const sportsConfig = {
-  futebol: {
-    title: '⚽ FUTEBOL - Jogos de Hoje',
-    leagues: ['BSA', 'PL', 'BL1', 'PD', 'SA', 'CL']
-  },
-  basquete: {
-    title: '🏀 BASQUETE - Jogos de Hoje',
-    message: '🏀 Sistema de basquete em desenvolvimento...'
-  },
-  ufc: {
-    title: '🥊 UFC/MMA - Lutas Programadas',
-    message: '🥊 Sistema de UFC/MMA em desenvolvimento...'
-  },
-  f1: {
-    title: '🏎️ FÓRMULA 1 - Próximas Corridas',
-    message: '🏎️ Sistema de Fórmula 1 em desenvolvimento...'
-  },
-  voley: {
-    title: '🏐 VÔLEI - Jogos de Hoje',
-    message: '🏐 Sistema de vôlei em desenvolvimento...'
-  },
-  todos: {
-    title: '🌐 TODOS OS ESPORTES',
-    leagues: ['BSA', 'PL', 'BL1', 'PD', 'SA', 'CL']
-  }
-};
-
-async function carregarJogos(sport) {
-  const config = sportsConfig[sport];
-  if (!config) return;
-
-  sportTitle.textContent = config.title;
-  gamesSection.style.display = 'block';
-  jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #a855f7; font-size: 1.2rem;"><div style="animation: spin 1s linear infinite; display: inline-block;">⚽</div> Carregando jogos...</div>';
-  rodadaEl.textContent = '';
-
-  // Se não tem leagues configuradas, mostrar mensagem
-  if (!config.leagues) {
-    jogosContainer.innerHTML = `<div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(99, 102, 241, 0.1)); border-radius: 20px; border: 2px solid rgba(168, 85, 247, 0.3);"><p style="font-size: 1.5rem; color: #a855f7; margin-bottom: 10px;">${config.message}</p><p style="color: rgba(255,255,255,0.6);">Em breve você poderá acompanhar este esporte!</p></div>`;
-    return;
-  }
-
-  try {
-    // Carregar primeira liga como exemplo
-    const leagueCode = config.leagues[0];
-    const res = await fetch(`/api/jogos?league=${leagueCode}`);
-    const data = await res.json();
-
-    if (!data.matches || data.matches.length === 0) {
-      jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.6);">⚠️ Nenhum jogo encontrado para hoje.</div>';
-      return;
+    function getSportEndpoint(sport) {
+      const endpoints = {
+        football: '/teams',
+        basketball: '/teams?sport=basketball',
+        tennis: '/players?sport=tennis',
+        mma: '/players?sport=mma',
+        motorsport: '/events?sport=motorsport'
+      };
+      return endpoints[sport] || '/teams';
     }
 
-    if (data.matchday) rodadaEl.textContent = `Rodada ${data.matchday}`;
+    function displaySearchResults(data) {
+      const resultsDiv = document.getElementById('search-results');
+      const items = data.teams || data.players || data.events || [];
 
-    jogosContainer.innerHTML = '';
-    data.matches.forEach(jogo => {
-      const dataJogo = new Date(jogo.utcDate || jogo.date);
-      const dia = dataJogo.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
-      const hora = dataJogo.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const status = statusPT[jogo.status] || jogo.status;
-      const placar = jogo.score?.fullTime ? `${jogo.score.fullTime.home || 0} x ${jogo.score.fullTime.away || 0}` : 'vs';
+      if (items.length === 0) {
+        resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: rgba(255,255,255,0.6);">Nenhum resultado encontrado</div>';
+        return;
+      }
 
-      const card = `
-      <div class="card-jogo" style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center;">
-        <div style="text-align: right; font-weight: 600; font-size: 1.1rem;">
-          ${jogo.homeTeam.name}
+      resultsDiv.innerHTML = items.slice(0, 10).map(item => `
+        <div class="search-result-item" onclick="selectItem(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+          ${item.strTeamBadge || item.strThumb ? `<img src="${item.strTeamBadge || item.strThumb}" alt="">` : ''}
+          <div>
+            <div style="font-weight: 600;">${item.strTeam || item.strPlayer || item.strEvent || 'N/A'}</div>
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+              ${item.strLeague || item.strNationality || item.strCountry || ''}
+            </div>
+          </div>
         </div>
-        <div style="text-align: center; min-width: 150px;">
-          <div style="font-size: 1.3rem; font-weight: 700; color: #a855f7; margin-bottom: 5px;">${placar}</div>
-          <div style="font-size: 0.9rem; color: rgba(255,255,255,0.7);">${dia} • ${hora}</div>
-          <div style="font-size: 0.85rem; color: #6366f1; margin-top: 5px;">${status}</div>
-        </div>
-        <div style="text-align: left; font-weight: 600; font-size: 1.1rem;">
-          ${jogo.awayTeam.name}
-        </div>
-      </div>`;
-      jogosContainer.innerHTML += card;
+      `).join('');
+    }
+
+    window.selectItem = function(item) {
+      selectedItem = item;
+      document.getElementById('search-input').value = item.strTeam || item.strPlayer || item.strEvent || '';
+      document.getElementById('search-results').innerHTML = '';
+      checkFormValid();
+    }
+
+    function checkFormValid() {
+      // Para futebol, só precisa de modelo e cor (não precisa de item específico)
+      const valid = selectedModel && selectedColor;
+      document.getElementById('generate-btn').disabled = !valid;
+    }
+
+    async function generateBanner() {
+      const loadingDiv = document.getElementById('loading');
+      const resultDiv = document.getElementById('result-section');
+      const generateBtn = document.getElementById('generate-btn');
+
+      loadingDiv.classList.add('active');
+      resultDiv.classList.remove('active');
+      generateBtn.disabled = true;
+
+      try {
+        const token = await auth.currentUser.getIdToken();
+        
+        const payload = {
+          sport: currentSport,
+          model: selectedModel,
+          color: selectedColor
+        };
+
+        const response = await fetch('/api/football/generate-banner', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Erro ao gerar banner');
+        }
+
+        const result = await response.json();
+        
+        document.getElementById('result-image').src = result.url;
+        resultDiv.classList.add('active');
+        window.currentBannerUrl = result.url;
+        
+      } catch (error) {
+        console.error('Generate error:', error);
+        alert('❌ ' + error.message);
+        generateBtn.disabled = false;
+      } finally {
+        loadingDiv.classList.remove('active');
+      }
+    }
+
+    window.downloadBanner = function() {
+      if (!window.currentBannerUrl) return;
+      
+      const a = document.createElement('a');
+      a.href = window.currentBannerUrl;
+      a.download = `banner-${currentSport}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    window.resetForm = function() {
+      document.querySelectorAll('.model-option').forEach(o => o.classList.remove('selected'));
+      document.querySelectorAll('.color-option').forEach(o => o.classList.remove('selected'));
+      document.getElementById('search-input').value = '';
+      document.getElementById('search-results').innerHTML = '';
+      document.getElementById('result-section').classList.remove('active');
+      
+      selectedModel = null;
+      selectedColor = null;
+      selectedItem = null;
+      
+      checkFormValid();
+    }
+
+    // Close modal on outside click
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') {
+        closeModal();
+      }
     });
-
-  } catch (err) {
-    console.error(err);
-    jogosContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">❌ Erro ao carregar dados da API.</div>';
-  }
-}
-
-// Adicionar eventos aos cards
-sportCards.forEach(card => {
-  card.addEventListener('click', () => {
-    // Remover active de todos
-    sportCards.forEach(c => c.classList.remove('active'));
-    // Adicionar active no clicado
-    card.classList.add('active');
-    // Carregar jogos
-    const sport = card.dataset.sport;
-    carregarJogos(sport);
-    
-    // Scroll suave para a seção de jogos
-    setTimeout(() => {
-      gamesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-  });
-});
-
-// Adicionar animação de spin para loading
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(style);
-</script>
+  </script>
 </body>
 </html>

@@ -6,7 +6,9 @@
     "allowJs": true,
     "checkJs": false,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "disableSourceOfProjectReferenceRedirect": true,
+    "noResolve": false
   },
   "include": [
     "*.js",
@@ -14,6 +16,10 @@
     "public/**/*.js"
   ],
   "exclude": [
+    "node_modules",
+    "node_modules/**",
+    "**/node_modules",
+    "**/node_modules/**",
     "node_modules/**/*",
     "**/node_modules/**/*"
   ]

@@ -149,3 +149,6 @@ function traduzErro(code) {
   };
   return erros[code] || "Ocorreu um erro inesperado.";
 }
+
+// ===== EXPORTAÇÕES =====
+export { auth, db, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, ref, set };

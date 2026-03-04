@@ -12,13 +12,26 @@
       box-sizing: border-box;
     }
 
+    * { max-width: 100vw; }
+    html {
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
+      height: 100% !important;
+      width: 100% !important;
+      scroll-behavior: smooth !important;
+    }
+
     body {
       margin: 0;
       font-family: "Poppins", sans-serif;
       background: linear-gradient(135deg, #0a0118 0%, #1a0b3d 50%, #2d1b69 100%);
       color: white;
-      overflow-x: hidden;
-      min-height: 100vh;
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
+      min-height: 100vh !important;
+      height: auto !important;
+      width: 100% !important;
+      max-width: 100vw;
     }
 
     .stars {
@@ -31,6 +44,7 @@
       animation: moveStars 120s linear infinite;
       z-index: -1;
       opacity: 0.3;
+      pointer-events: none !important;
     }
 
     @keyframes moveStars {
@@ -329,6 +343,15 @@
   </style>
 </head>
 <body>
+  <!-- HEADER -->
+  <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: rgba(10, 10, 30, 0.8); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(168, 85, 247, 0.2);">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <span style="font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 900; color: #a855f7;">PERFIL</span>
+    </div>
+    <a href="home.html" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3)); border: 1px solid rgba(168, 85, 247, 0.5); color: white; padding: 10px 25px; border-radius: 25px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease;" onmouseover="this.style.background='linear-gradient(135deg, rgba(168, 85, 247, 0.5), rgba(99, 102, 241, 0.5))'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 5px 20px rgba(168, 85, 247, 0.4)'" onmouseout="this.style.background='linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.3))'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+      <span>←</span> Voltar
+    </a>
+  </div>
   <div class="stars"></div>
 
   <button id="menu-toggle">☰</button>
